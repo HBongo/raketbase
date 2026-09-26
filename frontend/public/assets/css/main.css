@@ -3416,10 +3416,59 @@ body.dark-mode .dropdown-divider {
     border-color: var(--border-light) !important;
 }
 
-/* Role mode pill */
+/* Role mode pill & Light buttons in Dark Mode */
+body.dark-mode .btn-light,
 body.dark-mode .bg-light.rounded-pill.border {
     background-color: #1F2D27 !important;
     border-color: var(--border-light) !important;
+    color: var(--text-main) !important;
+}
+
+body.dark-mode .btn-light:hover,
+body.dark-mode .bg-light.rounded-pill.border:hover {
+    background-color: #2A3832 !important;
+    border-color: #3D5248 !important;
+    color: var(--text-main) !important;
+}
+
+.navbar-role-btn {
+    background-color: #F4F6F5;
+    border-color: #E2E8F0;
+    color: #0B130F;
+    transition: all 0.2s ease-in-out;
+}
+
+.navbar-role-btn:hover {
+    background-color: #E9ECEF;
+    border-color: #CBD5E1;
+    color: #0B130F;
+}
+
+.navbar-role-btn .navbar-role-btn-text {
+    color: #0B130F;
+}
+
+.navbar-role-btn .navbar-role-btn-icon {
+    color: #6C7E75;
+}
+
+body.dark-mode .navbar-role-btn {
+    background-color: #1F2D27 !important;
+    border-color: var(--border-light) !important;
+    color: var(--text-main) !important;
+}
+
+body.dark-mode .navbar-role-btn:hover {
+    background-color: #2A3832 !important;
+    border-color: #3D5248 !important;
+}
+
+body.dark-mode .navbar-role-btn .navbar-role-btn-text {
+    color: var(--text-main) !important;
+}
+
+body.dark-mode .navbar-role-btn .navbar-role-btn-icon {
+    color: var(--text-muted-green) !important;
 }
 
 /* Transaction list items (Dashboard) */

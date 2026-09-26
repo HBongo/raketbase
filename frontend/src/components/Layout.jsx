@@ -259,7 +259,7 @@ export default function Layout() {
             </button>
             <button
               type="button"
-              className="btn btn-sm btn-light border rounded-pill px-3 py-1 d-none d-md-flex align-items-center gap-2 text-decoration-none shadow-none"
+              className="navbar-role-btn btn btn-sm btn-light border rounded-pill px-3 py-1 d-none d-md-flex align-items-center gap-2 text-decoration-none shadow-none"
               title={`Currently in ${user?.active_role || 'freelancer'} mode. Click to switch to ${user?.active_role === 'customer' ? 'freelancer' : 'customer'} mode.`}
               onClick={handleToggleRole}
               disabled={isSwitchingRole}
@@ -270,10 +270,10 @@ export default function Layout() {
               ) : (
                 <i className={`bi ${user?.active_role === 'customer' ? 'bi-briefcase-fill text-primary' : 'bi-person-badge-fill text-success'}`}></i>
               )}
-              <span className="small text-dark fw-medium text-capitalize">
+              <span className="navbar-role-btn-text small fw-medium text-capitalize">
                 {isSwitchingRole ? 'Switching...' : `${user?.active_role || 'freelancer'} Mode`}
               </span>
-              <i className="bi bi-arrow-left-right text-muted" style={{ fontSize: '0.75rem' }}></i>
+              <i className="navbar-role-btn-icon bi bi-arrow-left-right" style={{ fontSize: '0.75rem' }}></i>
             </button>
             <div className="d-none d-md-block vr mx-1 text-secondary opacity-25" style={{ height: '24px' }}></div>
             <div className="dropdown">
