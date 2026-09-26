@@ -321,7 +321,7 @@ function ProfileSkeleton() {
       {loading && <ProfileSkeleton />}
 
         {!loading && loadError && (
-          <div className="card text-center py-5 mx-3 border">
+          <div className="card text-center py-5 border">
             <div className="card-body">
               <h5 className="fw-medium text-dark">Couldn't load this profile</h5>
               <p className="text-muted">{loadError}</p>
@@ -332,7 +332,7 @@ function ProfileSkeleton() {
 
         {/* ── Profile Layout ───────────────────────────────────────── */}
         {!loading && !loadError && profile && (
-          <div className="row g-4 px-3 mb-4">
+          <div className="row g-4 mb-4">
 
             {/* ── Left Column ───────────────────────────────────────── */}
             <div className="col-12 col-md-4">
@@ -533,7 +533,7 @@ function ProfileSkeleton() {
               {/* Tab Navigation */}
               <div className="card shadow-sm border-0 mb-4">
                 <div className="card-body p-0">
-                  <ul className="nav nav-pills p-3 gap-2" role="tablist">
+                  <ul className="nav nav-pills p-3 gap-2 justify-content-center flex-wrap" role="tablist">
                     {[
                       { id: 'about', label: 'About Me', icon: 'bi-person' },
                       { id: 'experience', label: 'Experience', icon: 'bi-building' },

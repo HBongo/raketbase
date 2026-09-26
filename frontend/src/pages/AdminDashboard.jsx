@@ -1,16 +1,5 @@
-// AdminDashboard.jsx — Platform Management & Disputes (Member 5 — Part 4)
-// Features:
-// 1. Metric summary cards (Total Users, Active Contracts, Platform Revenue, Open Disputes)
-// 2. Dispute resolution panel — inspect evidence, resolve (Refund / Release / Split)
-// 3. User management table — toggle Active / Suspended
-//
-// NOTE: Falls back to local mock data if the backend/DB isn't reachable yet
-// (e.g. before the `users.status` migration is run, or before Supabase access
-// is available). Swap MOCK_* below or remove the catch-fallback once the
-// backend is confirmed working end-to-end.
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   getAdminAnalytics,
   getAdminUsers,
@@ -50,9 +39,9 @@ const MOCK_DISPUTES = [
 ];
 
 const STATUS_STYLES = {
-  open: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
-  under_review: 'bg-accent/10 text-accent border-accent/30',
-  resolved: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  open: 'bg-danger text-white',
+  under_review: 'bg-warning text-dark',
+  resolved: 'bg-success text-white',
 };
 
 export default function AdminDashboard() {
@@ -97,8 +86,6 @@ export default function AdminDashboard() {
       setUsers(usersRes.data || []);
       setUsingMockData(false);
     } catch (err) {
-      // Backend/DB not reachable yet (migration not run, no DB access, etc.)
-      // Fall back to mock data so the UI is still reviewable.
       console.warn('Admin data fetch failed, showing mock data:', err.message);
       setAnalytics(MOCK_ANALYTICS);
       setDisputes(MOCK_DISPUTES);
@@ -120,7 +107,6 @@ export default function AdminDashboard() {
     setActioningId(resolvingDispute.dispute_id);
 
     if (usingMockData) {
-      // Simulate locally since there's no live backend to hit yet.
       setDisputes((prev) =>
         prev.map((d) =>
           d.dispute_id === resolvingDispute.dispute_id ? { ...d, status: 'resolved' } : d
@@ -174,8 +160,8 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-bg text-text items-center justify-center">
-        <p className="text-text-secondary animate-pulse">Loading platform metrics...</p>
+      <div className="d-flex min-vh-100 align-items-center justify-content-center">
+        <p className="text-muted">Loading platform metrics...</p>
       </div>
     );
   }
@@ -184,254 +170,375 @@ export default function AdminDashboard() {
   const resolvedDisputes = disputes.filter((d) => d.status === 'resolved');
 
   return (
-    <div className="min-h-screen bg-bg text-text">
-      <Navbar />
-
-      <div className="p-8">
-        <div className="max-w-5xl mx-auto">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-border pb-6">
-            <div>
-              <h1 className="font-display text-3xl font-semibold tracking-tight">Admin Dashboard</h1>
-              <p className="text-text-secondary text-sm mt-1">
-                Platform metrics, dispute resolution, and user management.
-              </p>
-            </div>
-            <span className="inline-block rounded bg-surface border border-border px-3 py-1.5 text-[11px] font-medium text-accent uppercase tracking-wider">
-              {user.role || 'Admin'} access
-            </span>
+    <>
+      {/* Sidebar */}
+      <div className="sidebar-wrapper" id="sidebar">
+        <Link to="/" className="sidebar-brand text-decoration-none d-flex align-items-center gap-1" style={{ padding: "10px 0" }}>
+          <img src="/racketbaseSVG.svg" alt="RaketBase Logo" style={{ height: "50px", objectFit: "contain", marginTop: "-8px" }} />
+          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "24px", color: "#fff", letterSpacing: "0.5px", display: "flex", alignItems: "center" }}>
+            <span style={{ fontWeight: 800 }}>RAKET</span>
+            <span style={{ fontWeight: 400 }}>BASE</span>
           </div>
-
-          {/* Mock data banner */}
-          {usingMockData && (
-            <div className="mb-6 p-4 rounded-lg bg-accent/10 border border-accent/30 text-accent text-sm">
-              Showing sample data — the backend or database isn't reachable yet. Actions here are
-              simulated locally and won't persist.
-            </div>
-          )}
-
-          {/* Feedback toasts */}
-          {actionSuccess && (
-            <div className="mb-6 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-bold">✓</span>
-                <span>{actionSuccess}</span>
-              </div>
-              <button onClick={() => setActionSuccess('')} className="text-text-secondary hover:text-text text-sm cursor-pointer ml-4">
-                ✕
-              </button>
-            </div>
-          )}
-          {actionError && (
-            <div className="mb-6 p-4 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-bold">!</span>
-                <span>{actionError}</span>
-              </div>
-              <button onClick={() => setActionError('')} className="text-text-secondary hover:text-text text-sm cursor-pointer ml-4">
-                ✕
-              </button>
-            </div>
-          )}
-
-          {/* Metric Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-            <div className="bg-panel p-6 rounded-lg border border-border">
-              <h3 className="text-text-secondary text-[13px] font-medium mb-1">Total Users</h3>
-              <p className="text-3xl font-display font-medium text-text">{analytics.total_users}</p>
-              <p className="text-[11px] text-text-secondary mt-1">Registered accounts</p>
-            </div>
-            <div className="bg-panel p-6 rounded-lg border border-border">
-              <h3 className="text-text-secondary text-[13px] font-medium mb-1">Active Contracts</h3>
-              <p className="text-3xl font-display font-medium text-accent">{analytics.active_contracts}</p>
-              <p className="text-[11px] text-text-secondary mt-1">In progress or submitted</p>
-            </div>
-            <div className="bg-panel p-6 rounded-lg border border-border">
-              <h3 className="text-text-secondary text-[13px] font-medium mb-1">Platform Revenue</h3>
-              <p className="text-3xl font-display font-medium text-emerald-400">
-                ₱{Number(analytics.platform_revenue).toLocaleString()}
-              </p>
-              <p className="text-[11px] text-text-secondary mt-1">From completed contracts</p>
-            </div>
-            <div className="bg-panel p-6 rounded-lg border border-border">
-              <h3 className="text-text-secondary text-[13px] font-medium mb-1">Open Disputes</h3>
-              <p className="text-3xl font-display font-medium text-rose-400">{analytics.open_disputes}</p>
-              <p className="text-[11px] text-text-secondary mt-1">Needing review</p>
-            </div>
+        </Link>
+        <div className="flex-grow-1 overflow-y-auto mt-4">
+          {/* Menu Section */}
+          <div className="sidebar-menu-section">
+            <div className="sidebar-menu-title">Menu</div>
+            <ul className="sidebar-menu-list">
+              <li className="sidebar-menu-item">
+                <Link to="/dashboard" className="sidebar-menu-link active">
+                  <i className="bi bi-grid-fill"></i><span>Dashboard</span>
+                </Link>
+              </li>
+              <li className="sidebar-menu-item">
+                <Link to="/messages" className="sidebar-menu-link">
+                  <i className="bi bi-chat-dots"></i><span>Messages</span>
+                </Link>
+              </li>
+              <li className="sidebar-menu-item">
+                <Link to="/top-users" className="sidebar-menu-link">
+                  <i className="bi bi-star"></i><span>Top Freelancers</span>
+                </Link>
+              </li>
+              <li className="sidebar-menu-item">
+                <Link to={`/freelancer/${user?.user_id || user?.id}`} className="sidebar-menu-link">
+                  <i className="bi bi-person"></i><span>My Account</span>
+                </Link>
+              </li>
+            </ul>
           </div>
-
-          {/* Disputes Panel */}
-          <div className="bg-panel border border-border rounded-lg mb-10 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface/50">
-              <div className="flex items-center gap-2">
-                <h2 className="font-display text-lg font-medium">Dispute Resolution</h2>
-              </div>
-              <span className="text-xs text-text-secondary hidden sm:inline">
-                {openDisputes.length} open · {resolvedDisputes.length} resolved
-              </span>
-            </div>
-
-            {disputes.length === 0 ? (
-              <div className="px-6 py-12 text-center">
-                <p className="font-display text-base font-medium mb-1">No disputes filed</p>
-                <p className="text-text-secondary text-sm">All contracts are running smoothly.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {disputes.map((d) => (
-                  <div key={d.dispute_id} className="px-6 py-5">
-                    <div className="flex items-start justify-between gap-4 mb-2">
-                      <div>
-                        <p className="font-display text-sm font-medium">
-                          {d.contracts?.jobs?.title || 'Contract dispute'}
-                        </p>
-                        <p className="text-[11px] text-text-secondary mt-0.5">
-                          ₱{Number(d.contracts?.agreed_amount || 0).toLocaleString()} in escrow ·{' '}
-                          {new Date(d.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <span
-                        className={`shrink-0 rounded border px-2 py-1 text-[11px] font-medium uppercase tracking-wide ${
-                          STATUS_STYLES[d.status] || STATUS_STYLES.open
-                        }`}
-                      >
-                        {d.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <p className="text-text-secondary text-sm mb-3">{d.reason}</p>
-                    {d.resolution_notes && (
-                      <p className="text-emerald-400 text-xs mb-3">Resolution: {d.resolution_notes}</p>
-                    )}
-                    {d.status !== 'resolved' && (
-                      <button
-                        onClick={() => setResolvingDispute(d)}
-                        className="px-3.5 py-1.5 bg-accent text-[#1A1305] rounded-md text-xs font-semibold hover:bg-accent-hover transition-colors cursor-pointer"
-                      >
-                        Review & Resolve
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* User Management Table */}
-          <div className="bg-panel border border-border rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface/50">
-              <div className="flex items-center gap-2">
-                <h2 className="font-display text-lg font-medium">User Management</h2>
-              </div>
-              <span className="text-xs text-text-secondary hidden sm:inline">{users.length} accounts</span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-text-secondary text-[11px] uppercase tracking-wide border-b border-border">
-                    <th className="px-6 py-3 font-medium">Name</th>
-                    <th className="px-6 py-3 font-medium">Email</th>
-                    <th className="px-6 py-3 font-medium">Role</th>
-                    <th className="px-6 py-3 font-medium">Status</th>
-                    <th className="px-6 py-3 font-medium text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {users.map((u) => (
-                    <tr key={u.user_id}>
-                      <td className="px-6 py-3.5 font-medium">
-                        {[u.first_name, u.last_name].filter(Boolean).join(' ') || '—'}
-                      </td>
-                      <td className="px-6 py-3.5 text-text-secondary">{u.email}</td>
-                      <td className="px-6 py-3.5 text-text-secondary capitalize">
-                        {u.role}
-                        {u.role === 'customer' && u.active_role ? ` (${u.active_role})` : ''}
-                      </td>
-                      <td className="px-6 py-3.5">
-                        <span
-                          className={`rounded border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${
-                            u.status === 'suspended'
-                              ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                          }`}
-                        >
-                          {u.status || 'active'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3.5 text-right">
-                        {u.role !== 'admin' && (
-                          <button
-                            onClick={() => handleToggleUserStatus(u)}
-                            disabled={actioningId === u.user_id}
-                            className="px-3 py-1.5 border border-border rounded-md text-xs font-medium hover:border-accent/40 transition-colors cursor-pointer disabled:opacity-50"
-                          >
-                            {u.status === 'suspended' ? 'Reactivate' : 'Suspend'}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          {/* Jobs Section */}
+          <div className="sidebar-menu-section">
+            <div className="sidebar-menu-title">Jobs</div>
+            <ul className="sidebar-menu-list">
+              <li className="sidebar-menu-item">
+                <Link to="/explore" className="sidebar-menu-link">
+                  <i className="bi bi-search"></i><span>Explore Jobs</span>
+                </Link>
+              </li>
+              {user?.active_role === "freelancer" && (
+                <li className="sidebar-menu-item">
+                  <Link to="/my-proposals" className="sidebar-menu-link">
+                    <i className="bi bi-file-earmark-text"></i><span>My Proposals</span>
+                  </Link>
+                </li>
+              )}
+              {user?.active_role === "customer" && (
+                <>
+                  <li className="sidebar-menu-item">
+                    <Link to="/my-jobs" className="sidebar-menu-link">
+                      <i className="bi bi-briefcase"></i><span>My Postings</span>
+                    </Link>
+                  </li>
+                  <li className="sidebar-menu-item">
+                    <Link to="/jobs/create" className="sidebar-menu-link">
+                      <i className="bi bi-plus-circle"></i><span>Post a Job</span>
+                    </Link>
+                  </li>
+                </>
+              )}
+            </ul>
           </div>
         </div>
       </div>
 
-      {/* Resolve Dispute Modal */}
-      {resolvingDispute && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md bg-panel border border-border rounded-lg p-6">
-            <h3 className="font-display text-lg font-medium mb-1">Resolve Dispute</h3>
-            <p className="text-text-secondary text-sm mb-4">
-              {resolvingDispute.contracts?.jobs?.title} — ₱
-              {Number(resolvingDispute.contracts?.agreed_amount || 0).toLocaleString()} in escrow
-            </p>
-
-            <label className="block text-[13px] font-medium text-text-secondary mb-1.5">
-              Resolution notes (optional)
-            </label>
-            <textarea
-              value={resolutionNotes}
-              onChange={(e) => setResolutionNotes(e.target.value)}
-              rows={3}
-              className="w-full bg-surface border border-border text-text px-3 py-2.5 rounded-md text-sm outline-none focus:border-accent transition-colors mb-5"
-              placeholder="Add context for the resolution log..."
-            />
-
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                onClick={() => handleResolve('release_freelancer')}
-                disabled={actioningId === resolvingDispute.dispute_id}
-                className="px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-md text-sm font-medium hover:bg-emerald-500/20 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Release to Freelancer
-              </button>
-              <button
-                onClick={() => handleResolve('refund_client')}
-                disabled={actioningId === resolvingDispute.dispute_id}
-                className="px-4 py-2.5 bg-accent/10 border border-accent/30 text-accent rounded-md text-sm font-medium hover:bg-accent/20 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Refund Client
-              </button>
-              <button
-                onClick={() => handleResolve('split')}
-                disabled={actioningId === resolvingDispute.dispute_id}
-                className="px-4 py-2.5 border border-border rounded-md text-sm font-medium hover:border-accent/40 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Split Funds
+      {/* Main Content */}
+      <div className="main-wrapper">
+        <div className="header-container fixed-top" style={{ position: "sticky" }}>
+          <header className="header navbar navbar-expand-sm expand-header">
+            <div className="navbar-left">
+              <button className="sidebar-toggle-btn me-2" id="sidebar-toggle">
+                <i className="bi bi-list"></i>
               </button>
             </div>
+            <div className="navbar-search-wrapper">
+              <input type="text" className="navbar-search-input" placeholder="Search..." />
+              <i className="bi bi-search search-icon"></i>
+            </div>
+            <ul className="navbar-nav ms-auto align-items-center">
+              <li className="nav-item">
+                <div className="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded-pill border">
+                  <span className="small text-muted fw-medium text-capitalize">{user?.active_role || 'Admin'} Mode</span>
+                </div>
+              </li>
+              <li className="nav-item">
+                <Link to={`/freelancer/${user?.user_id}`} className="nav-link d-flex align-items-center">
+                  <img src={user?.avatar_url || "https://ui-avatars.com/api/?name=Admin&background=random"} alt="Profile" className="rounded-circle border" style={{ width: "36px", height: "36px", objectFit: "cover" }} />
+                </Link>
+              </li>
+            </ul>
+          </header>
+        </div>
 
-            <button
-              onClick={() => { setResolvingDispute(null); setResolutionNotes(''); }}
-              className="w-full mt-3 px-4 py-2 text-text-secondary text-sm hover:text-text transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
+        {/* Page Content Here */}
+        <div className="row g-4 mb-4">
+          <div className="col-12">
+            
+            {/* Header */}
+            <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-3 mb-4 border-bottom pb-3">
+              <div>
+                <h2 className="fw-bold mb-1">Admin Dashboard</h2>
+                <p className="text-muted small mb-0">
+                  Platform metrics, dispute resolution, and user management.
+                </p>
+              </div>
+              <span className="badge bg-light border text-dark rounded-pill py-2 px-3 text-uppercase tracking-wider">
+                {user.role || 'Admin'} access
+              </span>
+            </div>
+
+            {/* Mock data banner */}
+            {usingMockData && (
+              <div className="alert alert-warning small d-flex align-items-center" role="alert">
+                <i className="bi bi-info-circle-fill me-2"></i>
+                <div>
+                  Showing sample data — the backend or database isn't reachable yet. Actions here are simulated locally and won't persist.
+                </div>
+              </div>
+            )}
+
+            {/* Feedback toasts */}
+            {actionSuccess && (
+              <div className="alert alert-success alert-dismissible fade show small" role="alert">
+                <i className="bi bi-check-circle-fill me-2"></i>
+                {actionSuccess}
+                <button type="button" className="btn-close" onClick={() => setActionSuccess('')} aria-label="Close"></button>
+              </div>
+            )}
+            {actionError && (
+              <div className="alert alert-danger alert-dismissible fade show small" role="alert">
+                <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                {actionError}
+                <button type="button" className="btn-close" onClick={() => setActionError('')} aria-label="Close"></button>
+              </div>
+            )}
+
+            {/* Metric Summary Cards */}
+            <div className="row g-3 mb-5">
+              <div className="col-12 col-sm-6 col-xl-3">
+                <div className="card h-100 shadow-sm">
+                  <div className="card-body">
+                    <h6 className="card-title text-muted small mb-1 fw-medium">Total Users</h6>
+                    <h3 className="fw-bold mb-1">{analytics.total_users}</h3>
+                    <small className="text-muted" style={{ fontSize: '11px' }}>Registered accounts</small>
+                  </div>
+                </div>
+              </div>
+              <div className="col-12 col-sm-6 col-xl-3">
+                <div className="card h-100 shadow-sm">
+                  <div className="card-body">
+                    <h6 className="card-title text-muted small mb-1 fw-medium">Active Contracts</h6>
+                    <h3 className="fw-bold mb-1 text-warning">{analytics.active_contracts}</h3>
+                    <small className="text-muted" style={{ fontSize: '11px' }}>In progress or submitted</small>
+                  </div>
+                </div>
+              </div>
+              <div className="col-12 col-sm-6 col-xl-3">
+                <div className="card h-100 shadow-sm">
+                  <div className="card-body">
+                    <h6 className="card-title text-muted small mb-1 fw-medium">Platform Revenue</h6>
+                    <h3 className="fw-bold mb-1 text-success">
+                      ₱{Number(analytics.platform_revenue).toLocaleString()}
+                    </h3>
+                    <small className="text-muted" style={{ fontSize: '11px' }}>From completed contracts</small>
+                  </div>
+                </div>
+              </div>
+              <div className="col-12 col-sm-6 col-xl-3">
+                <div className="card h-100 shadow-sm">
+                  <div className="card-body">
+                    <h6 className="card-title text-muted small mb-1 fw-medium">Open Disputes</h6>
+                    <h3 className="fw-bold mb-1 text-danger">{analytics.open_disputes}</h3>
+                    <small className="text-muted" style={{ fontSize: '11px' }}>Needing review</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Disputes Panel */}
+            <div className="card shadow-sm mb-5">
+              <div className="card-header bg-light d-flex justify-content-between align-items-center py-3">
+                <h5 className="mb-0 fw-bold fs-6">Dispute Resolution</h5>
+                <small className="text-muted d-none d-sm-inline">
+                  {openDisputes.length} open · {resolvedDisputes.length} resolved
+                </small>
+              </div>
+
+              {disputes.length === 0 ? (
+                <div className="card-body text-center py-5">
+                  <h6 className="fw-bold mb-1">No disputes filed</h6>
+                  <p className="text-muted small mb-0">All contracts are running smoothly.</p>
+                </div>
+              ) : (
+                <div className="list-group list-group-flush">
+                  {disputes.map((d) => (
+                    <div key={d.dispute_id} className="list-group-item py-4 px-4">
+                      <div className="d-flex align-items-start justify-content-between gap-3 mb-2">
+                        <div>
+                          <h6 className="fw-bold mb-0">
+                            {d.contracts?.jobs?.title || 'Contract dispute'}
+                          </h6>
+                          <p className="text-muted mt-1 mb-0" style={{ fontSize: '12px' }}>
+                            ₱{Number(d.contracts?.agreed_amount || 0).toLocaleString()} in escrow ·{' '}
+                            {new Date(d.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span
+                          className={`badge rounded-pill fw-medium text-uppercase ${
+                            STATUS_STYLES[d.status] || STATUS_STYLES.open
+                          }`}
+                          style={{ fontSize: '11px' }}
+                        >
+                          {d.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <p className="text-muted small mb-3">{d.reason}</p>
+                      {d.resolution_notes && (
+                        <p className="text-success small mb-3"><strong>Resolution:</strong> {d.resolution_notes}</p>
+                      )}
+                      {d.status !== 'resolved' && (
+                        <button
+                          onClick={() => setResolvingDispute(d)}
+                          className="btn btn-sm btn-dark fw-medium mt-2"
+                        >
+                          Review & Resolve
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* User Management Table */}
+            <div className="card shadow-sm">
+              <div className="card-header bg-light d-flex justify-content-between align-items-center py-3">
+                <h5 className="mb-0 fw-bold fs-6">User Management</h5>
+                <small className="text-muted d-none d-sm-inline">{users.length} accounts</small>
+              </div>
+
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Name</th>
+                      <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Email</th>
+                      <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Role</th>
+                      <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Status</th>
+                      <th className="text-muted text-uppercase fw-medium text-end" style={{ fontSize: '12px', padding: '12px 16px' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => (
+                      <tr key={u.user_id}>
+                        <td className="fw-medium" style={{ padding: '12px 16px', fontSize: '14px' }}>
+                          {[u.first_name, u.last_name].filter(Boolean).join(' ') || '—'}
+                        </td>
+                        <td className="text-muted" style={{ padding: '12px 16px', fontSize: '14px' }}>{u.email}</td>
+                        <td className="text-muted text-capitalize" style={{ padding: '12px 16px', fontSize: '14px' }}>
+                          {u.role}
+                          {u.role === 'customer' && u.active_role ? ` (${u.active_role})` : ''}
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span
+                            className={`badge rounded-pill fw-medium text-uppercase ${
+                              u.status === 'suspended'
+                                ? 'bg-danger text-white'
+                                : 'bg-success text-white'
+                            }`}
+                            style={{ fontSize: '11px' }}
+                          >
+                            {u.status || 'active'}
+                          </span>
+                        </td>
+                        <td className="text-end" style={{ padding: '12px 16px' }}>
+                          {u.role !== 'admin' && (
+                            <button
+                              onClick={() => handleToggleUserStatus(u)}
+                              disabled={actioningId === u.user_id}
+                              className="btn btn-sm btn-outline-secondary fw-medium"
+                              style={{ fontSize: '12px' }}
+                            >
+                              {u.status === 'suspended' ? 'Reactivate' : 'Suspend'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
         </div>
-      )}
-    </div>
+
+        {/* Resolve Dispute Modal */}
+        {resolvingDispute && (
+          <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content shadow">
+                <div className="modal-header border-bottom-0 pb-0">
+                  <h5 className="modal-title fw-bold">Resolve Dispute</h5>
+                  <button type="button" className="btn-close" onClick={() => { setResolvingDispute(null); setResolutionNotes(''); }}></button>
+                </div>
+                <div className="modal-body">
+                  <p className="text-muted small mb-4">
+                    {resolvingDispute.contracts?.jobs?.title} — ₱
+                    {Number(resolvingDispute.contracts?.agreed_amount || 0).toLocaleString()} in escrow
+                  </p>
+
+                  <div className="mb-4">
+                    <label className="form-label small fw-medium text-muted mb-2">
+                      Resolution notes (optional)
+                    </label>
+                    <textarea
+                      value={resolutionNotes}
+                      onChange={(e) => setResolutionNotes(e.target.value)}
+                      rows={3}
+                      className="form-control"
+                      placeholder="Add context for the resolution log..."
+                    />
+                  </div>
+
+                  <div className="d-grid gap-2">
+                    <button
+                      onClick={() => handleResolve('release_freelancer')}
+                      disabled={actioningId === resolvingDispute.dispute_id}
+                      className="btn btn-success fw-medium"
+                    >
+                      Release to Freelancer
+                    </button>
+                    <button
+                      onClick={() => handleResolve('refund_client')}
+                      disabled={actioningId === resolvingDispute.dispute_id}
+                      className="btn btn-warning fw-medium"
+                      style={{ backgroundColor: '#FF5A1E', color: 'white', borderColor: '#FF5A1E' }}
+                    >
+                      Refund Client
+                    </button>
+                    <button
+                      onClick={() => handleResolve('split')}
+                      disabled={actioningId === resolvingDispute.dispute_id}
+                      className="btn btn-outline-dark fw-medium"
+                    >
+                      Split Funds
+                    </button>
+                  </div>
+                </div>
+                <div className="modal-footer border-top-0 pt-0 justify-content-center">
+                  <button
+                    onClick={() => { setResolvingDispute(null); setResolutionNotes(''); }}
+                    className="btn btn-link text-muted text-decoration-none small"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

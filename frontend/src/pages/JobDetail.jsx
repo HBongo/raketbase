@@ -147,7 +147,7 @@ export default function JobDetail() {
           </button>
         </div>
 
-        <div className="px-3 mb-4">
+        <div className="mb-4">
           {loading && (
             <div className="card text-center py-5 border">
               <div className="card-body">

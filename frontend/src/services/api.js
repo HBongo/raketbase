@@ -233,3 +233,16 @@ export function unwithdrawProposal(proposalId, payload) {
     ...(payload ? { body: JSON.stringify(payload) } : {}),
   });
 }
+
+
+// Auth
+export async function logout() {
+  try {
+    await request('/auth/logout', { method: 'POST' });
+  } catch (err) {
+    console.warn('Logout API failed, continuing with local cleanup:', err);
+  } finally {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  }
+}

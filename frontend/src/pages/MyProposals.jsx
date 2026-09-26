@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyProposals, withdrawProposal, unwithdrawProposal } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
+import BackToTop from '../components/BackToTop';
 
 const FILTERS = [
   { value: 'all', label: 'All' },
@@ -119,15 +120,17 @@ function ProposalsSkeleton() {
       )}
 
       {/* Page Content Here */}
-      <div className="row g-4 px-3 mb-4">
-        <div className="col-xl-8 mx-auto">
-          <div className="mb-4">
-            <h1 className="fw-bold fs-3 mb-1">My Proposals</h1>
-            <p className="text-muted small mb-0">
-              Track every bid you've sent, and manage the ones still in play.
-            </p>
-          </div>
+      <div className="page-header d-flex justify-content-between align-items-center">
+        <div>
+          <h1 className="page-title">My Proposals</h1>
+          <p className="page-subtitle">
+            Track every bid you've sent, and manage the ones still in play.
+          </p>
+        </div>
+      </div>
 
+      <div className="row g-4 mb-4">
+        <div className="col-12">
           {/* Status filter tabs */}
           <div className="d-flex flex-wrap gap-2 mb-4">
             {FILTERS.map((f) => {
@@ -183,6 +186,7 @@ function ProposalsSkeleton() {
           </div>
         </div>
       
+      <BackToTop />
     </>
   );
 }
@@ -219,7 +223,7 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
 
   return (
     <div className="card rounded-3 shadow-sm border-0">
-      <div className="card-body p-4">
+      <div className="card-body p-0">
         <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
           <div>
             <div className="d-flex align-items-center gap-2 mb-1">

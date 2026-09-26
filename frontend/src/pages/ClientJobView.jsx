@@ -1,18 +1,6 @@
-// ClientJobView.jsx — Client Proposal Evaluation
-// Two views in one file, switched by the presence of a route param:
-// 1. /my-jobs        -> list of jobs the logged-in client has posted, with proposal counts
-// 2. /my-jobs/:id     -> a single job's proposals, with Accept / Reject actions
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ClockIcon } from '../components/Icons';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getMyJobs, getJobProposals, acceptProposal, rejectProposal } from '../services/api';
-import { getCached, setCached } from '../utils/cache';
-
-const STATUS_STYLES = {
-  open: 'bg-accent/10 text-accent border-accent/30',
-  assigned: 'bg-surface text-text-secondary border-border',
-  completed: 'bg-surface text-text-secondary border-border',
-};
 
 export default function ClientJobView() {
   const { id } = useParams();
@@ -21,26 +9,18 @@ export default function ClientJobView() {
 
 function MyJobsList() {
   const navigate = useNavigate();
-  const cachedJobs = getCached('client_my_jobs');
-  const [jobs, setJobs] = useState(cachedJobs || []);
-  const [loading, setLoading] = useState(!cachedJobs);
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     async function loadJobs() {
-      const cached = getCached('client_my_jobs');
-      if (!cached) {
-        setLoading(true);
-      }
+      setLoading(true);
       setLoadError(null);
       try {
         const res = await getMyJobs();
-        const list = res.data || [];
-        if (!cancelled) {
-          setJobs(list);
-          setCached('client_my_jobs', list);
-        }
+        if (!cancelled) setJobs(res.data || []);
       } catch (err) {
         if (!cancelled) setLoadError(err.message || 'Could not load your job postings.');
       } finally {
@@ -53,128 +33,101 @@ function MyJobsList() {
     };
   }, []);
 
-function MyJobsSkeleton() {
   return (
-    <div className="space-y-3">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="flex w-full items-center justify-between gap-4 rounded-lg border border-border bg-panel p-5">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="skeleton-box rounded-full" style={{ width: 50, height: 18 }} />
-              <div className="skeleton-box" style={{ width: 80, height: 14 }} />
-            </div>
-            <div className="skeleton-box mb-2" style={{ width: "60%", height: 20 }} />
-            <div className="skeleton-box" style={{ width: "30%", height: 14 }} />
-          </div>
-          <div className="skeleton-box rounded-pill" style={{ width: 90, height: 32 }} />
+    <>
+      <div className="page-header d-flex justify-content-between align-items-center">
+        <div>
+          <h1 className="page-title">My job postings</h1>
+          <p className="page-subtitle">Review proposals and choose who gets the work.</p>
         </div>
-      ))}
-    </div>
-  );
-}
+        <button
+          onClick={() => navigate('/jobs/create')}
+          className="btn btn-dark rounded-pill fw-medium px-4"
+          style={{ backgroundColor: '#FF5A1E', borderColor: '#FF5A1E' }}
+        >
+          <i className="bi bi-plus-circle me-1"></i> Post a Job
+        </button>
+      </div>
 
-  return (
-    <div className="min-h-screen bg-bg text-text">
-      {loading && (
-        <div className="loading-bar-container" style={{ position: "sticky", top: 0, zIndex: 100 }}>
-          <div className="loading-bar-indeterminate" />
-        </div>
+      {loading && <StateCard title="Loading your postings..." />}
+
+      {!loading && loadError && (
+        <StateCard
+          title="Couldn't load your postings"
+          body={loadError}
+          action={{ label: 'Try again', onClick: () => window.location.reload() }}
+        />
       )}
-      <div className="mx-auto max-w-5xl px-5 py-8 md:px-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-semibold tracking-tight">My job postings</h1>
-            <p className="mt-1 text-sm text-text-secondary">Review proposals and choose who gets the work.</p>
-          </div>
-          <button
-            onClick={() => navigate('/jobs/create')}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-[#1A1305] transition-colors hover:bg-accent-hover cursor-pointer"
-          >
-            + Post a Job
-          </button>
-        </div>
 
-        {loading && <MyJobsSkeleton />}
+      {!loading && !loadError && jobs.length === 0 && (
+        <StateCard
+          title="You haven't posted a job yet"
+          body="Post a job to start receiving proposals from freelancers."
+          action={{ label: 'Post a Job', onClick: () => navigate('/jobs/create') }}
+        />
+      )}
 
-        {!loading && loadError && (
-          <StateCard
-            title="Couldn't load your postings"
-            body={loadError}
-            action={{ label: 'Try again', onClick: () => window.location.reload() }}
-          />
-        )}
-
-        {!loading && !loadError && jobs.length === 0 && (
-          <StateCard
-            title="You haven't posted a job yet"
-            body="Post a job to start receiving proposals from freelancers."
-            action={{ label: 'Post a Job', onClick: () => navigate('/jobs/create') }}
-          />
-        )}
-
-        {!loading && !loadError && jobs.length > 0 && (
-          <div className="space-y-3">
-            {jobs.map((job) => (
-              <button
-                key={job.job_id}
-                onClick={() => navigate(`/my-jobs/${job.job_id}`)}
-                className="flex w-full items-center justify-between gap-4 rounded-lg border border-border bg-panel p-5 text-left transition-colors hover:border-accent/40 cursor-pointer"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+      {!loading && !loadError && jobs.length > 0 && (
+        <div className="d-flex flex-column gap-3">
+          {jobs.map((job) => (
+            <div
+              key={job.job_id}
+              onClick={() => navigate(`/my-jobs/${job.job_id}`)}
+              className="card shadow-sm border-0"
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="card-body d-flex align-items-center justify-content-between gap-4">
+                <div className="text-truncate">
+                  <div className="d-flex align-items-center gap-2 mb-2">
                     <span
-                      className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
-                        STATUS_STYLES[job.status] || STATUS_STYLES.open
-                      }`}
+                      className={`badge rounded-pill ${job.status === 'open' ? 'border' : 'bg-light text-dark border'}`}
+                      style={job.status === 'open' ? { backgroundColor: 'rgba(255,90,30,0.1)', color: '#FF5A1E', borderColor: 'rgba(255,90,30,0.3)' } : {}}
                     >
                       {job.status}
                     </span>
-                    <span className="text-[12px] text-text-secondary">
-                      {job.categories?.category_name || 'Uncategorized'}
+                    <span className="small text-muted">
+                      Created {formatDate(job.created_at)}
                     </span>
                   </div>
-                  <p className="mt-1.5 truncate font-display text-lg font-medium">{job.title}</p>
-                  <p className="mt-1 text-[13px] text-text-secondary">
-                    ₱{job.budget ? Number(job.budget).toLocaleString() : '—'}
+                  <h5 className="card-title fw-bold text-truncate mb-1">{job.title}</h5>
+                  <p className="small text-secondary text-truncate mb-0" style={{ maxWidth: '600px' }}>
+                    {job.description}
                   </p>
                 </div>
 
-                <div className="shrink-0 text-right">
-                  <p className="font-display text-2xl font-semibold text-accent">{job.proposal_count}</p>
-                  <p className="text-[11px] text-text-secondary">
+                <div className="text-end flex-shrink-0">
+                  <p className="fs-5 fw-bold mb-0" style={{ color: '#FF5A1E' }}>
+                    ₱{job.budget ? Number(job.budget).toLocaleString() : '—'}
+                  </p>
+                  <p className="small text-muted mb-0">
                     {job.pending_count > 0 ? `${job.pending_count} pending` : 'proposals'}
                   </p>
                 </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
 function ProposalsForJob({ jobId }) {
-  const cachedJobData = getCached(`job_proposals_${jobId}`);
-
-  const [job, setJob] = useState(cachedJobData?.job || null);
-  const [proposals, setProposals] = useState(cachedJobData?.proposals || []);
-  const [loading, setLoading] = useState(!cachedJobData);
+  const navigate = useNavigate();
+  const [job, setJob] = useState(null);
+  const [proposals, setProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [actioningId, setActioningId] = useState(null);
   const [actionError, setActionError] = useState('');
 
-  async function load(isForce = false) {
-    const cached = getCached(`job_proposals_${jobId}`);
-    if (!cached || isForce) {
-      setLoading(true);
-    }
+  async function load() {
+    setLoading(true);
     setLoadError(null);
     try {
       const res = await getJobProposals(jobId);
       setJob(res.data.job);
       setProposals(res.data.proposals || []);
-      setCached(`job_proposals_${jobId}`, res.data);
     } catch (err) {
       setLoadError(err.message || 'Could not load proposals for this job.');
     } finally {
@@ -215,43 +168,16 @@ function ProposalsForJob({ jobId }) {
 
   const jobIsOpen = job?.status === 'open';
 
-function ProposalsForJobSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-panel p-6">
-        <div className="skeleton-box mb-3" style={{ width: "50%", height: 24 }} />
-        <div className="skeleton-box mb-2" style={{ width: "100%", height: 14 }} />
-        <div className="skeleton-box" style={{ width: "70%", height: 14 }} />
+    <>
+      <div className="col-12 mb-3">
+        <button className="btn btn-outline-secondary btn-sm" onClick={() => navigate('/my-jobs')}>
+          <i className="bi bi-arrow-left me-1"></i> Back to My Jobs
+        </button>
       </div>
-      {[1, 2].map((i) => (
-        <div key={i} className="rounded-xl border border-border bg-panel p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="skeleton-box rounded-full" style={{ width: 44, height: 44 }} />
-              <div>
-                <div className="skeleton-box mb-2" style={{ width: 120, height: 16 }} />
-                <div className="skeleton-box" style={{ width: 80, height: 12 }} />
-              </div>
-            </div>
-            <div className="skeleton-box" style={{ width: 70, height: 20 }} />
-          </div>
-          <div className="skeleton-box mb-2" style={{ width: "100%", height: 14 }} />
-          <div className="skeleton-box" style={{ width: "85%", height: 14 }} />
-        </div>
-      ))}
-    </div>
-  );
-}
 
-  return (
-    <div className="min-h-screen bg-bg text-text">
-      {loading && (
-        <div className="loading-bar-container" style={{ position: "sticky", top: 0, zIndex: 100 }}>
-          <div className="loading-bar-indeterminate" />
-        </div>
-      )}
-      <div className="mx-auto max-w-4xl px-5 py-8 md:px-8">
-        {loading && <ProposalsForJobSkeleton />}
+      <div className="col-12 col-xl-8 mx-auto">
+        {loading && <StateCard title="Loading proposals..." />}
 
         {!loading && loadError && (
           <StateCard
@@ -263,33 +189,36 @@ function ProposalsForJobSkeleton() {
 
         {!loading && !loadError && job && (
           <>
-            <div className="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-lg border border-border bg-panel p-5">
-              <div>
-                <span
-                  className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
-                    STATUS_STYLES[job.status] || STATUS_STYLES.open
-                  }`}
-                >
-                  {job.status}
-                </span>
-                <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight">{job.title}</h1>
-              </div>
-              <div className="text-right">
-                <p className="text-[13px] text-text-secondary">Budget</p>
-                <p className="font-sans text-xl font-semibold text-accent">
-                  ₱{job.budget ? Number(job.budget).toLocaleString() : '—'}
-                </p>
+            <div className="card shadow-sm border-0 mb-4">
+              <div className="card-body p-4 d-flex flex-wrap align-items-start justify-content-between gap-3">
+                <div>
+                  <span
+                    className={`badge rounded-pill mb-2 ${job.status === 'open' ? 'border' : 'bg-light text-dark border'}`}
+                    style={job.status === 'open' ? { backgroundColor: 'rgba(255,90,30,0.1)', color: '#FF5A1E', borderColor: 'rgba(255,90,30,0.3)' } : {}}
+                  >
+                    {job.status}
+                  </span>
+                  <h2 className="h4 fw-bold mb-0">{job.title}</h2>
+                </div>
+                <div className="text-end">
+                  <p className="small text-muted mb-1">Budget</p>
+                  <p className="fs-5 fw-bold mb-0" style={{ color: '#FF5A1E' }}>
+                    ₱{job.budget ? Number(job.budget).toLocaleString() : '—'}
+                  </p>
+                </div>
               </div>
             </div>
 
             {!jobIsOpen && (
-              <div className="mb-4 rounded-md border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-accent">
+              <div className="alert alert-warning py-2 small d-flex align-items-center" role="alert">
+                <i className="bi bi-exclamation-triangle-fill me-2"></i>
                 This job is {job.status}. Proposals can no longer be accepted or rejected.
               </div>
             )}
 
             {actionError && (
-              <div className="mb-4 rounded-md border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">
+              <div className="alert alert-danger py-2 small d-flex align-items-center" role="alert">
+                <i className="bi bi-exclamation-circle-fill me-2"></i>
                 {actionError}
               </div>
             )}
@@ -297,7 +226,7 @@ function ProposalsForJobSkeleton() {
             {proposals.length === 0 ? (
               <StateCard title="No proposals yet" body="Check back once freelancers start applying." />
             ) : (
-              <div className="space-y-3">
+              <div className="d-flex flex-column gap-3">
                 {proposals.map((p) => (
                   <ProposalCard
                     key={p.proposal_id}
@@ -313,7 +242,7 @@ function ProposalsForJobSkeleton() {
           </>
         )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -323,62 +252,77 @@ function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject }) {
     [freelancer?.first_name, freelancer?.last_name].filter(Boolean).join(' ') ||
     freelancer?.email ||
     'Freelancer';
+  const freelancerId = freelancer?.user_id || freelancer?.id;
 
   return (
-    <div className="rounded-lg border border-border bg-panel p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-display text-base font-medium">{name}</p>
-            <StatusPill status={proposal.status} />
+    <div className="card shadow-sm border-0">
+      <div className="card-body p-4">
+        <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+          <div>
+            <div className="d-flex align-items-center gap-2 mb-1">
+              {freelancerId ? (
+                <Link to={`/profile/${freelancerId}`} className="text-decoration-none text-dark">
+                  <h5 className="fw-bold mb-0 text-primary-hover">{name}</h5>
+                </Link>
+              ) : (
+                <h5 className="fw-bold mb-0">{name}</h5>
+              )}
+              <StatusPill status={proposal.status} />
+            </div>
+            <p className="small text-muted mb-1 d-flex align-items-center gap-1">
+              <i className="bi bi-clock"></i>
+              Submitted {formatDate(proposal.submitted_at)}
+            </p>
+            {freelancer?.skills?.length > 0 && (
+              <p className="small text-muted mb-0">{freelancer.skills.join(', ')}</p>
+            )}
           </div>
-          <p className="mt-1 flex items-center gap-1.5 text-[12px] text-text-secondary">
-            <ClockIcon className="h-3.5 w-3.5" />
-            Submitted {formatDate(proposal.submitted_at)}
-          </p>
-          {freelancer?.skills?.length > 0 && (
-            <p className="mt-1 text-[12px] text-text-secondary">{freelancer.skills.join(', ')}</p>
-          )}
+          <h4 className="fw-bold mb-0 flex-shrink-0" style={{ color: '#FF5A1E' }}>
+            ₱{Number(proposal.bid_amount || 0).toLocaleString()}
+          </h4>
         </div>
-        <p className="shrink-0 font-sans text-xl font-semibold text-accent">
-          ₱{Number(proposal.bid_amount || 0).toLocaleString()}
+
+        <p className="small text-secondary" style={{ whiteSpace: 'pre-line', lineHeight: '1.6' }}>
+          {proposal.cover_letter}
         </p>
+
+        {jobIsOpen && proposal.status === 'pending' && (
+          <div className="d-flex gap-2 mt-4 pt-3 border-top">
+            <button
+              onClick={onAccept}
+              disabled={busy}
+              className="btn btn-dark btn-sm fw-medium px-4"
+              style={{ backgroundColor: '#FF5A1E', borderColor: '#FF5A1E' }}
+            >
+              {busy ? 'Working...' : 'Accept'}
+            </button>
+            <button
+              onClick={onReject}
+              disabled={busy}
+              className="btn btn-outline-secondary btn-sm fw-medium px-4"
+            >
+              {busy ? 'Working...' : 'Reject'}
+            </button>
+          </div>
+        )}
       </div>
-
-      <p className="mt-4 whitespace-pre-line text-[14px] leading-relaxed text-text-secondary">
-        {proposal.cover_letter}
-      </p>
-
-      {jobIsOpen && proposal.status === 'pending' && (
-        <div className="mt-4 flex gap-2.5 border-t border-border pt-4">
-          <button
-            onClick={onAccept}
-            disabled={busy}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-[#1A1305] transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {busy ? 'Working...' : 'Accept'}
-          </button>
-          <button
-            onClick={onReject}
-            disabled={busy}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:border-error/40 hover:text-error disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {busy ? 'Working...' : 'Reject'}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
 
 function StatusPill({ status }) {
-  const styles = {
-    pending: 'bg-surface text-text-secondary border-border',
-    accepted: 'bg-accent/10 text-accent border-accent/30',
-    rejected: 'bg-error/10 text-error border-error/30',
-  };
+  let badgeClass = 'bg-light border text-dark';
+  let badgeStyle = {};
+
+  if (status === 'accepted') {
+    badgeStyle = { backgroundColor: 'rgba(255,90,30,0.1)', color: '#FF5A1E', borderColor: 'rgba(255,90,30,0.3)' };
+    badgeClass = 'border';
+  } else if (status === 'rejected') {
+    badgeClass = 'bg-danger text-white border-danger';
+  }
+
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${styles[status] || styles.pending}`}>
+    <span className={`badge rounded-pill ${badgeClass}`} style={badgeStyle}>
       {status}
     </span>
   );
@@ -386,17 +330,19 @@ function StatusPill({ status }) {
 
 function StateCard({ title, body, action }) {
   return (
-    <div className="rounded-lg border border-border bg-panel p-10 text-center">
-      <p className="font-display text-lg font-medium">{title}</p>
-      {body && <p className="mt-1 text-sm text-text-secondary">{body}</p>}
-      {action && (
-        <button
-          onClick={action.onClick}
-          className="mt-4 rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-accent/40 cursor-pointer"
-        >
-          {action.label}
-        </button>
-      )}
+    <div className="card shadow-sm border-0 text-center py-5">
+      <div className="card-body">
+        <h5 className="fw-bold mb-2">{title}</h5>
+        {body && <p className="text-muted small mb-4">{body}</p>}
+        {action && (
+          <button
+            onClick={action.onClick}
+            className="btn btn-outline-dark"
+          >
+            {action.label}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

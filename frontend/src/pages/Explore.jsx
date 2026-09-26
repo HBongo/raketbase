@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-
 import { getCached, setCached } from '../utils/cache';
+import BackToTop from '../components/BackToTop';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -210,8 +210,8 @@ function ExploreSkeleton() {
                 <button
                   key={c.id}
                   onClick={() => setActiveCategory(c.id)}
-                  className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium ${isActive ? 'text-white' : 'btn-outline-dark'}`}
-                  style={isActive ? { backgroundColor: '#FF5A1E', borderColor: '#FF5A1E' } : {}}
+                  className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium category-filter-btn ${isActive ? 'text-white' : ''}`}
+                  style={isActive ? { backgroundColor: '#FF5A1E', borderColor: '#FF5A1E', color: '#fff' } : {}}
                 >
                   {c.label} <span className="small opacity-75">({c.count})</span>
                 </button>
@@ -248,7 +248,7 @@ function ExploreSkeleton() {
             )}
           </div>
 
-          <div className={`col-xl-3 col-lg-4 order-1 order-lg-2 ${!filtersOpen ? 'd-none' : ''}`}>
+          <div className={`col-xl-3 col-lg-4 order-1 sticky-filter ${!filtersOpen ? 'd-none' : ''}`}>
             {budget && (
               <FiltersSidebar
                 budget={budget}
@@ -259,9 +259,9 @@ function ExploreSkeleton() {
                 onClose={() => setFiltersOpen(false)}
               />
             )}
-          </div>
-        </div>
-      
+                  </div>
+      </div>
+      <BackToTop />
     </>
   );
 }
@@ -338,7 +338,7 @@ function JobCard({ job, onOpen }) {
 
   return (
     <div className="card h-100 border transition-all" style={{ cursor: 'pointer' }} onClick={onOpen}>
-      <div className="card-body d-flex flex-column">
+      <div className="card-body d-flex flex-column p-0">
         <div className="mb-3">
           <div className="d-flex justify-content-between align-items-center mb-2">
             <span className="badge bg-light border text-dark fw-semibold px-3 py-2 rounded-pill" style={{ fontSize: '0.85rem' }}>

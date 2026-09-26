@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCategories, createJob } from '../services/api';
-import Navbar from '../components/Navbar';
 
 export default function CreateJob() {
   const navigate = useNavigate();
@@ -64,126 +63,131 @@ export default function CreateJob() {
   }
 
   return (
-    <div className="min-h-screen bg-bg text-text">
-      <Navbar showBack backTo="/explore" />
-      <div className="p-8 flex justify-center items-center">
-        <div className="w-full max-w-2xl bg-panel border border-border p-8 rounded-lg shadow-lg">
-          <h2 className="font-display text-2xl font-semibold mb-2">Post a New Job</h2>
-          <p className="text-text-secondary text-sm mb-6">Reach verified freelancers across RaketBase.</p>
-
-          {error && (
-            <div className="text-sm mb-4 px-3 py-2.5 rounded-md bg-error/10 text-error border border-error/30">
-              {error}
+    <>
+      <div className="row justify-content-center">
+        <div className="col-12 col-md-10 col-lg-8 col-xl-6">
+          <div className="card shadow-sm border-0">
+            <div className="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
+              <h2 className="card-title fw-bold mb-1">Post a New Job</h2>
+              <p className="text-muted small mb-0">Reach verified freelancers across RaketBase.</p>
             </div>
-          )}
+            <div className="card-body p-4">
+              {error && (
+                <div className="alert alert-danger py-2 px-3 small" role="alert">
+                  {error}
+                </div>
+              )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-[13px] font-medium text-text-secondary mb-1.5" htmlFor="title">
-                Job Title
-              </label>
-              <input
-                id="title"
-                type="text"
-                required
-                placeholder="e.g. Full-Stack Node/React Developer Needed"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full bg-surface border border-border text-text px-3 py-2.5 rounded-md text-sm outline-none focus:border-accent transition-colors"
-              />
-            </div>
+              <form onSubmit={handleSubmit}>
+                <div className="mb-3">
+                  <label className="form-label small fw-medium text-muted" htmlFor="title">
+                    Job Title
+                  </label>
+                  <input
+                    id="title"
+                    type="text"
+                    required
+                    placeholder="e.g. Full-Stack Node/React Developer Needed"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="form-control"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-[13px] font-medium text-text-secondary mb-1.5" htmlFor="category">
-                Category
-              </label>
-              <select
-                id="category"
-                required
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full bg-surface border border-border text-text px-3 py-2.5 rounded-md text-sm outline-none focus:border-accent transition-colors"
-              >
-                <option value="">Select Category</option>
-                {categories.map((cat) => (
-                  <option key={cat.category_id} value={cat.category_id}>
-                    {cat.category_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <div className="mb-3">
+                  <label className="form-label small fw-medium text-muted" htmlFor="category">
+                    Category
+                  </label>
+                  <select
+                    id="category"
+                    required
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className="form-select"
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map((cat) => (
+                      <option key={cat.category_id} value={cat.category_id}>
+                        {cat.category_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            <div>
-              <label className="block text-[13px] font-medium text-text-secondary mb-1.5" htmlFor="description">
-                Description
-              </label>
-              <textarea
-                id="description"
-                required
-                rows={5}
-                placeholder="Provide a detailed description of the scope, deliverables, and requirements..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-surface border border-border text-text px-3 py-2.5 rounded-md text-sm outline-none focus:border-accent transition-colors"
-              />
-            </div>
+                <div className="mb-3">
+                  <label className="form-label small fw-medium text-muted" htmlFor="description">
+                    Description
+                  </label>
+                  <textarea
+                    id="description"
+                    required
+                    rows={5}
+                    placeholder="Provide a detailed description of the scope, deliverables, and requirements..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="form-control"
+                  />
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[13px] font-medium text-text-secondary mb-1.5" htmlFor="budgetType">
-                  Budget Type
-                </label>
-                <select
-                  id="budgetType"
-                  value={budgetType}
-                  onChange={(e) => setBudgetType(e.target.value)}
-                  className="w-full bg-surface border border-border text-text px-3 py-2.5 rounded-md text-sm outline-none focus:border-accent transition-colors"
+                <div className="row g-3 mb-3">
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small fw-medium text-muted" htmlFor="budgetType">
+                      Budget Type
+                    </label>
+                    <select
+                      id="budgetType"
+                      value={budgetType}
+                      onChange={(e) => setBudgetType(e.target.value)}
+                      className="form-select"
+                    >
+                      <option value="fixed">Fixed Price</option>
+                      <option value="milestone">Milestone Based</option>
+                    </select>
+                  </div>
+
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small fw-medium text-muted" htmlFor="budget">
+                      Budget (₱)
+                    </label>
+                    <input
+                      id="budget"
+                      type="number"
+                      min="1"
+                      required
+                      placeholder="5000"
+                      value={budget}
+                      onChange={(e) => setBudget(e.target.value)}
+                      className="form-control"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="form-label small fw-medium text-muted" htmlFor="deadline">
+                    Deadline (Optional)
+                  </label>
+                  <input
+                    id="deadline"
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    className="form-control"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn w-100 py-2 fw-semibold"
+                  style={{ backgroundColor: '#FF5A1E', borderColor: '#FF5A1E', color: '#fff' }}
                 >
-                  <option value="fixed">Fixed Price</option>
-                  <option value="milestone">Milestone Based</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[13px] font-medium text-text-secondary mb-1.5" htmlFor="budget">
-                  Budget (₱)
-                </label>
-                <input
-                  id="budget"
-                  type="number"
-                  min="1"
-                  required
-                  placeholder="5000"
-                  value={budget}
-                  onChange={(e) => setBudget(e.target.value)}
-                  className="w-full bg-surface border border-border text-text px-3 py-2.5 rounded-md text-sm outline-none focus:border-accent transition-colors"
-                />
-              </div>
+                  {loading ? 'Publishing Job...' : 'Publish Job'}
+                </button>
+              </form>
             </div>
-
-            <div>
-              <label className="block text-[13px] font-medium text-text-secondary mb-1.5" htmlFor="deadline">
-                Deadline (Optional)
-              </label>
-              <input
-                id="deadline"
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="w-full bg-surface border border-border text-text px-3 py-2.5 rounded-md text-sm outline-none focus:border-accent transition-colors"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-accent hover:bg-accent-hover disabled:bg-border disabled:text-text-secondary text-[#1A1305] font-semibold text-sm py-3 rounded-md mt-4 transition-colors cursor-pointer"
-            >
-              {loading ? 'Publishing Job...' : 'Publish Job'}
-            </button>
-          </form>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

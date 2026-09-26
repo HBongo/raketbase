@@ -50,7 +50,6 @@ img.rocket-logo {
 .logo-shake:hover {
   animation: wiggle-rocket 0.4s ease-in-out infinite;
 }
-
 /* ── LinkedIn-style Shimmer & Progress Bar Loaders ── */
 @keyframes shimmer {
   0% {
@@ -101,3 +100,13 @@ img.rocket-logo {
   animation: indeterminate-bar 1.4s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;
 }
 
+.category-filter-btn {
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  color: #212529;
+  transition: background-color 0.2s, color 0.2s;
+}
+.category-filter-btn:hover {
+  background-color: #e9ecef;
+  color: #212529;
+}

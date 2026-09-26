@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { getTopUsers } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
+import BackToTop from '../components/BackToTop';
 
 const PAGE_SIZE = 12;
 
@@ -170,8 +171,23 @@ function TopUsersSkeleton() {
         </div>
       )}
 
-      <div className="row g-4 px-3 mb-4">
-        <div className="col-12 col-md-3">
+      <div className="page-header d-flex justify-content-between align-items-center">
+        <div>
+          <h1 className="page-title">Top users</h1>
+          <p className="page-subtitle">
+            Ranked by average rating. Only {who} with at least {minReviews} reviews are listed.
+          </p>
+        </div>
+        <button
+          onClick={() => setFiltersOpen((v) => !v)}
+          className="btn btn-outline-secondary d-md-none rounded-pill"
+        >
+          <i className="bi bi-funnel"></i> Filters{filtersActive ? ' •' : ''}
+        </button>
+      </div>
+
+      <div className="row g-4 mb-4">
+        <div className="col-12 col-xl-3 col-lg-4 sticky-filter">
           <FiltersSidebar
             isFreelancer={isFreelancer}
             minRating={minRating}
@@ -188,22 +204,7 @@ function TopUsersSkeleton() {
           />
         </div>
 
-        <div className="col-12 col-md-9">
-          <div className="d-flex align-items-start justify-content-between gap-3 mb-4">
-            <div>
-              <h2 className="fw-bold mb-1">Top users</h2>
-              <p className="text-muted small mb-0">
-                Ranked by average rating. Only {who} with at least {minReviews} reviews are listed.
-              </p>
-            </div>
-            <button
-              onClick={() => setFiltersOpen((v) => !v)}
-              className="btn btn-outline-secondary d-md-none"
-            >
-              <i className="bi bi-funnel"></i> Filters{filtersActive ? ' •' : ''}
-            </button>
-          </div>
-
+        <div className="col-12 col-xl-9 col-lg-8">
           <div className="d-flex gap-2 mb-4 border-bottom pb-2">
             {[
               { id: 'freelancers', label: 'Freelancers' },
@@ -277,10 +278,10 @@ function TopUsersSkeleton() {
             )}
           </div>
         </div>
-      
-    </>
-  );
-}
+        <BackToTop />
+      </>
+    );
+  }
 
 function FiltersSidebar({
   isFreelancer,
@@ -425,7 +426,7 @@ function TopUserCard({ user, role, rank }) {
   const isFreelancer = role === 'freelancer';
   return (
     <div className="card h-100 shadow-sm border-0">
-      <div className="card-body text-center position-relative">
+      <div className="card-body text-center position-relative p-0">
         <span className="badge bg-light border text-dark rounded-pill position-absolute top-0 start-0 m-3">
           #{rank}
         </span>

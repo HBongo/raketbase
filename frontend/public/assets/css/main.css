@@ -98,11 +98,27 @@
 /* ---------------------------------------------------------------------
    3. Base Overrides & Typography
 --------------------------------------------------------------------- */
+html {
+    font-size: 16px;
+}
+
+@media (max-width: 767px) {
+    html {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    html {
+        font-size: 14px;
+    }
+}
+
 body {
     background-color: var(--bs-body-bg);
     color: var(--text-main);
     font-family: var(--bs-body-font-family);
-    font-size: 0.925rem;
+    font-size: 0.95rem;
     font-weight: 500;
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.01em;
@@ -207,7 +223,7 @@ a:hover {
 }
 
 .sidebar-menu-item {
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.6rem;
 }
 
 .sidebar-menu-link {
@@ -258,7 +274,7 @@ a:hover {
 
 .sidebar-menu-badge {
     margin-left: auto;
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 700;
     background-color: var(--brand-lime);
     color: var(--brand-forest-dark);
@@ -269,7 +285,7 @@ a:hover {
 /* Dropdown Caret Styling */
 .sidebar-menu-link .dropdown-caret {
     margin-left: auto;
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     transition: transform 0.2s ease;
 }
 
@@ -288,7 +304,7 @@ a:hover {
     display: block;
     padding: 0.45rem 0;
     color: var(--text-sidebar-muted);
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 500;
     transition: color 0.2s;
 }
@@ -324,7 +340,7 @@ a:hover {
 }
 
 .sidebar-profile-name {
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 600;
     margin-bottom: 0.1rem;
     white-space: nowrap;
@@ -333,7 +349,7 @@ a:hover {
 }
 
 .sidebar-profile-email {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     color: var(--text-sidebar-muted);
     white-space: nowrap;
     overflow: hidden;
@@ -392,7 +408,7 @@ body.sidebar-minimized .sidebar-profile {
 --------------------------------------------------------------------- */
 .main-wrapper {
     margin-left: var(--sidebar-width);
-    padding: 2rem 2.5rem;
+    padding: 1rem 1.5rem;
     min-height: 100vh;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
@@ -409,15 +425,15 @@ body.sidebar-minimized .sidebar-profile {
     background-color: rgba(244, 246, 245, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    margin-top: -2rem;
-    margin-left: -2.5rem;
-    margin-right: -2.5rem;
-    padding: 1.25rem 2.5rem;
+    margin-top: -1rem;
+    margin-left: -1.5rem;
+    margin-right: -1.5rem;
+    padding: 1rem 1.5rem;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     display: grid !important;
-    grid-template-columns: 1fr 480px 1fr !important;
+    grid-template-columns: auto 1fr auto !important;
     align-items: center;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     gap: 1.5rem;
 }
 
@@ -460,7 +476,7 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .btn-quick-action i {
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     transition: transform 0.25s ease;
 }
 
@@ -482,7 +498,7 @@ body.sidebar-minimized .sidebar-profile {
 
 
 .dropdown-menu-quick-action .dropdown-header {
-    font-size: 0.725rem;
+    font-size: 0.95rem;
     font-weight: 750;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -491,7 +507,7 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .dropdown-menu-quick-action .dropdown-item {
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     font-weight: 600;
     color: var(--text-main);
     padding: 0.55rem 1.25rem;
@@ -502,7 +518,7 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .dropdown-menu-quick-action .dropdown-item i {
-    font-size: 0.95rem;
+    font-size: 1.15rem;
     color: var(--text-muted-green);
     transition: color 0.2s;
 }
@@ -534,8 +550,9 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .navbar-search-wrapper {
-    width: 480px;
-    max-width: 100%;
+    flex-grow: 1;
+    width: 100%;
+    max-width: 800px;
     position: relative;
     margin: 0 auto;
 }
@@ -547,7 +564,7 @@ body.sidebar-minimized .sidebar-profile {
     border-radius: 50rem;
     padding: 0.65rem 1.25rem;
     padding-right: 2.75rem;
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 500;
     color: var(--text-main);
     outline: none;
@@ -590,7 +607,7 @@ body.sidebar-minimized .sidebar-profile {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.15rem;
+    font-size: 1.3rem;
     position: relative;
     box-shadow: var(--shadow-sm);
     transition: all 0.25s ease;
@@ -659,7 +676,7 @@ body.sidebar-minimized .sidebar-profile {
     background: none;
     border: none;
     padding: 0;
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 700;
     color: var(--brand-forest-medium);
     transition: color 0.2s;
@@ -696,7 +713,7 @@ body.sidebar-minimized .sidebar-profile {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.95rem;
+    font-size: 1.15rem;
     flex-shrink: 0;
 }
 
@@ -713,7 +730,7 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .notification-time {
-    font-size: 0.725rem;
+    font-size: 0.95rem;
     color: var(--text-muted-green);
 }
 
@@ -745,7 +762,7 @@ body.sidebar-minimized .sidebar-profile {
     background-color: var(--text-main);
     color: #FFFFFF;
     font-weight: 600;
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     padding: 0.65rem 1.25rem;
     border-radius: 50rem;
     border: none;
@@ -771,7 +788,7 @@ body.sidebar-minimized .sidebar-profile {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
+    font-size: 0.95rem;
 }
 
 /* Mobile Sidebar Toggle Button */
@@ -826,7 +843,7 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .page-subtitle {
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     color: var(--text-muted-green);
     margin-bottom: 0;
 }
@@ -836,7 +853,7 @@ body.sidebar-minimized .sidebar-profile {
     border: 1px solid var(--border-light);
     border-radius: 50rem;
     padding: 0.55rem 1.25rem;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     font-weight: 600;
     color: var(--text-main);
     display: flex;
@@ -884,7 +901,7 @@ body.sidebar-minimized .sidebar-profile {
     background: none;
     border: none;
     color: var(--text-muted-green);
-    font-size: 1.15rem;
+    font-size: 1.3rem;
     padding: 0;
     display: flex;
     align-items: center;
@@ -896,13 +913,15 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .stat-label {
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     color: var(--text-muted-green);
     margin-bottom: 0.75rem;
     font-weight: 500;
 }
 
 .stat-value {
+    font-size: 2.5rem;
+
     font-size: 2rem;
     font-weight: 800;
     color: var(--text-main);
@@ -915,7 +934,7 @@ body.sidebar-minimized .sidebar-profile {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    font-size: 0.785rem;
+    font-size: 0.95rem;
     font-weight: 600;
 }
 
@@ -960,6 +979,8 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .alert-green-card .stat-value {
+    font-size: 2.5rem;
+
     color: #FFFFFF;
 }
 
@@ -969,7 +990,7 @@ body.sidebar-minimized .sidebar-profile {
     gap: 0.35rem;
     background-color: rgba(255, 255, 255, 0.1);
     color: #FFFFFF;
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 700;
     padding: 0.35rem 0.75rem;
     border-radius: 50rem;
@@ -999,14 +1020,14 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .alert-green-date {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     color: var(--text-sidebar-muted);
     opacity: 0.8;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.6rem;
 }
 
 .alert-green-text {
-    font-size: 1.15rem;
+    font-size: 1.3rem;
     font-weight: 700;
     line-height: 1.3;
     margin-bottom: 1rem;
@@ -1014,7 +1035,7 @@ body.sidebar-minimized .sidebar-profile {
 
 .alert-green-link {
     color: var(--brand-lime);
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 600;
     display: inline-flex;
     align-items: center;
@@ -1083,7 +1104,7 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .item-name {
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 700;
     color: var(--text-main);
     margin-bottom: 0.15rem;
@@ -1093,7 +1114,7 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .item-sub {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     color: var(--text-muted-green);
     margin-bottom: 0;
 }
@@ -1119,7 +1140,7 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .item-hash {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-family: monospace;
     color: var(--text-muted-green);
     opacity: 0.7;
@@ -1198,7 +1219,7 @@ body.sidebar-minimized .sidebar-profile {
     display: flex;
     align-items: center;
     gap: 0.35rem;
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 700;
 }
 
@@ -1247,7 +1268,7 @@ body.sidebar-minimized .sidebar-profile {
 }
 
 .promo-desc {
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     color: var(--brand-forest-medium);
     opacity: 0.85;
     line-height: 1.4;
@@ -1260,7 +1281,7 @@ body.sidebar-minimized .sidebar-profile {
     background-color: var(--brand-forest-dark);
     color: #FFFFFF;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     padding: 0.75rem 1.25rem;
     border-radius: 50rem;
     text-align: center;
@@ -1313,6 +1334,7 @@ body.sidebar-minimized .sidebar-profile {
         padding: 1rem 1.5rem;
         flex-wrap: wrap;
         gap: 0.75rem;
+        justify-content: space-between;
     }
 }
 
@@ -1598,7 +1620,7 @@ span.flatpickr-weekday {
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 1.5rem;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     color: var(--text-muted-green);
     transition: all 0.3s ease;
 }
@@ -1620,7 +1642,7 @@ span.flatpickr-weekday {
 
 .footer-logo i {
     color: var(--brand-forest-medium);
-    font-size: 0.95rem;
+    font-size: 1.15rem;
     display: inline-block;
     animation: rotateLogo 12s linear infinite;
 }
@@ -1643,7 +1665,7 @@ span.flatpickr-weekday {
 }
 
 .footer-heart {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     display: inline-block;
     animation: heartBeat 1.5s ease infinite;
 }
@@ -1813,12 +1835,12 @@ span.flatpickr-weekday {
     font-weight: 800;
     color: var(--text-main);
     text-align: center;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.6rem;
     letter-spacing: -0.02em;
 }
 
 .login-subtitle {
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     color: var(--text-muted-green);
     text-align: center;
     margin-bottom: 2rem;
@@ -1939,7 +1961,7 @@ span.flatpickr-weekday {
     content: "\f272"; /* check icon in bootstrap-icons font */
     font-family: "bootstrap-icons";
     font-weight: 900;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: #FFFFFF;
     position: absolute;
     top: 50%;
@@ -1965,7 +1987,7 @@ span.flatpickr-weekday {
     border-radius: var(--radius-lg);
     padding: 0.85rem;
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: 1.15rem;
     width: 100%;
     box-shadow: var(--shadow-sm);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1997,7 +2019,7 @@ span.flatpickr-weekday {
     text-align: center;
     color: var(--text-muted-green);
     margin: 1.75rem 0;
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -2033,7 +2055,7 @@ span.flatpickr-weekday {
     border-radius: var(--radius-lg);
     padding: 0.7rem;
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2053,7 +2075,7 @@ span.flatpickr-weekday {
 
 .login-footer-text {
     text-align: center;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     color: var(--text-muted-green);
     font-weight: 600;
     margin-bottom: 0;
@@ -2120,7 +2142,7 @@ span.flatpickr-weekday {
 }
 
 .navbar-profile-caret {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     color: var(--text-muted-green);
     transition: transform 0.2s, color 0.2s;
 }
@@ -2148,7 +2170,7 @@ span.flatpickr-weekday {
 
 
 .dropdown-menu-profile .dropdown-header {
-    font-size: 0.725rem;
+    font-size: 0.85rem;
     font-weight: 750;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -2157,7 +2179,7 @@ span.flatpickr-weekday {
 }
 
 .dropdown-menu-profile .dropdown-item {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--text-main);
     padding: 0.65rem 1.25rem;
@@ -2168,7 +2190,7 @@ span.flatpickr-weekday {
 }
 
 .dropdown-menu-profile .dropdown-item i {
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: var(--text-muted-green);
     transition: color 0.2s;
 }
@@ -2217,7 +2239,7 @@ span.flatpickr-weekday {
 .table-custom th {
     background-color: #F8FAF9;
     color: var(--text-muted-green);
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     text-transform: uppercase;
     font-weight: 700;
     letter-spacing: 0.05em;
@@ -2254,11 +2276,11 @@ span.flatpickr-weekday {
 .table-user-name {
     font-weight: 700;
     color: var(--text-main);
-    font-size: 0.875rem;
+    font-size: 0.95rem;
 }
 
 .table-user-sub {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     color: var(--text-muted-green);
 }
 
@@ -2268,7 +2290,7 @@ span.flatpickr-weekday {
     align-items: center;
     gap: 0.35rem;
     padding: 0.25rem 0.65rem;
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 700;
     border-radius: 50rem;
 }
@@ -2326,7 +2348,7 @@ span.flatpickr-weekday {
 .table-search-input {
     width: 100%;
     padding: 0.5rem 1rem 0.5rem 2.25rem;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     border-radius: var(--radius-lg);
     border: 1px solid rgba(11, 19, 15, 0.1);
     background-color: #FDFDFD;
@@ -2345,7 +2367,7 @@ span.flatpickr-weekday {
     top: 50%;
     transform: translateY(-50%);
     color: var(--text-muted-green);
-    font-size: 0.85rem;
+    font-size: 0.95rem;
 }
 
 /* Table Actions dropdown/filters */
@@ -2359,7 +2381,7 @@ span.flatpickr-weekday {
     background-color: #FFFFFF;
     border: 1px solid rgba(11, 19, 15, 0.1);
     color: var(--brand-forest-dark);
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     font-weight: 600;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-lg);
@@ -2385,7 +2407,7 @@ span.flatpickr-weekday {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     transition: all 0.2s ease-in-out;
     text-decoration: none;
 }
@@ -2415,7 +2437,7 @@ span.flatpickr-weekday {
 }
 
 .table-pagination-info {
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     color: var(--text-muted-green);
 }
 
@@ -2464,7 +2486,7 @@ span.flatpickr-weekday {
 --------------------------------------------------------------------- */
 .form-label-custom {
     display: inline-block;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     font-weight: 700;
     color: var(--text-main);
     margin-bottom: 0.5rem;
@@ -2474,7 +2496,7 @@ span.flatpickr-weekday {
     display: block;
     width: 100%;
     padding: 0.6rem 1rem;
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 500;
     line-height: 1.5;
     color: var(--text-main);
@@ -2510,7 +2532,7 @@ span.flatpickr-weekday {
 /* Sizing overrides */
 .form-control-custom-sm {
     padding: 0.35rem 0.75rem;
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     border-radius: var(--radius-md);
 }
 
@@ -2525,7 +2547,7 @@ span.flatpickr-weekday {
     display: block;
     width: 100%;
     padding: 0.6rem 2.25rem 0.6rem 1rem;
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 500;
     line-height: 1.5;
     color: var(--text-main);
@@ -2692,7 +2714,7 @@ span.flatpickr-weekday {
     display: flex;
     align-items: center;
     padding: 0.375rem 0.85rem;
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 500;
     line-height: 1.5;
     color: var(--text-muted-green);
@@ -2735,7 +2757,7 @@ span.flatpickr-weekday {
     display: block;
     width: 100%;
     margin-top: 0.35rem;
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 700;
 }
 
@@ -2756,7 +2778,7 @@ span.flatpickr-weekday {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 600;
     padding: 0.6rem 1.25rem;
     border-radius: var(--radius-lg);
@@ -2779,7 +2801,7 @@ span.flatpickr-weekday {
 /* Custom Buttons sizing variants */
 .btn-custom-sm {
     padding: 0.35rem 0.75rem;
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     border-radius: var(--radius-md);
 }
 
@@ -2895,12 +2917,12 @@ span.flatpickr-weekday {
     align-items: center;
     gap: 0.75rem;
     position: relative;
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 500;
 }
 
 .alert-custom-icon {
-    font-size: 1.15rem;
+    font-size: 1.3rem;
     flex-shrink: 0;
 }
 
@@ -3006,7 +3028,7 @@ span.flatpickr-weekday {
 
 .error-desc {
     max-width: 480px;
-    font-size: 0.95rem;
+    font-size: 1.15rem;
     color: var(--text-muted-green);
     margin-bottom: 2.25rem;
     line-height: 1.6;
@@ -3047,7 +3069,7 @@ span.flatpickr-weekday {
 }
 
 .chart-legend-label {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 600;
     color: var(--text-muted-green);
 }
@@ -3152,7 +3174,7 @@ span.flatpickr-weekday {
 }
 
 .transaction-name {
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 700;
     color: var(--text-main);
     margin-bottom: 0.15rem;
@@ -3162,13 +3184,13 @@ span.flatpickr-weekday {
 }
 
 .transaction-date {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     color: var(--text-muted-green);
     margin-bottom: 0;
 }
 
 .transaction-amount {
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 700;
     text-align: right;
     flex-shrink: 0;
@@ -3185,3 +3207,32 @@ span.flatpickr-weekday {
 
 
 
+
+
+.small, small {
+    font-size: 0.875em !important;
+}
+
+
+/* Desktop Sticky Filter */
+@media (min-width: 768px) {
+    .sticky-filter {
+        position: sticky;
+        top: 130px;
+        z-index: 10;
+        align-self: flex-start;
+    }
+}
+
+
+/* Messages Page Specific Overrides */
+.messages-wrapper {
+    padding: 0 !important;
+}
+.messages-navbar {
+    margin-top: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-bottom: 0 !important;
+    border-bottom: 1px solid var(--border-light) !important;
+}

@@ -393,4 +393,12 @@ async function removeAvatar(req, res) {
   });
 }
 
-module.exports = { register, login, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar };
+module.exports = { register, login, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout };
+
+// POST /api/v1/auth/logout
+// Securely invalidates the user's session (for stateless JWT, this signals the client to clear tokens)
+async function logout(req, res) {
+  // In a full enterprise system with stateful tokens, we would blacklist the JWT here.
+  // For stateless JWTs, we just return a success to confirm the client should proceed with local cleanup.
+  res.status(200).json({ message: 'Successfully logged out.' });
+};
