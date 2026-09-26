@@ -93,7 +93,7 @@ export default function Register() {
           
           <div className="row mb-3">
             <div className="col-6">
-              <label htmlFor="first-name" className="login-form-label">First Name</label>
+              <label htmlFor="first-name" className="login-form-label">First Name <span className="text-danger">*</span></label>
               <div className={`login-input-group ${touched.firstName && !isFirstNameValid ? 'border border-danger' : ''}`}>
                 <i className="bi bi-person input-icon"></i>
                 <input 
@@ -114,7 +114,7 @@ export default function Register() {
               )}
             </div>
             <div className="col-6">
-              <label htmlFor="last-name" className="login-form-label">Last Name</label>
+              <label htmlFor="last-name" className="login-form-label">Last Name <span className="text-danger">*</span></label>
               <div className={`login-input-group ${touched.lastName && !isLastNameValid ? 'border border-danger' : ''}`}>
                 <i className="bi bi-person input-icon"></i>
                 <input 
@@ -137,7 +137,7 @@ export default function Register() {
           </div>
           
           <div className="login-form-group mb-3">
-            <label htmlFor="email" className="login-form-label">Email Address</label>
+            <label htmlFor="email" className="login-form-label">Email Address <span className="text-danger">*</span></label>
             <div className={`login-input-group ${touched.email && !isEmailValid ? 'border border-danger' : ''}`}>
               <i className="bi bi-envelope input-icon"></i>
               <input 
@@ -159,7 +159,7 @@ export default function Register() {
           </div>
           
           <div className="login-form-group mb-3">
-            <label htmlFor="password" className="login-form-label">Password</label>
+            <label htmlFor="password" className="login-form-label">Password <span className="text-danger">*</span></label>
             <div className={`login-input-group ${touched.password && !isPasswordValid ? 'border border-danger' : ''}`}>
               <i className="bi bi-shield-lock input-icon"></i>
               <input 

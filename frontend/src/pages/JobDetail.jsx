@@ -438,7 +438,8 @@ export default function JobDetail() {
                                           <span className="input-group-text bg-white">{getCurrencySymbol(job?.currency)}</span>
                                           <input
                                             type="number"
-                                            min="1"
+                                            min="0.01"
+                                            step="0.01"
                                             placeholder="Amount"
                                             value={m.amount}
                                             onChange={(e) => handleMilestoneChange(idx, 'amount', e.target.value)}

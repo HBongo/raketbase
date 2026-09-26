@@ -85,8 +85,9 @@ export default function CreateJob() {
 
   const isDescHasHtml = htmlRegex.test(description);
   const isDescTooShort = description.trim().length < 30;
+  const isDescTooLong = description.length > 2000;
   const hasOffPlatformContacts = /(?:[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|\+?\d{10,}|\bt\.me\/|\btelegram\b|\bwhatsapp\b)/i.test(description);
-  const isDescValid = !isDescTooShort && !isDescHasHtml && !hasOffPlatformContacts;
+  const isDescValid = !isDescTooShort && !isDescTooLong && !isDescHasHtml && !hasOffPlatformContacts;
 
   const minBudget = currency === 'USD' ? 2 : 100;
   const numBudget = Number(budget);
@@ -124,6 +125,7 @@ export default function CreateJob() {
     if (!isDescValid) {
       if (isDescHasHtml) return setError('Job description cannot contain HTML or script tags.');
       if (hasOffPlatformContacts) return setError('Contact info (email, phone, Telegram) is not allowed in job descriptions.');
+      if (isDescTooLong) return setError('Job description cannot exceed 2,000 characters.');
       return setError('Job description must be at least 30 characters long.');
     }
     if (!isBudgetValid) {
@@ -237,7 +239,7 @@ export default function CreateJob() {
                 <div className="mb-3">
                   <div className="d-flex justify-content-between align-items-center">
                     <label className="form-label small fw-medium text-dark" htmlFor="title">
-                      Job Title
+                      Job Title <span className="text-danger">*</span>
                     </label>
                     <span className="small text-muted" style={{ fontSize: '11px' }}>Min 10 characters</span>
                   </div>
@@ -263,7 +265,7 @@ export default function CreateJob() {
 
                 <div className="mb-3">
                   <label className="form-label small fw-medium text-dark" htmlFor="category">
-                    Category
+                    Category <span className="text-danger">*</span>
                   </label>
                   <select
                     id="category"
@@ -318,21 +320,22 @@ export default function CreateJob() {
                 <div className="mb-3">
                   <div className="d-flex justify-content-between align-items-center mb-1">
                     <label className="form-label small fw-medium text-dark mb-0" htmlFor="description">
-                      Description
+                      Description <span className="text-danger">*</span>
                     </label>
-                    <span className={`small ${description.trim().length >= 30 ? 'text-success fw-medium' : 'text-muted'}`} style={{ fontSize: '12px' }}>
+                    <span className={`small ${description.trim().length >= 30 && !isDescTooLong ? 'text-success fw-medium' : isDescTooLong ? 'text-danger fw-medium' : 'text-muted'}`} style={{ fontSize: '12px' }}>
                       {description.trim().length >= 30 ? (
-                        <><i className="bi bi-check-circle-fill text-success me-1"></i>{description.trim().length} chars</>
+                        <><i className={`bi ${isDescTooLong ? 'bi-exclamation-triangle-fill text-danger' : 'bi-check-circle-fill text-success'} me-1`}></i>{description.length}/2000 chars</>
                       ) : (
-                        `${description.trim().length}/30 min characters`
+                        `${description.trim().length}/30 min (max 2000)`
                       )}
                     </span>
                   </div>
                   <textarea
                     id="description"
                     required
+                    maxLength={2000}
                     rows={5}
-                    placeholder="Provide a detailed description of the scope, deliverables, and requirements (minimum 30 characters)..."
+                    placeholder="Provide a detailed description of the scope, deliverables, and requirements (minimum 30 characters, maximum 2,000 characters)..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     onBlur={() => setTouched((prev) => ({ ...prev, description: true }))}
@@ -343,6 +346,7 @@ export default function CreateJob() {
                       <i className="bi bi-exclamation-circle-fill"></i>
                       {isDescHasHtml ? 'HTML/script tags are not allowed.' :
                        hasOffPlatformContacts ? 'Off-platform contact details (email/phone/Telegram) are prohibited.' :
+                       isDescTooLong ? 'Description cannot exceed 2,000 characters.' :
                        `Description must be at least 30 characters (need ${30 - description.trim().length} more).`}
                     </div>
                   )}
@@ -362,6 +366,11 @@ export default function CreateJob() {
                       <option value="fixed">Fixed Price</option>
                       <option value="milestone">Milestone Based</option>
                     </select>
+                    <div className="form-text mt-1" style={{ fontSize: '11px', color: '#6C7E75', lineHeight: '1.3' }}>
+                      {budgetType === 'fixed'
+                        ? '💡 Fixed: One payout released upon full project completion.'
+                        : '💡 Milestone: Divided into phased stages with partial escrow releases.'}
+                    </div>
                   </div>
 
                   <div className="col-12 col-md-3">
@@ -381,7 +390,7 @@ export default function CreateJob() {
 
                   <div className="col-12 col-md-5">
                     <label className="form-label small fw-medium text-dark" htmlFor="budget">
-                      Budget ({currency === 'USD' ? '$' : '₱'})
+                      Budget ({currency === 'USD' ? '$' : '₱'}) <span className="text-danger">*</span>
                     </label>
                     <input
                       id="budget"

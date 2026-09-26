@@ -361,7 +361,20 @@ export default function Dashboard() {
                         <tr key={c.contract_id}>
                           <td>
                             <div className="d-flex align-items-center gap-2">
-                              <span className="fw-semibold text-dark">{c.jobs?.title || 'Job Contract'}</span>
+                              {c.job_id ? (
+                                <Link
+                                  to={`/jobs/${c.job_id}`}
+                                  className="fw-semibold text-dark text-decoration-none"
+                                  style={{ transition: 'color 0.15s' }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.color = '#FF5A1E')}
+                                  onMouseLeave={(e) => (e.currentTarget.style.color = '')}
+                                  title="View original job post"
+                                >
+                                  {c.jobs?.title || 'Job Contract'}
+                                </Link>
+                              ) : (
+                                <span className="fw-semibold text-dark">{c.jobs?.title || 'Job Contract'}</span>
+                              )}
                               {isMilestoneContract && (
                                 <span className="badge bg-light text-primary border" style={{ fontSize: '0.75rem' }}>
                                   {completedStagesCount}/{c.milestones.length} {c.milestones.length === 1 ? 'Stage' : 'Stages'}
@@ -519,11 +532,11 @@ export default function Dashboard() {
                               {/* Chat conversation jump button */}
                               <Link
                                 to="/messages"
-                                className="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center"
-                                style={{ width: 32, height: 32 }}
+                                className="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 text-decoration-none"
                                 title="Open Contract Chat"
                               >
                                 <i className="bi bi-chat-text"></i>
+                                <span className="small d-none d-sm-inline">Message</span>
                               </Link>
                             </div>
                           </td>
