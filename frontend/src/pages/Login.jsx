@@ -33,6 +33,30 @@ export default function Login() {
     }
   }
 
+  async function handleDemoLogin(role) {
+    setError('');
+    setLoading(true);
+    const demoEmail = role === 'customer' ? 'demo.client@raketbase.com' : 'demo.freelancer@raketbase.com';
+    const demoPass = 'Password123!';
+    setEmail(demoEmail);
+    setPassword(demoPass);
+    try {
+      const res = await loginUser({ email: demoEmail, password: demoPass });
+      localStorage.setItem('token', res.token);
+      if (res.refreshToken) {
+        localStorage.setItem('refreshToken', res.refreshToken);
+      }
+      if (res.user) {
+        localStorage.setItem('user', JSON.stringify(res.user));
+      }
+      window.location.href = '/dashboard';
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  }
+
+
   return (
     <div className="login-wrapper">
       <div className="login-bg-shape login-bg-shape-1"></div>
@@ -127,12 +151,30 @@ export default function Login() {
           
         </form>
         
-        <div className="login-divider">Or sign in with</div>
+        <div className="login-divider">Or one-click demo / guest access</div>
         
-        <div className="social-login-grid" style={{ gridTemplateColumns: '1fr' }}>
-          <button className="btn-social" type="button" id="btn-google">
-            <i className="bi bi-google text-danger"></i>
-            <span>Google</span>
+        <div className="d-flex gap-2 mb-3">
+          <button
+            type="button"
+            className="btn btn-outline-dark rounded-pill flex-grow-1 py-2 d-flex align-items-center justify-content-center gap-2 small fw-semibold"
+            style={{ fontSize: '13px', transition: 'all 0.15s' }}
+            onClick={() => handleDemoLogin('customer')}
+            disabled={loading}
+            title="Log in immediately as a pre-configured Customer"
+          >
+            <i className="bi bi-briefcase-fill text-primary"></i>
+            <span>Demo Customer</span>
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline-dark rounded-pill flex-grow-1 py-2 d-flex align-items-center justify-content-center gap-2 small fw-semibold"
+            style={{ fontSize: '13px', transition: 'all 0.15s' }}
+            onClick={() => handleDemoLogin('freelancer')}
+            disabled={loading}
+            title="Log in immediately as a pre-configured Freelancer"
+          >
+            <i className="bi bi-laptop-fill text-success"></i>
+            <span>Demo Freelancer</span>
           </button>
         </div>
         
