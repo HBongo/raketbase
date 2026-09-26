@@ -6,6 +6,16 @@ import { formatCurrency } from '../utils/formatters';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
+const CORE_CATEGORY_NAMES = new Set([
+  'web development',
+  'graphic design',
+  'graphic & design',
+  'writing & content',
+  'writing & translation',
+  'mobile development',
+  'digital marketing',
+]);
+
 export default function Explore() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -83,26 +93,50 @@ export default function Explore() {
     return { min: Math.min(...amounts), max: Math.max(...amounts) };
   }, [jobs]);
 
-  const categories = useMemo(() => {
+  const { coreCategories, otherCategories, otherCategoryIds, othersTotalCount } = useMemo(() => {
     const counts = {};
     for (const j of jobs) {
-      const name = j.categories?.category_name || 'Other';
+      const name = j.categories?.category_name || 'Others';
       counts[name] = (counts[name] || 0) + 1;
     }
-    const list = Object.entries(counts).map(([name, count]) => ({
-      id: name.toLowerCase().replace(/\s+/g, '-'),
-      name,
-      label: name,
-      count,
-    }));
-    return [{ id: 'all', name: 'All', label: 'All', count: jobs.length }, ...list];
+
+    const core = [{ id: 'all', name: 'All', label: 'All', count: jobs.length }];
+    const others = [];
+    const otherIds = new Set();
+    let otherCount = 0;
+
+    for (const [name, count] of Object.entries(counts)) {
+      const slug = name.toLowerCase().replace(/\s+/g, '-');
+      const lowerName = name.toLowerCase();
+      if (CORE_CATEGORY_NAMES.has(lowerName)) {
+        core.push({ id: slug, name, label: name, count });
+      } else {
+        others.push({ id: slug, name, label: name, count });
+        otherIds.add(slug);
+        otherCount += count;
+      }
+    }
+
+    return {
+      coreCategories: core,
+      otherCategories: others,
+      otherCategoryIds: otherIds,
+      othersTotalCount: otherCount,
+    };
   }, [jobs]);
+
+  const selectedOtherCategory = otherCategories.find((c) => c.id === activeCategory);
+  const isOthersActive = activeCategory === 'others-all' || !!selectedOtherCategory;
 
   const visibleJobs = useMemo(() => {
     return jobs.filter((j) => {
       if (activeCategory !== 'all') {
-        const catName = (j.categories?.category_name || 'Other').toLowerCase().replace(/\s+/g, '-');
-        if (catName !== activeCategory) return false;
+        const catName = (j.categories?.category_name || 'Others').toLowerCase().replace(/\s+/g, '-');
+        if (activeCategory === 'others-all') {
+          if (!otherCategoryIds.has(catName) && catName !== 'others') return false;
+        } else if (catName !== activeCategory) {
+          return false;
+        }
       }
       if (query.trim()) {
         const q = query.toLowerCase();
@@ -119,7 +153,7 @@ export default function Explore() {
       }
       return true;
     });
-  }, [jobs, activeCategory, query, budget]);
+  }, [jobs, activeCategory, query, budget, otherCategoryIds]);
 
   function resetFilters() {
     setActiveCategory('all');
@@ -204,20 +238,68 @@ function ExploreSkeleton() {
             )}
           </div>
 
-          <div className="d-flex flex-wrap gap-2 mb-4 pb-2">
-            {categories.map((c) => {
+          <div className="d-flex flex-wrap gap-2 mb-4 pb-2 align-items-center">
+            {coreCategories.map((c) => {
               const isActive = activeCategory === c.id;
               return (
                 <button
                   key={c.id}
                   onClick={() => setActiveCategory(c.id)}
-                  className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium category-filter-btn ${isActive ? 'text-white' : ''}`}
+                  className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium category-filter-btn ${isActive ? 'text-white' : 'btn-outline-secondary'}`}
                   style={isActive ? { backgroundColor: '#FF5A1E', borderColor: '#FF5A1E', color: '#fff' } : {}}
                 >
                   {c.label} <span className="small opacity-75">({c.count})</span>
                 </button>
               );
             })}
+
+            {/* Others Dropdown for Custom Categories */}
+            <div className="dropdown d-inline-block flex-shrink-0">
+              <button
+                type="button"
+                className={`btn rounded-pill px-4 py-2 fw-medium dropdown-toggle category-filter-btn ${isOthersActive ? 'text-white' : 'btn-outline-secondary'}`}
+                style={isOthersActive ? { backgroundColor: '#FF5A1E', borderColor: '#FF5A1E', color: '#fff' } : {}}
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                {selectedOtherCategory ? `Others: ${selectedOtherCategory.name}` : 'Others'}
+                <span className="ms-2 small opacity-75">({othersTotalCount})</span>
+              </button>
+              <ul className="dropdown-menu shadow border-0 rounded-3 mt-1 py-2" style={{ minWidth: '220px', zIndex: 1050 }}>
+                <li>
+                  <button
+                    type="button"
+                    className={`dropdown-item py-2 px-3 fw-medium d-flex justify-content-between align-items-center ${activeCategory === 'others-all' ? 'active text-white' : ''}`}
+                    style={activeCategory === 'others-all' ? { backgroundColor: '#FF5A1E', color: '#fff' } : {}}
+                    onClick={() => setActiveCategory('others-all')}
+                  >
+                    <span>All in Others</span>
+                    <span className={`badge rounded-pill ${activeCategory === 'others-all' ? 'bg-white text-dark' : 'bg-light text-dark'}`}>
+                      {othersTotalCount}
+                    </span>
+                  </button>
+                </li>
+                {otherCategories.length > 0 && <li><hr className="dropdown-divider my-1" /></li>}
+                {otherCategories.map((subCat) => {
+                  const isSelected = activeCategory === subCat.id;
+                  return (
+                    <li key={subCat.id}>
+                      <button
+                        type="button"
+                        className={`dropdown-item py-2 px-3 d-flex justify-content-between align-items-center ${isSelected ? 'active text-white' : ''}`}
+                        style={isSelected ? { backgroundColor: '#FF5A1E', color: '#fff' } : {}}
+                        onClick={() => setActiveCategory(subCat.id)}
+                      >
+                        <span>{subCat.name}</span>
+                        <span className={`badge rounded-pill ${isSelected ? 'bg-white text-dark' : 'bg-light text-dark'}`}>
+                          {subCat.count}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </div>
 
           {loading && <ExploreSkeleton />}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCategories, createJob } from '../services/api';
+import { clearCached } from '../utils/cache';
 
 export default function CreateJob() {
   const navigate = useNavigate();
@@ -8,6 +9,7 @@ export default function CreateJob() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
   const [budgetType, setBudgetType] = useState('fixed');
   const [currency, setCurrency] = useState('PHP');
   const [budget, setBudget] = useState('');
@@ -37,6 +39,12 @@ export default function CreateJob() {
     }
     loadCategories();
   }, []);
+
+  const selectedCategoryObj = categories.find((c) => c.category_id === categoryId);
+  const isOtherCategory = selectedCategoryObj && (
+    selectedCategoryObj.category_name.toLowerCase() === 'others' || 
+    selectedCategoryObj.category_name.toLowerCase() === 'other'
+  );
 
   // Inline validation checks
   const htmlRegex = /<\s*[^>]*[a-zA-Z\/][^>]*>|javascript\s*:/i;
@@ -76,6 +84,14 @@ export default function CreateJob() {
     if (!categoryId) {
       return setError('Please select a valid job category.');
     }
+    if (isOtherCategory) {
+      if (!customCategory.trim() || customCategory.trim().length < 2) {
+        return setError('Please specify a name for your custom category (at least 2 characters).');
+      }
+      if (htmlRegex.test(customCategory)) {
+        return setError('Category name cannot contain HTML or script tags.');
+      }
+    }
     if (!isDescValid) {
       if (isDescHasHtml) return setError('Job description cannot contain HTML or script tags.');
       if (hasOffPlatformContacts) return setError('Contact info (email, phone, Telegram) is not allowed in job descriptions.');
@@ -94,11 +110,13 @@ export default function CreateJob() {
         title: title.trim(),
         description: description.trim(),
         category_id: categoryId,
+        custom_category: isOtherCategory ? customCategory.trim() : null,
         budget_type: budgetType,
         currency,
         budget: Number(budget),
         deadline: deadline || null,
       });
+      clearCached('explore_jobs');
       navigate('/explore');
     } catch (err) {
       setError(err.message);
@@ -173,6 +191,31 @@ export default function CreateJob() {
                   {touched.category && !categoryId && (
                     <div className="text-danger small mt-1 d-flex align-items-center gap-1">
                       <i className="bi bi-exclamation-circle-fill"></i> Please select a category.
+                    </div>
+                  )}
+
+                  {isOtherCategory && (
+                    <div className="mt-2 p-3 bg-light rounded-3 border">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <label className="form-label small fw-medium text-dark mb-0" htmlFor="customCategory">
+                          Specify New Category Name <span className="text-danger">*</span>
+                        </label>
+                        <span className="small text-muted" style={{ fontSize: '11px' }}>Will appear in Others</span>
+                      </div>
+                      <input
+                        id="customCategory"
+                        type="text"
+                        required
+                        placeholder="e.g. Video Editing, UI/UX Research, Voice Acting..."
+                        value={customCategory}
+                        onChange={(e) => setCustomCategory(e.target.value)}
+                        className={`form-control bg-white ${touched.category && isOtherCategory && (!customCategory.trim() || customCategory.trim().length < 2) ? 'is-invalid border-danger' : ''}`}
+                      />
+                      {touched.category && isOtherCategory && (!customCategory.trim() || customCategory.trim().length < 2) && (
+                        <div className="text-danger small mt-1 d-flex align-items-center gap-1">
+                          <i className="bi bi-exclamation-circle-fill"></i> Please enter a category name (at least 2 characters).
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

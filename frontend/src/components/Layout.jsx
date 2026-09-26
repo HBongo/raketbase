@@ -198,7 +198,8 @@ export default function Layout() {
           </div>
 
           <div className="navbar-search-wrapper mx-3">
-            {(location.pathname.includes('/explore') || location.pathname.includes('/top-users') || location.pathname.includes('/messages') || location.pathname.includes('/my-proposals')) && (
+            {!location.pathname.startsWith('/explore') &&
+             (location.pathname.includes('/top-users') || location.pathname.includes('/messages') || location.pathname.includes('/my-proposals')) && (
               <form onSubmit={handleSearchSubmit} className="d-flex align-items-center w-100 position-relative">
                 <input
                   type="text"
