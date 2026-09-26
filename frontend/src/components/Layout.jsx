@@ -51,6 +51,7 @@ export default function Layout() {
   };
 
   const isProfileActive = location.pathname.startsWith('/freelancer') || location.pathname.startsWith('/profile');
+  const isExploreActive = location.pathname.startsWith('/explore') || (location.pathname.startsWith('/jobs') && !location.pathname.startsWith('/jobs/create'));
 
   useEffect(() => {
     if (isSidebarMinimized) {
@@ -153,7 +154,7 @@ export default function Layout() {
             <div className="sidebar-menu-title">Jobs</div>
             <ul className="sidebar-menu-list">
               <li className="sidebar-menu-item">
-                <Link to="/explore" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isActive('/explore') || isActive('/jobs') ? 'active' : ''}`}>
+                <Link to="/explore" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isExploreActive ? 'active' : ''}`}>
                   <i className="bi bi-search"></i><span>Explore Jobs</span>
                 </Link>
               </li>
@@ -167,7 +168,7 @@ export default function Layout() {
               {user.active_role === 'customer' && (
                 <>
                   <li className="sidebar-menu-item">
-                    <Link to="/my-jobs" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isActive('/my-jobs') && !isActive('/jobs/create') ? 'active' : ''}`}>
+                    <Link to="/my-jobs" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isActive('/my-jobs')}`}>
                       <i className="bi bi-briefcase"></i><span>My Postings</span>
                     </Link>
                   </li>
