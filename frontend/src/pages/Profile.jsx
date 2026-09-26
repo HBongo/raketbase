@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getFreelancerProfile, updateProfile } from '../services/api';
 import { supabase } from '../config/supabaseClient';
+import { getCached, setCached } from '../utils/cache';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&auto=format&fit=crop';
 
@@ -17,12 +18,14 @@ export default function Profile() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const cachedProfile = getCached(`profile_${id}`);
+
+  const [profile, setProfile] = useState(cachedProfile || null);
+  const [loading, setLoading] = useState(!cachedProfile);
   const [loadError, setLoadError] = useState(null);
 
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState(cachedProfile ? buildFormFromProfile(cachedProfile) : {});
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -40,13 +43,17 @@ export default function Profile() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      setLoading(true);
+      const cached = getCached(`profile_${id}`);
+      if (!cached) {
+        setLoading(true);
+      }
       setLoadError(null);
       try {
         const res = await getFreelancerProfile(id);
         if (!cancelled && res.success) {
           setProfile(res.data);
           setForm(buildFormFromProfile(res.data));
+          setCached(`profile_${id}`, res.data);
         }
       } catch (err) {
         if (!cancelled) setLoadError(err.message || 'Could not load profile.');
@@ -239,46 +246,79 @@ export default function Profile() {
   const experienceArr = Array.isArray(f.experience) ? f.experience : [];
   const educationArr = Array.isArray(f.education) ? f.education : [];
 
+function ProfileSkeleton() {
+  return (
+    <div className="row g-4 px-3 mb-4">
+      {/* Left Column Skeleton */}
+      <div className="col-12 col-md-4">
+        <div className="card shadow-sm border-0 mb-4 p-4 text-center bg-white">
+          <div className="skeleton-box rounded-circle mx-auto mb-3" style={{ width: 140, height: 140 }} />
+          <div className="skeleton-box mx-auto mb-2" style={{ width: "60%", height: 22 }} />
+          <div className="skeleton-box mx-auto mb-3" style={{ width: "40%", height: 14 }} />
+          <div className="skeleton-box mx-auto mb-4" style={{ width: "80%", height: 12 }} />
+          <div className="d-flex justify-content-center gap-2">
+            <div className="skeleton-box rounded-pill" style={{ width: 100, height: 36 }} />
+          </div>
+        </div>
+      </div>
+      {/* Right Column Skeleton */}
+      <div className="col-12 col-md-8">
+        <div className="card shadow-sm border-0 mb-4 p-4 bg-white">
+          <div className="skeleton-box mb-4" style={{ width: "30%", height: 20 }} />
+          <div className="skeleton-box mb-2" style={{ width: "100%", height: 14 }} />
+          <div className="skeleton-box mb-2" style={{ width: "95%", height: 14 }} />
+          <div className="skeleton-box mb-4" style={{ width: "70%", height: 14 }} />
+          <div className="skeleton-box mb-3" style={{ width: "25%", height: 18 }} />
+          <div className="d-flex flex-wrap gap-2 mb-4">
+            <div className="skeleton-box rounded-pill" style={{ width: 80, height: 28 }} />
+            <div className="skeleton-box rounded-pill" style={{ width: 100, height: 28 }} />
+            <div className="skeleton-box rounded-pill" style={{ width: 70, height: 28 }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
   return (
     <>
-
-
-        <div className="page-header d-flex justify-content-between align-items-center">
-          <div>
-            <h1 className="page-title">Freelancer Profile</h1>
-            <p className="page-subtitle">View skills, experience, and portfolio details.</p>
-          </div>
-          {isOwnProfile && !editing && (
-            <button className="btn btn-dark rounded-pill px-4 fw-medium" onClick={() => setEditing(true)}>
-              <i className="bi bi-pencil-square me-2"></i>Edit Profile
-            </button>
-          )}
-          {editing && (
-            <div className="d-flex gap-2">
-              <button className="btn btn-outline-secondary rounded-pill px-4 fw-medium" onClick={cancelEdit} disabled={saving}>Cancel</button>
-              <button className="btn btn-success rounded-pill px-4 fw-medium text-white" onClick={handleSave} disabled={saving}>
-                {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</> : <><i className="bi bi-check-lg me-1"></i>Save Profile</>}
-              </button>
-            </div>
-          )}
+      {loading && (
+        <div className="loading-bar-container" style={{ position: "sticky", top: 0, zIndex: 100, margin: "-1rem -1rem 1rem -1rem" }}>
+          <div className="loading-bar-indeterminate" />
         </div>
+      )}
 
-        {/* Save / Error Messages */}
-        {saveMsg && (
-          <div className={`alert ${saveMsg.type === 'success' ? 'alert-success' : 'alert-danger'} mx-3 alert-dismissible fade show`} role="alert">
-            <i className={`bi ${saveMsg.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} me-2`}></i>
-            {saveMsg.text}
-            <button type="button" className="btn-close" onClick={() => setSaveMsg(null)}></button>
+      <div className="page-header d-flex justify-content-between align-items-center">
+        <div>
+          <h1 className="page-title">Freelancer Profile</h1>
+          <p className="page-subtitle">View skills, experience, and portfolio details.</p>
+        </div>
+        {isOwnProfile && !editing && (
+          <button className="btn btn-dark rounded-pill px-4 fw-medium" onClick={() => setEditing(true)}>
+            <i className="bi bi-pencil-square me-2"></i>Edit Profile
+          </button>
+        )}
+        {editing && (
+          <div className="d-flex gap-2">
+            <button className="btn btn-outline-secondary rounded-pill px-4 fw-medium" onClick={cancelEdit} disabled={saving}>Cancel</button>
+            <button className="btn btn-success rounded-pill px-4 fw-medium text-white" onClick={handleSave} disabled={saving}>
+              {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</> : <><i className="bi bi-check-lg me-1"></i>Save Profile</>}
+            </button>
           </div>
         )}
+      </div>
 
-        {/* Loading / Error States */}
-        {loading && (
-          <div className="text-center py-5">
-            <div className="spinner-border text-dark" role="status"><span className="visually-hidden">Loading...</span></div>
-            <p className="text-muted mt-3">Loading profile...</p>
-          </div>
-        )}
+      {/* Save / Error Messages */}
+      {saveMsg && (
+        <div className={`alert ${saveMsg.type === 'success' ? 'alert-success' : 'alert-danger'} mx-3 alert-dismissible fade show`} role="alert">
+          <i className={`bi ${saveMsg.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} me-2`}></i>
+          {saveMsg.text}
+          <button type="button" className="btn-close" onClick={() => setSaveMsg(null)}></button>
+        </div>
+      )}
+
+      {/* Loading / Error States */}
+      {loading && <ProfileSkeleton />}
 
         {!loading && loadError && (
           <div className="card text-center py-5 mx-3 border">

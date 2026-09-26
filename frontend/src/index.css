@@ -50,3 +50,54 @@ img.rocket-logo {
 .logo-shake:hover {
   animation: wiggle-rocket 0.4s ease-in-out infinite;
 }
+
+/* ── LinkedIn-style Shimmer & Progress Bar Loaders ── */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-box {
+  display: inline-block;
+  background: linear-gradient(90deg, #edf0f2 25%, #f8f9fa 50%, #edf0f2 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite ease-in-out;
+  border-radius: 6px;
+}
+
+@keyframes indeterminate-bar {
+  0% {
+    left: -35%;
+    right: 100%;
+  }
+  60% {
+    left: 100%;
+    right: -90%;
+  }
+  100% {
+    left: 100%;
+    right: -90%;
+  }
+}
+
+.loading-bar-container {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  background-color: rgba(255, 90, 30, 0.12);
+  overflow: hidden;
+  z-index: 50;
+}
+
+.loading-bar-indeterminate {
+  position: absolute;
+  background: #FF5A1E;
+  top: 0;
+  bottom: 0;
+  animation: indeterminate-bar 1.4s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;
+}
+

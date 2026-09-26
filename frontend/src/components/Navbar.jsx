@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeftIcon, SearchIcon, ChevronDownIcon } from './Icons';
+import { clearCached } from '../utils/cache';
 
 export default function Navbar({
   showBack = false,
@@ -45,7 +46,8 @@ export default function Navbar({
   }, []);
 
   function handleLogout() {
-    // Clear tokens, session, and cookies
+    // Clear tokens, session, cookies, and memory cache
+    clearCached();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     sessionStorage.clear();

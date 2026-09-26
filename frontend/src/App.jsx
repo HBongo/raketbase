@@ -19,7 +19,16 @@ import Layout from './components/Layout';
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/"
+        element={
+          localStorage.getItem('token') ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/jobs" element={<Navigate to="/explore" replace />} />
@@ -35,6 +44,7 @@ function App() {
           <Route path="/my-jobs/:id" element={<ClientJobView />} />
           <Route path="/contracts/:id/dispute" element={<DisputeTicket />} />
           <Route path="/messages" element={<Messages />} />
+          <Route path="/messages/:id" element={<Messages />} />
           <Route path="/top-users" element={<TopUsers />} />
           <Route path="/my-proposals" element={<MyProposals />} />
           <Route path="/profile/:id" element={<Profile />} />
@@ -48,7 +58,16 @@ function App() {
         <Route path="/admin" element={<AdminDashboard />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route
+        path="*"
+        element={
+          localStorage.getItem('token') ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
     </Routes>
   );
 }

@@ -1,8 +1,36 @@
-import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams, Outlet } from 'react-router-dom';
+import { clearCached } from '../utils/cache';
 
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [navSearch, setNavSearch] = useState(searchParams.get('q') || '');
+
+  useEffect(() => {
+    setNavSearch(searchParams.get('q') || '');
+  }, [searchParams]);
+
+  function handleSearchSubmit(e) {
+    e.preventDefault();
+    const q = navSearch.trim();
+    if (location.pathname.startsWith('/top-users')) {
+      navigate(q ? `/top-users?q=${encodeURIComponent(q)}` : '/top-users');
+    } else {
+      navigate(q ? `/explore?q=${encodeURIComponent(q)}` : '/explore');
+    }
+  }
+
+  function handleSearchChange(e) {
+    const val = e.target.value;
+    setNavSearch(val);
+    if (location.pathname.startsWith('/explore')) {
+      navigate(val.trim() ? `/explore?q=${encodeURIComponent(val)}` : '/explore', { replace: true });
+    } else if (location.pathname.startsWith('/top-users')) {
+      navigate(val.trim() ? `/top-users?q=${encodeURIComponent(val)}` : '/top-users', { replace: true });
+    }
+  }
 
   const user = (() => {
     try {
@@ -21,7 +49,7 @@ export default function Layout() {
   return (
     <>
       <div className="sidebar-wrapper" id="sidebar">
-        <Link to="/" className="sidebar-brand text-decoration-none d-flex align-items-center gap-1" style={{ padding: '10px 0' }}>
+        <Link to="/dashboard" className="sidebar-brand text-decoration-none d-flex align-items-center gap-1" style={{ padding: '10px 0' }}>
           <img src="/racketbaseSVG.svg" alt="RaketBase Logo" style={{ height: '50px', objectFit: 'contain', marginTop: '-8px' }} />
           <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '24px', color: '#fff', letterSpacing: '0.5px', display: 'flex', alignItems: 'center' }}>
             <span style={{ fontWeight: 800 }}>RAKET</span>
@@ -94,7 +122,7 @@ export default function Layout() {
             <button className="sidebar-toggle-btn me-2" id="sidebar-toggle">
               <i className="bi bi-list"></i>
             </button>
-            {(location.pathname.includes('/messages') || location.pathname.includes('/explore/') || location.pathname.includes('/jobs/') || location.pathname.includes('/profile/')) && (
+            {(location.pathname.includes('/messages') || location.pathname.includes('/explore/') || location.pathname.includes('/jobs/') || location.pathname.includes('/profile/') || location.pathname.includes('/my-jobs/')) && (
               <button className="btn btn-light rounded-pill px-3 ms-2 d-none d-md-flex align-items-center" onClick={() => navigate(-1)}>
                 <i className="bi bi-arrow-left me-1"></i> Back
               </button>
@@ -103,10 +131,18 @@ export default function Layout() {
 
           <div className="navbar-search-wrapper mx-3">
             {(location.pathname.includes('/explore') || location.pathname.includes('/top-users') || location.pathname.includes('/messages') || location.pathname.includes('/my-proposals')) && (
-              <>
-                <input type="text" className="navbar-search-input" placeholder="Search..." />
-                <button className="navbar-search-btn"><i className="bi bi-search"></i></button>
-              </>
+              <form onSubmit={handleSearchSubmit} className="d-flex align-items-center w-100 position-relative">
+                <input
+                  type="text"
+                  className="navbar-search-input"
+                  placeholder="Search open jobs, keywords, skills..."
+                  value={navSearch}
+                  onChange={handleSearchChange}
+                />
+                <button type="submit" className="navbar-search-btn" aria-label="Search">
+                  <i className="bi bi-search"></i>
+                </button>
+              </form>
             )}
           </div>
 
@@ -128,7 +164,7 @@ export default function Layout() {
                 <li><Link className="dropdown-item" to={`/profile/${user?.user_id || user?.id}`}><i className="bi bi-person"></i> My Profile</Link></li>
                 <li><Link className="dropdown-item" to="#"><i className="bi bi-gear"></i> Settings</Link></li>
                 <li><hr className="dropdown-divider" /></li>
-                <li><Link className="dropdown-item text-danger" to="/login" onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); }}><i className="bi bi-box-arrow-right"></i> Logout</Link></li>
+                <li><Link className="dropdown-item text-danger" to="/login" onClick={() => { clearCached(); localStorage.removeItem('token'); localStorage.removeItem('user'); }}><i className="bi bi-box-arrow-right"></i> Logout</Link></li>
               </ul>
             </div>
           </div>

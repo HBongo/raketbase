@@ -162,6 +162,7 @@ export function resolveDispute(disputeId, payload) {
 }
 // Messages API
 export function getConversations() { return request("/conversations"); }
+export function getConversation(id) { return request(`/conversations/${id}`); }
 export function getConversationMessages(id) { return request(`/conversations/${id}/messages`); }
 export function sendMessage(id, payload) {
   const formData = new FormData();

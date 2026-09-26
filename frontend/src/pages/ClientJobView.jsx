@@ -4,9 +4,9 @@
 // 2. /my-jobs/:id     -> a single job's proposals, with Accept / Reject actions
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
 import { ClockIcon } from '../components/Icons';
 import { getMyJobs, getJobProposals, acceptProposal, rejectProposal } from '../services/api';
+import { getCached, setCached } from '../utils/cache';
 
 const STATUS_STYLES = {
   open: 'bg-accent/10 text-accent border-accent/30',
@@ -21,18 +21,26 @@ export default function ClientJobView() {
 
 function MyJobsList() {
   const navigate = useNavigate();
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cachedJobs = getCached('client_my_jobs');
+  const [jobs, setJobs] = useState(cachedJobs || []);
+  const [loading, setLoading] = useState(!cachedJobs);
   const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     async function loadJobs() {
-      setLoading(true);
+      const cached = getCached('client_my_jobs');
+      if (!cached) {
+        setLoading(true);
+      }
       setLoadError(null);
       try {
         const res = await getMyJobs();
-        if (!cancelled) setJobs(res.data || []);
+        const list = res.data || [];
+        if (!cancelled) {
+          setJobs(list);
+          setCached('client_my_jobs', list);
+        }
       } catch (err) {
         if (!cancelled) setLoadError(err.message || 'Could not load your job postings.');
       } finally {
@@ -45,9 +53,33 @@ function MyJobsList() {
     };
   }, []);
 
+function MyJobsSkeleton() {
+  return (
+    <div className="space-y-3">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex w-full items-center justify-between gap-4 rounded-lg border border-border bg-panel p-5">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="skeleton-box rounded-full" style={{ width: 50, height: 18 }} />
+              <div className="skeleton-box" style={{ width: 80, height: 14 }} />
+            </div>
+            <div className="skeleton-box mb-2" style={{ width: "60%", height: 20 }} />
+            <div className="skeleton-box" style={{ width: "30%", height: 14 }} />
+          </div>
+          <div className="skeleton-box rounded-pill" style={{ width: 90, height: 32 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
   return (
     <div className="min-h-screen bg-bg text-text">
-      <Navbar />
+      {loading && (
+        <div className="loading-bar-container" style={{ position: "sticky", top: 0, zIndex: 100 }}>
+          <div className="loading-bar-indeterminate" />
+        </div>
+      )}
       <div className="mx-auto max-w-5xl px-5 py-8 md:px-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -62,7 +94,7 @@ function MyJobsList() {
           </button>
         </div>
 
-        {loading && <StateCard title="Loading your postings..." />}
+        {loading && <MyJobsSkeleton />}
 
         {!loading && loadError && (
           <StateCard
@@ -123,20 +155,26 @@ function MyJobsList() {
 }
 
 function ProposalsForJob({ jobId }) {
-  const [job, setJob] = useState(null);
-  const [proposals, setProposals] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cachedJobData = getCached(`job_proposals_${jobId}`);
+
+  const [job, setJob] = useState(cachedJobData?.job || null);
+  const [proposals, setProposals] = useState(cachedJobData?.proposals || []);
+  const [loading, setLoading] = useState(!cachedJobData);
   const [loadError, setLoadError] = useState(null);
   const [actioningId, setActioningId] = useState(null);
   const [actionError, setActionError] = useState('');
 
-  async function load() {
-    setLoading(true);
+  async function load(isForce = false) {
+    const cached = getCached(`job_proposals_${jobId}`);
+    if (!cached || isForce) {
+      setLoading(true);
+    }
     setLoadError(null);
     try {
       const res = await getJobProposals(jobId);
       setJob(res.data.job);
       setProposals(res.data.proposals || []);
+      setCached(`job_proposals_${jobId}`, res.data);
     } catch (err) {
       setLoadError(err.message || 'Could not load proposals for this job.');
     } finally {
@@ -177,11 +215,43 @@ function ProposalsForJob({ jobId }) {
 
   const jobIsOpen = job?.status === 'open';
 
+function ProposalsForJobSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-border bg-panel p-6">
+        <div className="skeleton-box mb-3" style={{ width: "50%", height: 24 }} />
+        <div className="skeleton-box mb-2" style={{ width: "100%", height: 14 }} />
+        <div className="skeleton-box" style={{ width: "70%", height: 14 }} />
+      </div>
+      {[1, 2].map((i) => (
+        <div key={i} className="rounded-xl border border-border bg-panel p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="skeleton-box rounded-full" style={{ width: 44, height: 44 }} />
+              <div>
+                <div className="skeleton-box mb-2" style={{ width: 120, height: 16 }} />
+                <div className="skeleton-box" style={{ width: 80, height: 12 }} />
+              </div>
+            </div>
+            <div className="skeleton-box" style={{ width: 70, height: 20 }} />
+          </div>
+          <div className="skeleton-box mb-2" style={{ width: "100%", height: 14 }} />
+          <div className="skeleton-box" style={{ width: "85%", height: 14 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
   return (
     <div className="min-h-screen bg-bg text-text">
-      <Navbar showBack backTo="/my-jobs" />
+      {loading && (
+        <div className="loading-bar-container" style={{ position: "sticky", top: 0, zIndex: 100 }}>
+          <div className="loading-bar-indeterminate" />
+        </div>
+      )}
       <div className="mx-auto max-w-4xl px-5 py-8 md:px-8">
-        {loading && <StateCard title="Loading proposals..." />}
+        {loading && <ProposalsForJobSkeleton />}
 
         {!loading && loadError && (
           <StateCard

@@ -10,7 +10,7 @@ exports.getAllJobs = async (req, res) => {
 
     let query = supabaseAdmin
       .from('jobs')
-      .select('*, categories(category_name), users!jobs_client_id_fkey(first_name, last_name)')
+      .select('*, categories(category_name), users!jobs_client_id_fkey(user_id, first_name, last_name, client_avatar_url, avatar_url)')
       .order('created_at', { ascending: false });
 
     if (category_id) {
@@ -54,7 +54,7 @@ exports.getJobById = async (req, res) => {
 
     const { data: job, error } = await supabaseAdmin
       .from('jobs')
-      .select('*, categories(category_name), users!jobs_client_id_fkey(first_name, last_name, email, client_avatar_url)')
+      .select('*, categories(category_name), users!jobs_client_id_fkey(user_id, first_name, last_name, email, client_avatar_url, avatar_url)')
       .eq('job_id', id)
       .single();
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { getTopUsers } from '../services/api';
+import { getCached, setCached } from '../utils/cache';
 
 const PAGE_SIZE = 12;
 
@@ -37,19 +38,22 @@ export default function TopUsers() {
   const [bounds, setBounds] = useState(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const [users, setUsers] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [minReviews, setMinReviews] = useState(3);
-  const [loading, setLoading] = useState(true);
+  const debouncedRange = useDebounced(range, 400);
+  const apiMin = debouncedRange && bounds && debouncedRange.min > bounds.min ? debouncedRange.min : undefined;
+  const apiMax = debouncedRange && bounds && debouncedRange.max < bounds.max ? debouncedRange.max : undefined;
+
+  const cacheKey = `top_users_${role}_${minRating || 0}_${apiMin || ''}_${apiMax || ''}`;
+  const cachedUsersData = getCached(cacheKey);
+
+  const [users, setUsers] = useState(cachedUsersData?.users || []);
+  const [total, setTotal] = useState(cachedUsersData?.total || 0);
+  const [hasMore, setHasMore] = useState(cachedUsersData?.has_more || false);
+  const [minReviews, setMinReviews] = useState(cachedUsersData?.min_reviews || 3);
+  const [loading, setLoading] = useState(!cachedUsersData);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
 
   const paramsRef = useRef({ role });
-
-  const debouncedRange = useDebounced(range, 400);
-  const apiMin = debouncedRange && bounds && debouncedRange.min > bounds.min ? debouncedRange.min : undefined;
-  const apiMax = debouncedRange && bounds && debouncedRange.max < bounds.max ? debouncedRange.max : undefined;
 
   useEffect(() => {
     let cancelled = false;
@@ -57,7 +61,11 @@ export default function TopUsers() {
     async function load() {
       const params = { role, minRating: minRating || undefined, minPrice: apiMin, maxPrice: apiMax };
       paramsRef.current = params;
-      setLoading(true);
+      const key = `top_users_${role}_${minRating || 0}_${apiMin || ''}_${apiMax || ''}`;
+      const cached = getCached(key);
+      if (!cached) {
+        setLoading(true);
+      }
       setError(null);
       try {
         const res = await getTopUsers({ ...params, limit: PAGE_SIZE, offset: 0 });
@@ -67,6 +75,7 @@ export default function TopUsers() {
         setHasMore(res.data.has_more);
         setBounds(res.data.price_bounds);
         setMinReviews(res.data.min_reviews);
+        setCached(key, res.data);
       } catch (err) {
         if (cancelled) return;
         setUsers([]);
@@ -102,7 +111,20 @@ export default function TopUsers() {
     setMinRating(0);
     setRange(null);
     setBounds(null);
-    setUsers([]);
+    const nextRole = next === 'clients' ? 'customer' : 'freelancer';
+    const nextKey = `top_users_${nextRole}_0__`;
+    const cached = getCached(nextKey);
+    if (cached) {
+      setUsers(cached.users || []);
+      setTotal(cached.total || 0);
+      setHasMore(cached.has_more || false);
+      setBounds(cached.price_bounds || null);
+      setMinReviews(cached.min_reviews || 3);
+      setLoading(false);
+    } else {
+      setUsers([]);
+      setLoading(true);
+    }
     setSearchParams(next === 'clients' ? { tab: 'clients' } : {});
   }
 
@@ -114,68 +136,97 @@ export default function TopUsers() {
   const filtersActive = minRating > 0 || apiMin !== undefined || apiMax !== undefined;
   const who = isFreelancer ? 'freelancers' : 'clients';
 
+function TopUsersSkeleton() {
+  return (
+    <div className="row g-4">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div className="col-12 col-md-6 col-xl-4" key={i}>
+          <div className="card shadow-sm border-0 h-100 p-4 bg-white">
+            <div className="d-flex align-items-center gap-3 mb-3">
+              <div className="skeleton-box rounded-circle flex-shrink-0" style={{ width: 56, height: 56 }} />
+              <div className="flex-grow-1">
+                <div className="skeleton-box mb-2" style={{ width: "70%", height: 16 }} />
+                <div className="skeleton-box" style={{ width: "40%", height: 12 }} />
+              </div>
+            </div>
+            <div className="skeleton-box mb-2" style={{ width: "100%", height: 12 }} />
+            <div className="skeleton-box mb-3" style={{ width: "80%", height: 12 }} />
+            <div className="d-flex gap-2 mt-auto">
+              <div className="skeleton-box rounded-pill" style={{ width: 60, height: 24 }} />
+              <div className="skeleton-box rounded-pill" style={{ width: 70, height: 24 }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
   return (
     <>
+      {loading && (
+        <div className="loading-bar-container" style={{ position: "sticky", top: 0, zIndex: 100, margin: "-1rem -1rem 1rem -1rem" }}>
+          <div className="loading-bar-indeterminate" />
+        </div>
+      )}
 
-        
+      <div className="row g-4 px-3 mb-4">
+        <div className="col-12 col-md-3">
+          <FiltersSidebar
+            isFreelancer={isFreelancer}
+            minRating={minRating}
+            setMinRating={setMinRating}
+            range={range}
+            setRange={setRange}
+            bounds={bounds}
+            resetFilters={resetFilters}
+            resultCount={total}
+            who={who}
+            open={filtersOpen}
+            setFiltersOpen={setFiltersOpen}
+            filtersActive={filtersActive}
+          />
+        </div>
 
-        <div className="row g-4 px-3 mb-4">
-          <div className="col-12 col-md-3">
-            <FiltersSidebar
-              isFreelancer={isFreelancer}
-              minRating={minRating}
-              setMinRating={setMinRating}
-              range={range}
-              setRange={setRange}
-              bounds={bounds}
-              resetFilters={resetFilters}
-              resultCount={total}
-              who={who}
-              open={filtersOpen}
-              setFiltersOpen={setFiltersOpen}
-              filtersActive={filtersActive}
-            />
+        <div className="col-12 col-md-9">
+          <div className="d-flex align-items-start justify-content-between gap-3 mb-4">
+            <div>
+              <h2 className="fw-bold mb-1">Top users</h2>
+              <p className="text-muted small mb-0">
+                Ranked by average rating. Only {who} with at least {minReviews} reviews are listed.
+              </p>
+            </div>
+            <button
+              onClick={() => setFiltersOpen((v) => !v)}
+              className="btn btn-outline-secondary d-md-none"
+            >
+              <i className="bi bi-funnel"></i> Filters{filtersActive ? ' •' : ''}
+            </button>
           </div>
 
-          <div className="col-12 col-md-9">
-            <div className="d-flex align-items-start justify-content-between gap-3 mb-4">
-              <div>
-                <h2 className="fw-bold mb-1">Top users</h2>
-                <p className="text-muted small mb-0">
-                  Ranked by average rating. Only {who} with at least {minReviews} reviews are listed.
-                </p>
-              </div>
+          <div className="d-flex gap-2 mb-4 border-bottom pb-2">
+            {[
+              { id: 'freelancers', label: 'Freelancers' },
+              { id: 'clients', label: 'Clients' },
+            ].map((t) => (
               <button
-                onClick={() => setFiltersOpen((v) => !v)}
-                className="btn btn-outline-secondary d-md-none"
+                key={t.id}
+                onClick={() => changeTab(t.id)}
+                className={`btn rounded-pill px-4 ${
+                  tab === t.id
+                    ? 'text-white'
+                    : 'btn-outline-secondary border-0'
+                }`}
+                style={tab === t.id ? { backgroundColor: '#FF5A1E' } : {}}
               >
-                <i className="bi bi-funnel"></i> Filters{filtersActive ? ' •' : ''}
+                {t.label}
               </button>
-            </div>
+            ))}
+          </div>
 
-            <div className="d-flex gap-2 mb-4 border-bottom pb-2">
-              {[
-                { id: 'freelancers', label: 'Freelancers' },
-                { id: 'clients', label: 'Clients' },
-              ].map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => changeTab(t.id)}
-                  className={`btn rounded-pill px-4 ${
-                    tab === t.id
-                      ? 'text-white'
-                      : 'btn-outline-secondary border-0'
-                  }`}
-                  style={tab === t.id ? { backgroundColor: '#FF5A1E' } : {}}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+          {loading && <TopUsersSkeleton />}
 
-            {loading && <StateCard title="Loading top users..." />}
-
-            {!loading && error && users.length === 0 && (
+          {!loading && error && users.length === 0 && (
               <StateCard
                 title="Couldn't load the top users"
                 body={error}

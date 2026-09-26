@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyProposals, withdrawProposal, unwithdrawProposal } from '../services/api';
+import { getCached, setCached } from '../utils/cache';
 
 const FILTERS = [
   { value: 'all', label: 'All' },
@@ -21,8 +22,10 @@ const STATUS_STYLES = {
 };
 
 export default function MyProposals() {
-  const [proposals, setProposals] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cachedProposals = getCached('my_proposals');
+
+  const [proposals, setProposals] = useState(cachedProposals || []);
+  const [loading, setLoading] = useState(!cachedProposals);
   const [loadError, setLoadError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [actioningId, setActioningId] = useState(null);
@@ -33,12 +36,17 @@ export default function MyProposals() {
     catch { return {}; }
   })();
 
-  async function load() {
-    setLoading(true);
+  async function load(isForce = false) {
+    const cached = getCached('my_proposals');
+    if (!cached || isForce) {
+      setLoading(true);
+    }
     setLoadError(null);
     try {
       const res = await getMyProposals();
-      setProposals(res.data || []);
+      const list = res.data || [];
+      setProposals(list);
+      setCached('my_proposals', list);
     } catch (err) {
       setLoadError(err.message || 'Could not load your proposals.');
     } finally {
@@ -84,47 +92,69 @@ export default function MyProposals() {
 
   const visibleProposals = filter === 'all' ? proposals : proposals.filter((p) => p.status === filter);
 
+function ProposalsSkeleton() {
+  return (
+    <div className="d-flex flex-column gap-3">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="card shadow-sm border-0 p-4 bg-white">
+          <div className="d-flex justify-content-between align-items-start mb-2">
+            <div className="skeleton-box" style={{ width: "45%", height: 18 }} />
+            <div className="skeleton-box rounded-pill" style={{ width: 85, height: 24 }} />
+          </div>
+          <div className="skeleton-box mb-3" style={{ width: "25%", height: 16 }} />
+          <div className="skeleton-box mb-2" style={{ width: "100%", height: 12 }} />
+          <div className="skeleton-box" style={{ width: "80%", height: 12 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
   return (
     <>
+      {loading && (
+        <div className="loading-bar-container" style={{ position: "sticky", top: 0, zIndex: 100, margin: "-1rem -1rem 1rem -1rem" }}>
+          <div className="loading-bar-indeterminate" />
+        </div>
+      )}
 
+      {/* Page Content Here */}
+      <div className="row g-4 px-3 mb-4">
+        <div className="col-xl-8 mx-auto">
+          <div className="mb-4">
+            <h1 className="fw-bold fs-3 mb-1">My Proposals</h1>
+            <p className="text-muted small mb-0">
+              Track every bid you've sent, and manage the ones still in play.
+            </p>
+          </div>
 
-        {/* Page Content Here */}
-        <div className="row g-4 px-3 mb-4">
-          <div className="col-xl-8 mx-auto">
-            <div className="mb-4">
-              <h1 className="fw-bold fs-3 mb-1">My Proposals</h1>
-              <p className="text-muted small mb-0">
-                Track every bid you've sent, and manage the ones still in play.
-              </p>
+          {/* Status filter tabs */}
+          <div className="d-flex flex-wrap gap-2 mb-4">
+            {FILTERS.map((f) => {
+              const isActive = filter === f.value;
+              return (
+                <button
+                  key={f.value}
+                  onClick={() => setFilter(f.value)}
+                  className={`btn btn-sm rounded-pill px-3 py-1 ${
+                    isActive ? 'text-white border-0' : 'btn-outline-secondary'
+                  }`}
+                  style={isActive ? { backgroundColor: '#FF5A1E' } : {}}
+                >
+                  {f.label}
+                  <span className="ms-2 small opacity-75">{counts[f.value]}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {actionError && (
+            <div className="alert alert-danger py-2 px-3 small rounded-3 mb-4">
+              {actionError}
             </div>
+          )}
 
-            {/* Status filter tabs */}
-            <div className="d-flex flex-wrap gap-2 mb-4">
-              {FILTERS.map((f) => {
-                const isActive = filter === f.value;
-                return (
-                  <button
-                    key={f.value}
-                    onClick={() => setFilter(f.value)}
-                    className={`btn btn-sm rounded-pill px-3 py-1 ${
-                      isActive ? 'text-white border-0' : 'btn-outline-secondary'
-                    }`}
-                    style={isActive ? { backgroundColor: '#FF5A1E' } : {}}
-                  >
-                    {f.label}
-                    <span className="ms-2 small opacity-75">{counts[f.value]}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {actionError && (
-              <div className="alert alert-danger py-2 px-3 small rounded-3 mb-4">
-                {actionError}
-              </div>
-            )}
-
-            {loading && <StateCard title="Loading your proposals..." />}
+          {loading && <ProposalsSkeleton />}
 
             {!loading && loadError && (
               <StateCard title="Couldn't load your proposals" body={loadError} action={{ label: 'Try again', onClick: load }} />
