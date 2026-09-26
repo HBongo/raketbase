@@ -1,11 +1,58 @@
 const { supabaseAdmin } = require('../config/supabase');
 
+// Best-effort: posts a system message into the contract's conversation. A failure
+// here must never fail the contract action itself.
+async function postSystemMessage(contract_id, sender_id, content) {
+  try {
+    let { data: conversation } = await supabaseAdmin
+      .from('conversations')
+      .select('conversation_id')
+      .eq('contract_id', contract_id)
+      .maybeSingle();
+
+    if (!conversation) {
+      const { data: contract } = await supabaseAdmin
+        .from('contracts')
+        .select('contract_id, client_id, freelancer_id, jobs(title)')
+        .eq('contract_id', contract_id)
+        .single();
+      if (contract) {
+        const { data: newConv } = await supabaseAdmin
+          .from('conversations')
+          .insert([
+            {
+              contract_id,
+              client_id: contract.client_id,
+              freelancer_id: contract.freelancer_id,
+              title: contract.jobs?.title || 'Contract Chat',
+            },
+          ])
+          .select('conversation_id')
+          .single();
+        conversation = newConv;
+      }
+    }
+
+    if (!conversation) return;
+    await supabaseAdmin.from('messages').insert([
+      {
+        conversation_id: conversation.conversation_id,
+        sender_id,
+        content,
+        message_type: 'system',
+      },
+    ]);
+  } catch (err) {
+    console.error('Failed to post system message for contract', contract_id, err);
+  }
+}
+
 // GET /api/v1/contracts - Get all contracts for the authenticated user (as client or freelancer)
 exports.getContracts = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const { data: contracts, error } = await supabaseAdmin
+    let { data: contracts, error } = await supabaseAdmin
       .from('contracts')
       .select(`
         contract_id,
@@ -15,6 +62,9 @@ exports.getContracts = async (req, res) => {
         agreed_amount,
         status,
         created_at,
+        deliverable_url,
+        deliverable_notes,
+        submitted_at,
         jobs (
           job_id,
           title,
@@ -53,12 +103,74 @@ exports.getContracts = async (req, res) => {
           sequence,
           status,
           submitted_at,
-          completed_at
+          completed_at,
+          deliverable_url,
+          deliverable_notes
         )
       `)
       .or(`client_id.eq.${userId},freelancer_id.eq.${userId}`)
       .order('created_at', { ascending: false })
       .order('sequence', { foreignTable: 'milestones', ascending: true });
+
+    // Defensive fallback if migration 002 has not been run yet
+    if (error && error.message && error.message.includes('deliverable_url does not exist')) {
+      const fallback = await supabaseAdmin
+        .from('contracts')
+        .select(`
+          contract_id,
+          job_id,
+          client_id,
+          freelancer_id,
+          agreed_amount,
+          status,
+          created_at,
+          jobs (
+            job_id,
+            title,
+            description,
+            budget,
+            status,
+            budget_type
+          ),
+          reviews (
+            review_id,
+            reviewer_id,
+            reviewee_id,
+            rating
+          ),
+          client:users!contracts_client_id_fkey (
+            user_id,
+            first_name,
+            last_name,
+            email,
+            active_role
+          ),
+          freelancer:users!contracts_freelancer_id_fkey (
+            user_id,
+            first_name,
+            last_name,
+            email,
+            active_role,
+            bio,
+            skills,
+            portfolio_url
+          ),
+          milestones (
+            milestone_id,
+            title,
+            amount,
+            sequence,
+            status,
+            submitted_at,
+            completed_at
+          )
+        `)
+        .or(`client_id.eq.${userId},freelancer_id.eq.${userId}`)
+        .order('created_at', { ascending: false })
+        .order('sequence', { foreignTable: 'milestones', ascending: true });
+      contracts = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) throw error;
 
@@ -74,7 +186,7 @@ exports.getContractById = async (req, res) => {
     const { id: contract_id } = req.params;
     const userId = req.user.id;
 
-    const { data: contract, error } = await supabaseAdmin
+    let { data: contract, error } = await supabaseAdmin
       .from('contracts')
       .select(`
         contract_id,
@@ -84,6 +196,9 @@ exports.getContractById = async (req, res) => {
         agreed_amount,
         status,
         created_at,
+        deliverable_url,
+        deliverable_notes,
+        submitted_at,
         jobs (
           job_id,
           title,
@@ -122,12 +237,74 @@ exports.getContractById = async (req, res) => {
           sequence,
           status,
           submitted_at,
-          completed_at
+          completed_at,
+          deliverable_url,
+          deliverable_notes
         )
       `)
       .eq('contract_id', contract_id)
       .order('sequence', { foreignTable: 'milestones', ascending: true })
       .single();
+
+    // Defensive fallback if migration 002 has not been run yet
+    if (error && error.message && error.message.includes('deliverable_url does not exist')) {
+      const fallback = await supabaseAdmin
+        .from('contracts')
+        .select(`
+          contract_id,
+          job_id,
+          client_id,
+          freelancer_id,
+          agreed_amount,
+          status,
+          created_at,
+          jobs (
+            job_id,
+            title,
+            description,
+            budget,
+            status,
+            budget_type
+          ),
+          reviews (
+            review_id,
+            reviewer_id,
+            reviewee_id,
+            rating
+          ),
+          client:users!contracts_client_id_fkey (
+            user_id,
+            first_name,
+            last_name,
+            email,
+            active_role
+          ),
+          freelancer:users!contracts_freelancer_id_fkey (
+            user_id,
+            first_name,
+            last_name,
+            email,
+            active_role,
+            bio,
+            skills,
+            portfolio_url
+          ),
+          milestones (
+            milestone_id,
+            title,
+            amount,
+            sequence,
+            status,
+            submitted_at,
+            completed_at
+          )
+        `)
+        .eq('contract_id', contract_id)
+        .order('sequence', { foreignTable: 'milestones', ascending: true })
+        .single();
+      contract = fallback.data;
+      error = fallback.error;
+    }
 
     if (error || !contract) {
       return res.status(404).json({ success: false, error: 'Contract not found' });
@@ -148,12 +325,28 @@ exports.submitWork = async (req, res) => {
   try {
     const { id: contract_id } = req.params;
     const userId = req.user.id;
+    const deliverable_url = (req.body.deliverable_url || '').trim();
+    const deliverable_notes = (req.body.deliverable_notes || '').trim();
 
     // Submitting work is a freelancer-mode action. Clients must switch modes first.
     if (req.user.active_role !== 'freelancer') {
       return res.status(403).json({
         success: false,
-        error: 'Switch to Freelancer mode to submit work.'
+        error: 'Switch to Freelancer mode to submit work.',
+      });
+    }
+
+    if (!deliverable_url) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide a deliverable link (Google Drive, GitHub, Figma, etc.).',
+      });
+    }
+
+    if (!/^https?:\/\//i.test(deliverable_url)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Deliverable link must start with http:// or https://',
       });
     }
 
@@ -190,14 +383,40 @@ exports.submitWork = async (req, res) => {
       });
     }
 
-    const { data: updated, error: updateError } = await supabaseAdmin
+    const updatePayload = {
+      status: 'submitted',
+      deliverable_url,
+      deliverable_notes: deliverable_notes || null,
+      submitted_at: new Date().toISOString(),
+    };
+
+    let { data: updated, error: updateError } = await supabaseAdmin
       .from('contracts')
-      .update({ status: 'submitted' })
+      .update(updatePayload)
       .eq('contract_id', contract_id)
       .select()
       .single();
 
+    // Fallback if migration 002 has not been run yet
+    if (updateError && updateError.message && updateError.message.includes('deliverable_url does not exist')) {
+      const fallback = await supabaseAdmin
+        .from('contracts')
+        .update({ status: 'submitted' })
+        .eq('contract_id', contract_id)
+        .select()
+        .single();
+      updated = fallback.data;
+      updateError = fallback.error;
+    }
+
     if (updateError) throw updateError;
+
+    // Post notification into the contract's chat thread
+    await postSystemMessage(
+      contract_id,
+      userId,
+      `Work was submitted for review: ${deliverable_url}${deliverable_notes ? ` — "${deliverable_notes}"` : ''}`
+    );
 
     return res.status(200).json({
       success: true,
@@ -219,7 +438,7 @@ exports.completeContract = async (req, res) => {
     if (req.user.active_role !== 'customer') {
       return res.status(403).json({
         success: false,
-        error: 'Switch to Client mode to approve work and release escrow funds.'
+        error: 'Switch to Client mode to approve work and release escrow funds.',
       });
     }
 
@@ -261,6 +480,13 @@ exports.completeContract = async (req, res) => {
         .update({ status: 'completed' })
         .eq('job_id', contract.job_id);
     }
+
+    // Post notification into chat thread
+    await postSystemMessage(
+      contract_id,
+      userId,
+      `Deliverables approved! Escrow payment of ₱${Number(contract.agreed_amount).toLocaleString()} released to the freelancer.`
+    );
 
     return res.status(200).json({
       success: true,

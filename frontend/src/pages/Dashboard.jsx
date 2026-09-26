@@ -15,8 +15,11 @@ import {
   getContracts,
   submitContractWork,
   completeContract,
+  submitMilestoneWork,
+  approveMilestoneWork,
 } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
+import { formatCurrency } from '../utils/formatters';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -43,7 +46,23 @@ export default function Dashboard() {
   const [contracts, setContracts] = useState(cachedContracts || []);
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
-  const [actioningId, setActioningId] = useState(null);
+
+  // Phase 1 Submission Modal state
+  const [submitModalContract, setSubmitModalContract] = useState(null);
+  const [submitModalMilestone, setSubmitModalMilestone] = useState(null);
+  const [deliverableUrl, setDeliverableUrl] = useState('');
+  const [deliverableNotes, setDeliverableNotes] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Phase 1 Client Deliverable Review & Escrow Release Modal state
+  const [reviewModalContract, setReviewModalContract] = useState(null);
+  const [reviewModalMilestone, setReviewModalMilestone] = useState(null);
+  const [reviewError, setReviewError] = useState('');
+  const [isApproving, setIsApproving] = useState(false);
+
+  // Milestone stages accordion state
+  const [expandedContractId, setExpandedContractId] = useState(null);
 
   const loadData = useCallback(async (isRefresh = false) => {
     const token = localStorage.getItem('token');
@@ -92,40 +111,98 @@ export default function Dashboard() {
     loadData();
   }, [loadData]);
 
-  // Freelancer submits project deliverables
-  async function handleSubmitWork(contractId) {
-    setActionError('');
-    setActionSuccess('');
-    setActioningId(contractId);
-    try {
-      await submitContractWork(contractId);
-      setActionSuccess('Work submitted for review! The client has been notified to release escrow funds.');
-      await loadData();
-    } catch (err) {
-      setActionError(err.message || 'Failed to submit work. Please try again.');
-    } finally {
-      setActioningId(null);
-    }
+  // Open modal for submitting deliverables (either whole fixed contract or milestone stage)
+  function openSubmitModal(contract, milestone = null) {
+    setSubmitModalContract(contract);
+    setSubmitModalMilestone(milestone);
+    setDeliverableUrl(milestone?.deliverable_url || contract?.deliverable_url || '');
+    setDeliverableNotes(milestone?.deliverable_notes || contract?.deliverable_notes || '');
+    setSubmitError('');
   }
 
-  // Client approves project and releases escrow funds to the freelancer
-  async function handleApproveAndRelease(contract) {
-    const amount = Number(contract.agreed_amount || 0).toLocaleString();
-    if (!window.confirm(`Approve deliverables and release ₱${amount} in escrow funds to the freelancer? This action completes the contract.`)) {
+  function closeSubmitModal() {
+    setSubmitModalContract(null);
+    setSubmitModalMilestone(null);
+    setDeliverableUrl('');
+    setDeliverableNotes('');
+    setSubmitError('');
+    setIsSubmitting(false);
+  }
+
+  // Handle submitting work with URL and notes
+  async function handleConfirmSubmit(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const url = (deliverableUrl || '').trim();
+    if (!url) {
+      setSubmitError('Please provide a valid deliverable link.');
+      return;
+    }
+    if (!/^https?:\/\//i.test(url)) {
+      setSubmitError('Deliverable link must start with http:// or https://');
       return;
     }
 
-    setActionError('');
-    setActionSuccess('');
-    setActioningId(contract.contract_id);
+    setSubmitError('');
+    setIsSubmitting(true);
     try {
-      await completeContract(contract.contract_id);
-      setActionSuccess(`Escrow payment of ₱${amount} released successfully! Contract marked as completed.`);
-      await loadData();
+      if (submitModalMilestone) {
+        await submitMilestoneWork(submitModalContract.contract_id, submitModalMilestone.milestone_id, {
+          deliverable_url: url,
+          deliverable_notes: deliverableNotes.trim(),
+        });
+        setActionSuccess(`Stage "${submitModalMilestone.title}" submitted for client review! Chat notification sent.`);
+      } else {
+        await submitContractWork(submitModalContract.contract_id, {
+          deliverable_url: url,
+          deliverable_notes: deliverableNotes.trim(),
+        });
+        setActionSuccess('Project deliverables submitted for review! Chat notification sent to the client.');
+      }
+      closeSubmitModal();
+      await loadData(true);
     } catch (err) {
-      setActionError(err.message || 'Failed to release escrow funds. Please try again.');
+      setSubmitError(err.message || 'Failed to submit work. Please try again.');
     } finally {
-      setActioningId(null);
+      setIsSubmitting(false);
+    }
+  }
+
+  // Open client review / counterparty deliverable modal
+  function openReviewModal(contract, milestone = null) {
+    setReviewModalContract(contract);
+    setReviewModalMilestone(milestone);
+    setReviewError('');
+  }
+
+  function closeReviewModal() {
+    setReviewModalContract(null);
+    setReviewModalMilestone(null);
+    setReviewError('');
+    setIsApproving(false);
+  }
+
+  // Client approves deliverables and releases escrow funds
+  async function handleConfirmApprove() {
+    if (!reviewModalContract) return;
+    setReviewError('');
+    setIsApproving(true);
+    try {
+      const contractCurrency = reviewModalContract?.jobs?.currency || 'PHP';
+      if (reviewModalMilestone) {
+        const rawAmount = reviewModalMilestone.amount || 0;
+        await approveMilestoneWork(reviewModalContract.contract_id, reviewModalMilestone.milestone_id);
+        setActionSuccess(`Milestone "${reviewModalMilestone.title}" approved! ${formatCurrency(rawAmount, contractCurrency)} escrow released.`);
+      } else {
+        const rawAmount = reviewModalContract.agreed_amount || 0;
+        await completeContract(reviewModalContract.contract_id);
+        setActionSuccess(`Escrow payment of ${formatCurrency(rawAmount, contractCurrency)} released successfully! Contract marked as completed.`);
+      }
+      closeReviewModal();
+      await loadData(true);
+    } catch (err) {
+      setReviewError(err.message || 'Failed to release escrow funds. Please try again.');
+    } finally {
+      setIsApproving(false);
     }
   }
 
@@ -180,7 +257,7 @@ export default function Dashboard() {
                     ) : isCustomer ? (
                       `You have ${pendingProposalsCount} pending ${pendingProposalsCount === 1 ? 'proposal' : 'proposals'} across your job postings.`
                     ) : (
-                      `You have ${pendingProposalsCount} pending proposals.`
+                      `You have ${pendingProposalsCount} pending ${pendingProposalsCount === 1 ? 'proposal' : 'proposals'}.`
                     )}
                   </div>
                 </div>
@@ -211,7 +288,7 @@ export default function Dashboard() {
                     <h2 className="card-title" style={{ fontSize: "1.2rem" }}>{user.active_role === 'customer' ? 'Total Escrow Funded' : 'Total Contract Value'}</h2>
                   </div>
                   <div className="stat-value">
-                    {loading ? <div className="skeleton-box mt-1" style={{ width: 120, height: 32 }} /> : `₱${totalAgreedEscrow.toLocaleString()}`}
+                    {loading ? <div className="skeleton-box mt-1" style={{ width: 120, height: 32 }} /> : formatCurrency(totalAgreedEscrow, 'PHP')}
                   </div>
                   <div className="trend-badge trend-up">
                     <i className="bi bi-shield-check"></i>
@@ -227,8 +304,11 @@ export default function Dashboard() {
       <div className="row g-4">
         <div className="col-xl-8 col-lg-8">
           <div className="card mb-0 h-100">
-            <div className="card-header mb-2">
-              <h2 className="card-title">Contracts & Escrow</h2>
+            <div className="card-header mb-2 d-flex justify-content-between align-items-center">
+              <h2 className="card-title mb-0">Contracts & Escrow</h2>
+              <span className="badge bg-light text-dark border">
+                {contracts.length} {contracts.length === 1 ? 'Contract' : 'Contracts'}
+              </span>
             </div>
             {loading ? (
               <div className="p-3">
@@ -251,11 +331,11 @@ export default function Dashboard() {
                 <table className="table table-hover align-middle mb-0">
                   <thead>
                     <tr>
-                      <th>Job Title</th>
-                      <th>Counterparty</th>
-                      <th>Escrow Amount</th>
-                      <th>Status</th>
-                      <th className="text-end">Actions</th>
+                      <th style={{ width: '30%' }}>Job / Contract</th>
+                      <th style={{ width: '22%' }}>Counterparty</th>
+                      <th style={{ width: '16%' }}>Escrow Amount</th>
+                      <th style={{ width: '16%' }}>Status</th>
+                      <th className="text-end" style={{ width: '16%' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody className="border-top-0">
@@ -264,44 +344,292 @@ export default function Dashboard() {
                       const partner = isClient ? c.freelancer : c.client;
                       const partnerRole = isClient ? 'Freelancer' : 'Client';
                       const partnerName = partner ? `${partner.first_name || ''} ${partner.last_name || ''}`.trim() || partner.email : 'Participant';
+                      const isMilestoneContract = Array.isArray(c.milestones) && c.milestones.length > 0;
+                      const isExpanded = expandedContractId === c.contract_id;
+
+                      const activeMilestone = isMilestoneContract
+                        ? c.milestones.find((m) => m.status === 'active')
+                        : null;
+                      const submittedMilestone = isMilestoneContract
+                        ? c.milestones.find((m) => m.status === 'submitted')
+                        : null;
+                      const completedStagesCount = isMilestoneContract
+                        ? c.milestones.filter((m) => m.status === 'completed').length
+                        : 0;
+
                       return (
                         <tr key={c.contract_id}>
                           <td>
-                            <div className="fw-semibold text-dark">{c.jobs?.title || 'Job Posting'}</div>
-                            <div className="small text-muted">{new Date(c.created_at).toLocaleDateString()}</div>
+                            <div className="d-flex align-items-center gap-2">
+                              <span className="fw-semibold text-dark">{c.jobs?.title || 'Job Contract'}</span>
+                              {isMilestoneContract && (
+                                <span className="badge bg-light text-primary border" style={{ fontSize: '0.75rem' }}>
+                                  {completedStagesCount}/{c.milestones.length} {c.milestones.length === 1 ? 'Stage' : 'Stages'}
+                                </span>
+                              )}
+                            </div>
+                            <div className="d-flex align-items-center gap-2 mt-1">
+                              <span className="small text-muted">{new Date(c.created_at).toLocaleDateString()}</span>
+                              {isMilestoneContract && (
+                                <button
+                                  type="button"
+                                  className="btn btn-link btn-sm p-0 text-decoration-none small text-secondary"
+                                  onClick={() => setExpandedContractId(isExpanded ? null : c.contract_id)}
+                                >
+                                  <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} me-1`}></i>
+                                  {isExpanded ? 'Hide Stages' : 'View Stages'}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td className="pe-2">
+                            <div className="d-flex align-items-center gap-2">
+                              <div className="avatar-placeholder rounded-circle bg-light border d-flex align-items-center justify-content-center text-secondary fw-bold flex-shrink-0" style={{ width: 32, height: 32, fontSize: '0.8rem' }}>
+                                {(partnerName[0] || 'U').toUpperCase()}
+                              </div>
+                              <div className="text-truncate" style={{ maxWidth: '160px' }}>
+                                <div className="fw-medium text-dark text-truncate">{partnerName}</div>
+                                <div className="small text-muted" style={{ fontSize: '0.75rem' }}>{partnerRole}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-2">
+                            <div className="fw-bold text-success">{formatCurrency(c.agreed_amount, c.jobs?.currency)}</div>
                           </td>
                           <td>
-                            <div className="fw-medium text-dark">{partnerName}</div>
-                            <div className="small text-muted">{partnerRole}</div>
-                          </td>
-                          <td>
-                            <div className="fw-bold text-success">₱{Number(c.agreed_amount || 0).toLocaleString()}</div>
-                          </td>
-                          <td>
-                            <span className={`badge rounded-pill px-3 py-2 fw-medium ${c.status === 'completed' ? 'bg-success text-white' : c.status === 'submitted' ? 'bg-warning text-dark' : 'bg-info text-dark'}`} style={{ fontSize: '0.85rem' }}>
-                              {c.status}
-                            </span>
+                            {isMilestoneContract ? (
+                              <span
+                                className={`badge rounded-pill px-3 py-2 fw-medium ${
+                                  c.status === 'completed'
+                                    ? 'bg-success text-white'
+                                    : submittedMilestone
+                                    ? 'bg-warning text-dark'
+                                    : 'bg-info text-dark'
+                                }`}
+                                style={{ fontSize: '0.85rem' }}
+                              >
+                                {c.status === 'completed'
+                                  ? 'All Completed'
+                                  : submittedMilestone
+                                  ? `Stage ${submittedMilestone.sequence} Under Review`
+                                  : activeMilestone
+                                  ? `Stage ${activeMilestone.sequence} Active`
+                                  : c.status}
+                              </span>
+                            ) : (
+                              <span
+                                className={`badge rounded-pill px-3 py-2 fw-medium ${
+                                  c.status === 'completed'
+                                    ? 'bg-success text-white'
+                                    : c.status === 'submitted'
+                                    ? 'bg-warning text-dark'
+                                    : 'bg-info text-dark'
+                                }`}
+                                style={{ fontSize: '0.85rem' }}
+                              >
+                                {c.status === 'submitted' ? 'Under Review' : c.status}
+                              </span>
+                            )}
                           </td>
                           <td className="text-end">
-                            {!isClient && c.status === 'active' && (
-                              <button className="btn btn-sm btn-primary rounded-pill px-3" disabled={actioningId === c.contract_id} onClick={() => handleSubmitWork(c.contract_id)}>
-                                {actioningId === c.contract_id ? 'Submitting...' : 'Submit Work'}
-                              </button>
-                            )}
-                            {isClient && c.status === 'submitted' && (
-                              <button className="btn btn-sm btn-success rounded-pill px-3" disabled={actioningId === c.contract_id} onClick={() => handleApproveAndRelease(c)}>
-                                {actioningId === c.contract_id ? 'Releasing...' : 'Approve & Release'}
-                              </button>
-                            )}
-                            {isClient && c.status === 'active' && <span className="small text-dark fw-semibold fst-italic">Work in Progress</span>}
-                            {c.status === 'completed' && <span className="small text-success fw-bold"><i className="bi bi-check-all"></i> Released</span>}
-                            {!isClient && c.status === 'submitted' && <span className="small text-dark fw-bold">Awaiting Review</span>}
+                            <div className="d-inline-flex align-items-center gap-2">
+                              {/* Milestone Contract Actions */}
+                              {isMilestoneContract ? (
+                                <>
+                                  {!isClient && activeMilestone && (
+                                    <button
+                                      className="btn btn-sm btn-primary rounded-pill px-3"
+                                      onClick={() => openSubmitModal(c, activeMilestone)}
+                                    >
+                                      <i className="bi bi-upload me-1"></i> Submit Stage {activeMilestone.sequence}
+                                    </button>
+                                  )}
+                                  {!isClient && submittedMilestone && (
+                                    <button
+                                      className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                                      onClick={() => openReviewModal(c, submittedMilestone)}
+                                    >
+                                      <i className="bi bi-eye me-1"></i> View Submitted
+                                    </button>
+                                  )}
+                                  {isClient && submittedMilestone && (
+                                    <button
+                                      className="btn btn-sm btn-success rounded-pill px-3"
+                                      onClick={() => openReviewModal(c, submittedMilestone)}
+                                    >
+                                      <i className="bi bi-shield-check me-1"></i> Review Stage {submittedMilestone.sequence}
+                                    </button>
+                                  )}
+                                  {isClient && !submittedMilestone && activeMilestone && (
+                                    <span className="small text-dark fw-semibold fst-italic">Stage {activeMilestone.sequence} in Progress</span>
+                                  )}
+                                  {c.status === 'completed' && (
+                                    <span className="badge rounded-pill px-3 py-2 fw-semibold bg-success text-white border border-success d-inline-flex align-items-center gap-1 shadow-sm" style={{ fontSize: '0.8rem' }}>
+                                      <i className="bi bi-check2-all"></i> Released
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                /* Fixed-Price Contract Actions */
+                                <>
+                                  {!isClient && c.status === 'active' && (
+                                    <button
+                                      className="btn btn-sm btn-primary rounded-pill px-3"
+                                      onClick={() => openSubmitModal(c)}
+                                    >
+                                      <i className="bi bi-upload me-1"></i> Submit Work
+                                    </button>
+                                  )}
+                                  {!isClient && c.status === 'submitted' && (
+                                    <button
+                                      className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                                      onClick={() => openReviewModal(c)}
+                                    >
+                                      <i className="bi bi-eye me-1"></i> View Submitted
+                                    </button>
+                                  )}
+                                  {isClient && c.status === 'submitted' && (
+                                    <button
+                                      className="btn btn-sm btn-success rounded-pill px-3"
+                                      onClick={() => openReviewModal(c)}
+                                    >
+                                      <i className="bi bi-shield-check me-1"></i> Review & Release
+                                    </button>
+                                  )}
+                                  {isClient && c.status === 'active' && (
+                                    <span className="small text-dark fw-semibold fst-italic">Work in Progress</span>
+                                  )}
+                                  {c.status === 'completed' && (
+                                    c.deliverable_url ? (
+                                      <button
+                                        className="btn btn-sm btn-outline-success rounded-pill px-3"
+                                        onClick={() => openReviewModal(c)}
+                                      >
+                                        <i className="bi bi-check2-circle me-1"></i> View Deliverables
+                                      </button>
+                                    ) : (
+                                      <span className="badge rounded-pill px-3 py-2 fw-semibold bg-success text-white border border-success d-inline-flex align-items-center gap-1 shadow-sm" style={{ fontSize: '0.8rem' }}>
+                                        <i className="bi bi-check2-all"></i> Released
+                                      </span>
+                                    )
+                                  )}
+                                </>
+                              )}
+
+                              {/* Chat conversation jump button */}
+                              <Link
+                                to="/messages"
+                                className="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center"
+                                style={{ width: 32, height: 32 }}
+                                title="Open Contract Chat"
+                              >
+                                <i className="bi bi-chat-text"></i>
+                              </Link>
+                            </div>
                           </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
+
+                {/* Milestone Sub-Table Accordion when expanded */}
+                {contracts.some((c) => expandedContractId === c.contract_id && Array.isArray(c.milestones) && c.milestones.length > 0) && (
+                  (() => {
+                    const expandedContract = contracts.find((c) => c.contract_id === expandedContractId);
+                    if (!expandedContract) return null;
+                    const isClient = user.id === expandedContract.client_id;
+                    return (
+                      <div className="mt-3 p-3 bg-light rounded border">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <span className="fw-semibold text-dark small text-uppercase">
+                            Milestone Breakdown: {expandedContract.jobs?.title || 'Contract'}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn-close btn-sm"
+                            aria-label="Close"
+                            onClick={() => setExpandedContractId(null)}
+                          ></button>
+                        </div>
+                        <div className="table-responsive">
+                          <table className="table table-sm align-middle mb-0 bg-white rounded border">
+                            <thead className="bg-light">
+                              <tr className="small text-muted">
+                                <th>#</th>
+                                <th>Stage Title</th>
+                                <th>Escrow Amount</th>
+                                <th>Status</th>
+                                <th>Deliverable</th>
+                                <th className="text-end">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {expandedContract.milestones.map((m) => {
+                                const isStageActive = m.status === 'active';
+                                const isStageSubmitted = m.status === 'submitted';
+                                const isStageCompleted = m.status === 'completed';
+                                return (
+                                  <tr key={m.milestone_id}>
+                                    <td className="fw-bold">{m.sequence}</td>
+                                    <td>{m.title}</td>
+                                    <td className="fw-semibold text-success">{formatCurrency(m.amount, expandedContract.jobs?.currency)}</td>
+                                    <td>
+                                      <span
+                                        className={`badge rounded-pill ${
+                                          isStageCompleted
+                                            ? 'bg-success text-white'
+                                            : isStageSubmitted
+                                            ? 'bg-warning text-dark'
+                                            : isStageActive
+                                            ? 'bg-info text-dark'
+                                            : 'bg-secondary text-white'
+                                        }`}
+                                      >
+                                        {m.status}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      {m.deliverable_url ? (
+                                        <button
+                                          type="button"
+                                          className="btn btn-link btn-sm p-0 text-decoration-none"
+                                          onClick={() => openReviewModal(expandedContract, m)}
+                                        >
+                                          <i className="bi bi-box-arrow-up-right me-1"></i> View Link
+                                        </button>
+                                      ) : (
+                                        <span className="text-muted small">—</span>
+                                      )}
+                                    </td>
+                                    <td className="text-end">
+                                      {!isClient && isStageActive && (
+                                        <button
+                                          className="btn btn-sm btn-primary rounded-pill px-3 py-1"
+                                          onClick={() => openSubmitModal(expandedContract, m)}
+                                        >
+                                          Submit
+                                        </button>
+                                      )}
+                                      {isClient && isStageSubmitted && (
+                                        <button
+                                          className="btn btn-sm btn-success rounded-pill px-3 py-1"
+                                          onClick={() => openReviewModal(expandedContract, m)}
+                                        >
+                                          Review & Release
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })()
+                )}
               </div>
             )}
           </div>
@@ -353,7 +681,7 @@ export default function Dashboard() {
                         <div className="transaction-info flex-grow-1 min-w-0 me-2">
                           <div className="transaction-name text-dark fw-semibold mb-1 text-truncate">{job.title}</div>
                           <div className="transaction-amount text-success fw-bold small">
-                            {job.pending_count > 0 ? `${job.pending_count} pending` : `${job.proposal_count} proposals`} · ₱{Number(job.budget || 0).toLocaleString()}
+                            {job.pending_count > 0 ? `${job.pending_count} pending` : `${job.proposal_count} ${job.proposal_count === 1 ? 'proposal' : 'proposals'}`} · {formatCurrency(job.budget || 0, job.currency)}
                           </div>
                         </div>
                         <div className="ms-auto text-end flex-shrink-0">
@@ -393,7 +721,7 @@ export default function Dashboard() {
                         </div>
                         <div className="transaction-info flex-grow-1">
                           <div className="transaction-name text-dark fw-semibold mb-1">{p.jobs?.title || 'Job Posting'}</div>
-                          <div className="transaction-amount text-success fw-bold small">₱{Number(p.bid_amount || 0).toLocaleString()}</div>
+                          <div className="transaction-amount text-success fw-bold small">{formatCurrency(p.bid_amount || 0, p.jobs?.currency)}</div>
                         </div>
                         <div className="ms-3 text-end">
                           <span className={`${statusClass} rounded-pill px-3 fw-medium`} style={{ pointerEvents: 'none' }}>
@@ -408,6 +736,277 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* 1. FREELANCER SUBMIT DELIVERABLES MODAL */}
+      {/* ========================================================================= */}
+      {submitModalContract && (
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 1050 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow border-0 rounded-4 overflow-hidden">
+              <form onSubmit={handleConfirmSubmit}>
+                <div className="modal-header border-bottom pb-3 pt-3 px-4 bg-light">
+                  <div>
+                    <h5 className="modal-title fw-bold text-dark mb-0">
+                      {submitModalMilestone ? (
+                        <>Submit Stage {submitModalMilestone.sequence}: {submitModalMilestone.title}</>
+                      ) : (
+                        <>Submit Project Deliverable</>
+                      )}
+                    </h5>
+                    <div className="small text-muted">
+                      {submitModalContract.jobs?.title || 'Contract'} · Escrow:{' '}
+                      <span className="text-success fw-bold">
+                        {formatCurrency(
+                          submitModalMilestone ? submitModalMilestone.amount : submitModalContract.agreed_amount || 0,
+                          submitModalContract.jobs?.currency
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  <button type="button" className="btn-close" aria-label="Close" onClick={closeSubmitModal} disabled={isSubmitting}></button>
+                </div>
+
+                <div className="modal-body p-4">
+                  {submitError && (
+                    <div className="alert alert-danger py-2 px-3 small border-0 mb-3" role="alert">
+                      <i className="bi bi-exclamation-triangle-fill me-2"></i>{submitError}
+                    </div>
+                  )}
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold text-dark small">
+                      Deliverable Link <span className="text-danger">*</span>
+                    </label>
+                    <div className="input-group">
+                      <span className="input-group-text bg-light text-muted border-end-0">
+                        <i className="bi bi-link-45deg"></i>
+                      </span>
+                      <input
+                        type="url"
+                        className="form-control border-start-0"
+                        placeholder="https://drive.google.com/... or https://github.com/..."
+                        value={deliverableUrl}
+                        onChange={(e) => setDeliverableUrl(e.target.value)}
+                        required
+                        disabled={isSubmitting}
+                        autoFocus
+                      />
+                    </div>
+                    <div className="form-text text-muted" style={{ fontSize: '0.8rem' }}>
+                      Paste a shareable Google Drive, GitHub repo, Figma prototype, or live web link.
+                    </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold text-dark small">
+                      Notes / Instructions <span className="text-muted fw-normal">(Optional)</span>
+                    </label>
+                    <textarea
+                      className="form-control"
+                      rows={3}
+                      placeholder="Describe what was completed, how to test or access files, or any additional context..."
+                      value={deliverableNotes}
+                      onChange={(e) => setDeliverableNotes(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div className="alert alert-info border-0 d-flex align-items-center gap-2 mb-0 py-2 px-3 small">
+                    <i className="bi bi-chat-dots-fill text-info flex-shrink-0"></i>
+                    <span>
+                      Submitting automatically notifies the client in the chat thread so they can inspect your work and release escrow funds.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="modal-footer border-top px-4 py-3 bg-light d-flex justify-content-end gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary rounded-pill px-4"
+                    onClick={closeSubmitModal}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary rounded-pill px-4 fw-semibold"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit for Review'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 2. CLIENT DELIVERABLE REVIEW & ESCROW RELEASE MODAL (REPLACES window.confirm) */}
+      {/* ========================================================================= */}
+      {reviewModalContract && (
+        (() => {
+          const target = reviewModalMilestone || reviewModalContract;
+          const isMilestone = Boolean(reviewModalMilestone);
+          const link = target.deliverable_url;
+          const notes = target.deliverable_notes;
+          const submittedAt = target.submitted_at;
+          const rawReleaseAmount = isMilestone ? target.amount : reviewModalContract.agreed_amount || 0;
+          const releaseAmount = formatCurrency(rawReleaseAmount, reviewModalContract.jobs?.currency);
+          const isClient = user.id === reviewModalContract.client_id;
+          const isPendingReview = isMilestone ? target.status === 'submitted' : reviewModalContract.status === 'submitted';
+          const canApprove = isClient && isPendingReview;
+
+          return (
+            <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 1050 }}>
+              <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content shadow border-0 rounded-4 overflow-hidden">
+                  <div className="modal-header border-bottom pb-3 pt-3 px-4 bg-light">
+                    <div>
+                      <h5 className="modal-title fw-bold text-dark mb-0">
+                        {canApprove ? (
+                          <><i className="bi bi-shield-check text-success me-2"></i>Review Deliverable & Release Escrow</>
+                        ) : (
+                          <><i className="bi bi-file-earmark-check text-primary me-2"></i>Deliverable Details</>
+                        )}
+                      </h5>
+                      <div className="small text-muted">
+                        {reviewModalContract.jobs?.title || 'Contract'}
+                        {isMilestone && ` · Stage ${target.sequence}: ${target.title}`}
+                      </div>
+                    </div>
+                    <button type="button" className="btn-close" aria-label="Close" onClick={closeReviewModal} disabled={isApproving}></button>
+                  </div>
+
+                  <div className="modal-body p-4">
+                    {reviewError && (
+                      <div className="alert alert-danger py-2 px-3 small border-0 mb-3" role="alert">
+                        <i className="bi bi-exclamation-triangle-fill me-2"></i>{reviewError}
+                      </div>
+                    )}
+
+                    {/* Escrow summary badge card */}
+                    <div className="card bg-light border-0 rounded-3 p-3 mb-3">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <div className="text-muted small">Escrow Amount</div>
+                          <div className="h4 mb-0 fw-bold text-success">{releaseAmount}</div>
+                        </div>
+                        <span className={`badge rounded-pill px-3 py-2 ${target.status === 'completed' ? 'bg-success text-white' : 'bg-warning text-dark'}`}>
+                          {target.status === 'completed' ? 'Completed & Released' : 'Pending Client Review'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Deliverable Link */}
+                    <div className="mb-3">
+                      <div className="fw-semibold text-dark small mb-1">Submitted Deliverable Link:</div>
+                      {link ? (
+                        <div className="p-3 bg-light rounded-3 border">
+                          <a
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-outline-success btn-sm rounded-pill d-inline-flex align-items-center gap-1 mb-2 fw-semibold"
+                          >
+                            <i className="bi bi-box-arrow-up-right"></i> Open Deliverable Files
+                          </a>
+                          <div className="small text-muted text-break font-monospace">{link}</div>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-light rounded-3 border text-muted small fst-italic">
+                          No external URL was recorded for this submission. Please verify work files shared in the chat.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Notes */}
+                    <div className="mb-3">
+                      <div className="fw-semibold text-dark small mb-1">Freelancer Overview & Notes:</div>
+                      {notes ? (
+                        <div className="p-3 bg-light rounded-3 border text-dark small" style={{ whiteSpace: 'pre-wrap' }}>
+                          {notes}
+                        </div>
+                      ) : (
+                        <div className="p-2 text-muted small fst-italic">No additional notes provided.</div>
+                      )}
+                    </div>
+
+                    {submittedAt && (
+                      <div className="small text-muted mb-2">
+                        <i className="bi bi-clock-history me-1"></i>
+                        Submitted on {new Date(submittedAt).toLocaleString()}
+                      </div>
+                    )}
+
+                    {/* Simulated Escrow Warning Notice for Client */}
+                    {canApprove && (
+                      <div className="alert alert-warning border-0 d-flex align-items-start gap-2 mb-0 mt-3 p-3 rounded-3">
+                        <i className="bi bi-shield-exclamation text-warning flex-shrink-0 fs-5 mt-1"></i>
+                        <div className="small text-dark">
+                          <strong>Simulated Escrow Protection Notice:</strong> Approving this deliverable marks{' '}
+                          <span className="fw-bold">{releaseAmount}</span> as officially released to the freelancer.
+                          This concludes simulated escrow protection for {isMilestone ? 'this milestone' : 'this contract'}.
+                          Please ensure you have opened and verified the deliverable link before releasing funds.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="modal-footer border-top px-4 py-3 bg-light d-flex justify-content-end gap-2">
+                    {canApprove ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary rounded-pill px-4"
+                          onClick={closeReviewModal}
+                          disabled={isApproving}
+                        >
+                          Keep Reviewing
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-success rounded-pill px-4 fw-semibold"
+                          onClick={handleConfirmApprove}
+                          disabled={isApproving}
+                        >
+                          {isApproving ? (
+                            <>
+                              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                              Releasing {releaseAmount}...
+                            </>
+                          ) : (
+                            <>
+                              <i className="bi bi-shield-check me-1"></i> Approve & Release {releaseAmount}
+                            </>
+                          )}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-secondary rounded-pill px-4"
+                        onClick={closeReviewModal}
+                      >
+                        Close
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()
+      )}
     </>
   );
 }

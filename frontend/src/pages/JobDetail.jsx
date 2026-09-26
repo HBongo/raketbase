@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { formatCurrency, getCurrencySymbol } from '../utils/formatters';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -71,22 +72,75 @@ export default function JobDetail() {
     return () => { cancelled = true; };
   }, [id]);
 
+  const [milestones, setMilestones] = useState([
+    { title: 'Stage 1 Deliverables', amount: '' },
+  ]);
+
+  const isMilestoneJob = job?.budget_type === 'milestone';
+  const milestoneTotal = milestones.reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
+
+  function handleAddMilestone() {
+    setMilestones((prev) => [
+      ...prev,
+      { title: `Stage ${prev.length + 1} Deliverables`, amount: '' },
+    ]);
+  }
+
+  function handleRemoveMilestone(index) {
+    if (milestones.length <= 1) return;
+    setMilestones((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function handleMilestoneChange(index, field, value) {
+    setMilestones((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  }
+
   function getValidationErrors() {
     const errors = {};
-    const amount = Number(bidAmount);
-    if (!String(bidAmount).trim() || Number.isNaN(amount) || amount <= 0) {
-      errors.bidAmount = 'Enter a bid amount greater than 0.';
+
+    if (isMilestoneJob) {
+      if (!milestones.length) {
+        errors.milestones = 'At least one milestone stage is required.';
+      } else {
+        const invalidMilestone = milestones.some(
+          (m) => !m.title.trim() || isNaN(Number(m.amount)) || Number(m.amount) <= 0
+        );
+        if (invalidMilestone) {
+          errors.milestones = 'Each milestone requires a title and an amount greater than 0.';
+        } else if (milestoneTotal <= 0) {
+          errors.milestones = 'Total milestone sum must be greater than 0.';
+        }
+      }
+    } else {
+      const amount = Number(bidAmount);
+      if (!String(bidAmount).trim() || Number.isNaN(amount) || amount <= 0) {
+        errors.bidAmount = 'Enter a bid amount greater than 0.';
+      }
     }
+
+    const htmlRegex = /<\s*[^>]*[a-zA-Z\/][^>]*>|javascript\s*:/i;
+    const hasContacts = /(?:[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|\+?\d{10,}|\bt\.me\/|\btelegram\b|\bwhatsapp\b)/i.test(coverLetter);
+
     if (!coverLetter.trim()) {
       errors.coverLetter = 'A cover letter is required.';
-    } else if (coverLetter.trim().length < 20) {
-      errors.coverLetter = `Write a bit more — ${20 - coverLetter.trim().length} characters to go.`;
+    } else if (coverLetter.trim().length < 30) {
+      errors.coverLetter = `Cover letter must be at least 30 characters (${30 - coverLetter.trim().length} more needed).`;
+    } else if (htmlRegex.test(coverLetter)) {
+      errors.coverLetter = 'HTML and script tags are not allowed.';
+    } else if (hasContacts) {
+      errors.coverLetter = 'Sharing email, phone, or Telegram in proposals is prohibited.';
     }
+
     return errors;
   }
 
   const errors = getValidationErrors();
   const showBidError = (touched.bidAmount || submitted) && errors.bidAmount;
+  const showMilestoneError = (touched.bidAmount || submitted) && errors.milestones;
   const showCoverLetterError = (touched.coverLetter || submitted) && errors.coverLetter;
 
   async function handleSubmit(e) {
@@ -101,17 +155,28 @@ export default function JobDetail() {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('You need to be logged in to submit a proposal.');
 
+      const payload = {
+        job_id: job.job_id,
+        cover_letter: coverLetter.trim(),
+      };
+
+      if (isMilestoneJob) {
+        payload.milestones = milestones.map((m) => ({
+          title: m.title.trim(),
+          amount: Number(m.amount),
+        }));
+        payload.bid_amount = milestoneTotal;
+      } else {
+        payload.bid_amount = Number(bidAmount);
+      }
+
       const res = await fetch(`${API_BASE_URL}/proposals`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          job_id: job.job_id,
-          bid_amount: Number(bidAmount),
-          cover_letter: coverLetter.trim(),
-        }),
+        body: JSON.stringify(payload),
       });
       const body = await res.json();
       if (res.status === 409 || body.error?.includes('already submitted')) {
@@ -289,7 +354,7 @@ export default function JobDetail() {
                   <div className="card-body p-4">
                     <p className="text-muted small fw-medium text-uppercase mb-1">Budget</p>
                     <h3 className="fw-bold text-success mb-4">
-                      ₱{job.budget ? Number(job.budget).toLocaleString() : '—'}
+                      {job.budget ? formatCurrency(job.budget, job.currency) : '—'}
                     </h3>
                     
                     {alreadyApplied && (
@@ -334,39 +399,125 @@ export default function JobDetail() {
                       <>
                         <h5 className="fw-bold text-dark mb-3">Submit a Proposal</h5>
                         
-                        <form onSubmit={handleSubmit}>
-                          <div className="mb-3">
-                            <label className="form-label fw-medium small text-dark">Your bid (₱)</label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              disabled={submitting || alreadyApplied}
-                              value={bidAmount}
-                              onChange={(e) => setBidAmount(e.target.value)}
-                              onBlur={() => setTouched((t) => ({ ...t, bidAmount: true }))}
-                              className={`form-control bg-light ${showBidError ? 'is-invalid' : ''}`}
-                              placeholder="e.g. 15000"
-                            />
-                            {showBidError && (
-                              <div className="invalid-feedback">{errors.bidAmount}</div>
-                            )}
-                          </div>
+                        <form onSubmit={handleSubmit} noValidate>
+                          {isMilestoneJob ? (
+                            <div className="mb-3">
+                              <div className="d-flex justify-content-between align-items-center mb-2">
+                                <label className="form-label fw-medium small text-dark mb-0">Milestone Breakdown</label>
+                                <span className="small text-muted" style={{ fontSize: '12px' }}>Sum = Total Bid</span>
+                              </div>
+
+                              <div className="d-flex flex-column gap-2">
+                                {milestones.map((m, idx) => (
+                                  <div key={idx} className="p-2.5 bg-light rounded border">
+                                    <div className="d-flex justify-content-between align-items-center mb-1">
+                                      <span className="small fw-semibold text-secondary">Stage {idx + 1}</span>
+                                      {milestones.length > 1 && (
+                                        <button
+                                          type="button"
+                                          className="btn btn-link btn-sm text-danger p-0 text-decoration-none"
+                                          onClick={() => handleRemoveMilestone(idx)}
+                                          title="Remove stage"
+                                        >
+                                          <i className="bi bi-x-circle"></i>
+                                        </button>
+                                      )}
+                                    </div>
+                                    <div className="row g-2">
+                                      <div className="col-7">
+                                        <input
+                                          type="text"
+                                          placeholder="Stage deliverable description"
+                                          value={m.title}
+                                          onChange={(e) => handleMilestoneChange(idx, 'title', e.target.value)}
+                                          className="form-control form-control-sm bg-white"
+                                        />
+                                      </div>
+                                      <div className="col-5">
+                                        <div className="input-group input-group-sm">
+                                          <span className="input-group-text bg-white">{getCurrencySymbol(job?.currency)}</span>
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            placeholder="Amount"
+                                            value={m.amount}
+                                            onChange={(e) => handleMilestoneChange(idx, 'amount', e.target.value)}
+                                            className="form-control bg-white"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="d-flex justify-content-between align-items-center mt-2">
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                                  onClick={handleAddMilestone}
+                                >
+                                  <i className="bi bi-plus-lg me-1"></i> Add Stage
+                                </button>
+                                <div className="text-end">
+                                  <span className="small text-muted me-2">Total Bid:</span>
+                                  <span className="fw-bold text-success">{formatCurrency(milestoneTotal, job?.currency)}</span>
+                                </div>
+                              </div>
+
+                              {showMilestoneError && (
+                                <div className="text-danger small mt-2 d-flex align-items-center gap-1">
+                                  <i className="bi bi-exclamation-circle-fill"></i> {errors.milestones}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="mb-3">
+                              <label className="form-label fw-medium small text-dark">Your bid ({getCurrencySymbol(job?.currency)})</label>
+                              <input
+                                type="number"
+                                min="1"
+                                step="0.01"
+                                disabled={submitting || alreadyApplied}
+                                value={bidAmount}
+                                onChange={(e) => setBidAmount(e.target.value)}
+                                onBlur={() => setTouched((t) => ({ ...t, bidAmount: true }))}
+                                className={`form-control bg-light ${showBidError ? 'is-invalid border-danger' : ''}`}
+                                placeholder="e.g. 15000"
+                              />
+                              {showBidError && (
+                                <div className="text-danger small mt-1 d-flex align-items-center gap-1">
+                                  <i className="bi bi-exclamation-circle-fill"></i> {errors.bidAmount}
+                                </div>
+                              )}
+                            </div>
+                          )}
                           
                           <div className="mb-4">
-                            <label className="form-label fw-medium small text-dark">Cover letter</label>
+                            <div className="d-flex justify-content-between align-items-center mb-1">
+                              <label className="form-label fw-medium small text-dark mb-0">Cover letter</label>
+                              <span className={`small ${coverLetter.trim().length >= 30 ? 'text-success fw-medium' : 'text-muted'}`} style={{ fontSize: '12px' }}>
+                                {coverLetter.trim().length >= 30 ? (
+                                  <><i className="bi bi-check-circle-fill text-success me-1"></i>{coverLetter.trim().length} chars</>
+                                ) : (
+                                  `${coverLetter.trim().length}/30 min characters`
+                                )}
+                              </span>
+                            </div>
                             <textarea
                               rows="6"
                               disabled={submitting || alreadyApplied}
                               value={coverLetter}
                               onChange={(e) => setCoverLetter(e.target.value)}
                               onBlur={() => setTouched((t) => ({ ...t, coverLetter: true }))}
-                              className={`form-control bg-light ${showCoverLetterError ? 'is-invalid' : ''}`}
-                              placeholder="Explain why you're a good fit for this job."
+                              className={`form-control bg-light ${showCoverLetterError ? 'is-invalid border-danger' : ''}`}
+                              placeholder="Explain why you're a good fit for this job (minimum 30 characters)..."
                               style={{ resize: 'none' }}
                             ></textarea>
                             {showCoverLetterError && (
-                              <div className="invalid-feedback">{errors.coverLetter}</div>
+                              <div className="text-danger small mt-1 d-flex align-items-center gap-1">
+                                <i className="bi bi-exclamation-circle-fill"></i> {errors.coverLetter}
+                              </div>
                             )}
                           </div>
                           

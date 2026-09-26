@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getMyJobs, getJobProposals, acceptProposal, rejectProposal } from '../services/api';
+import { formatCurrency } from '../utils/formatters';
 
 export default function ClientJobView() {
   const { id } = useParams();
@@ -53,9 +54,21 @@ function MyJobsList() {
 
       {!loading && loadError && (
         <StateCard
-          title="Couldn't load your postings"
+          title={/expired|token/i.test(loadError) ? 'Session Expired' : "Couldn't load your postings"}
           body={loadError}
-          action={{ label: 'Try again', onClick: () => window.location.reload() }}
+          action={{
+            label: /expired|token/i.test(loadError) ? 'Log In Again' : 'Try again',
+            onClick: () => {
+              if (/expired|token/i.test(loadError)) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('user');
+                window.location.href = '/login?expired=1';
+              } else {
+                window.location.reload();
+              }
+            },
+          }}
         />
       )}
 
@@ -97,7 +110,7 @@ function MyJobsList() {
 
                 <div className="text-end flex-shrink-0">
                   <p className="fs-5 fw-bold mb-0" style={{ color: '#FF5A1E' }}>
-                    ₱{job.budget ? Number(job.budget).toLocaleString() : '—'}
+                    {job.budget ? formatCurrency(job.budget, job.currency) : '—'}
                   </p>
                   <p className="small text-muted mb-0">
                     {job.pending_count > 0 ? `${job.pending_count} pending` : 'proposals'}
@@ -181,9 +194,21 @@ function ProposalsForJob({ jobId }) {
 
         {!loading && loadError && (
           <StateCard
-            title="Couldn't load this job"
+            title={/expired|token/i.test(loadError) ? 'Session Expired' : "Couldn't load this job"}
             body={loadError}
-            action={{ label: 'Try again', onClick: load }}
+            action={{
+              label: /expired|token/i.test(loadError) ? 'Log In Again' : 'Try again',
+              onClick: () => {
+                if (/expired|token/i.test(loadError)) {
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('refreshToken');
+                  localStorage.removeItem('user');
+                  window.location.href = '/login?expired=1';
+                } else {
+                  load();
+                }
+              },
+            }}
           />
         )}
 
@@ -203,7 +228,7 @@ function ProposalsForJob({ jobId }) {
                 <div className="text-end">
                   <p className="small text-muted mb-1">Budget</p>
                   <p className="fs-5 fw-bold mb-0" style={{ color: '#FF5A1E' }}>
-                    ₱{job.budget ? Number(job.budget).toLocaleString() : '—'}
+                    {job.budget ? formatCurrency(job.budget, job.currency) : '—'}
                   </p>
                 </div>
               </div>
@@ -232,6 +257,7 @@ function ProposalsForJob({ jobId }) {
                     key={p.proposal_id}
                     proposal={p}
                     jobIsOpen={jobIsOpen}
+                    currency={job.currency}
                     busy={actioningId === p.proposal_id}
                     onAccept={() => handleAccept(p.proposal_id)}
                     onReject={() => handleReject(p.proposal_id)}
@@ -246,7 +272,7 @@ function ProposalsForJob({ jobId }) {
   );
 }
 
-function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject }) {
+function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject, currency }) {
   const freelancer = proposal.users;
   const name =
     [freelancer?.first_name, freelancer?.last_name].filter(Boolean).join(' ') ||
@@ -278,7 +304,7 @@ function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject }) {
             )}
           </div>
           <h4 className="fw-bold mb-0 flex-shrink-0" style={{ color: '#FF5A1E' }}>
-            ₱{Number(proposal.bid_amount || 0).toLocaleString()}
+            {formatCurrency(proposal.bid_amount, currency)}
           </h4>
         </div>
 

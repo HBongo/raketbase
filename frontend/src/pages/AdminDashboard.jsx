@@ -7,6 +7,7 @@ import {
   listDisputes,
   resolveDispute,
 } from '../services/api';
+import { formatCurrency } from '../utils/formatters';
 
 const MOCK_ANALYTICS = {
   total_users: 24,
@@ -379,7 +380,7 @@ export default function AdminDashboard() {
                             {d.contracts?.jobs?.title || 'Contract dispute'}
                           </h6>
                           <p className="text-muted mt-1 mb-0" style={{ fontSize: '12px' }}>
-                            ₱{Number(d.contracts?.agreed_amount || 0).toLocaleString()} in escrow ·{' '}
+                            {formatCurrency(d.contracts?.agreed_amount, d.contracts?.jobs?.currency)} in escrow ·{' '}
                             {new Date(d.created_at).toLocaleDateString()}
                           </p>
                         </div>
@@ -484,8 +485,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="modal-body">
                   <p className="text-muted small mb-4">
-                    {resolvingDispute.contracts?.jobs?.title} — ₱
-                    {Number(resolvingDispute.contracts?.agreed_amount || 0).toLocaleString()} in escrow
+                    {resolvingDispute.contracts?.jobs?.title} — {formatCurrency(resolvingDispute.contracts?.agreed_amount, resolvingDispute.contracts?.jobs?.currency)} in escrow
                   </p>
 
                   <div className="mb-4">

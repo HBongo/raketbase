@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { getCached, setCached } from '../utils/cache';
 import BackToTop from '../components/BackToTop';
+import { formatCurrency } from '../utils/formatters';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -386,7 +387,7 @@ function JobCard({ job, onOpen }) {
         </h5>
         <div className="mb-3">
           <span className="small text-muted">Budget: </span>
-          <span className="fw-bold text-success fs-6">₱{job.budget ? Number(job.budget).toLocaleString() : '—'}</span>
+          <span className="fw-bold text-success fs-6">{job.budget ? formatCurrency(job.budget, job.currency) : '—'}</span>
         </div>
         <p className="card-text small text-muted flex-grow-1" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {job.description || 'No description provided.'}

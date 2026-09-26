@@ -15,11 +15,35 @@ async function loadContract(contract_id) {
 // milestone-copy hooks in proposalsController.acceptProposal).
 async function postSystemMessage(contract_id, sender_id, content) {
   try {
-    const { data: conversation } = await supabaseAdmin
+    let { data: conversation } = await supabaseAdmin
       .from('conversations')
       .select('conversation_id')
       .eq('contract_id', contract_id)
-      .single();
+      .maybeSingle();
+
+    if (!conversation) {
+      const { data: contract } = await supabaseAdmin
+        .from('contracts')
+        .select('contract_id, client_id, freelancer_id, jobs(title)')
+        .eq('contract_id', contract_id)
+        .single();
+      if (contract) {
+        const { data: newConv } = await supabaseAdmin
+          .from('conversations')
+          .insert([
+            {
+              contract_id,
+              client_id: contract.client_id,
+              freelancer_id: contract.freelancer_id,
+              title: contract.jobs?.title || 'Contract Chat',
+            },
+          ])
+          .select('conversation_id')
+          .single();
+        conversation = newConv;
+      }
+    }
+
     if (!conversation) return;
     await supabaseAdmin.from('messages').insert([
       {
@@ -49,11 +73,22 @@ exports.listMilestones = async (req, res) => {
       return res.status(403).json({ success: false, error: 'You are not a participant in this contract' });
     }
 
-    const { data: milestones, error } = await supabaseAdmin
+    let { data: milestones, error } = await supabaseAdmin
       .from('milestones')
-      .select('milestone_id, contract_id, title, amount, sequence, status, created_at, submitted_at, completed_at')
+      .select('milestone_id, contract_id, title, amount, sequence, status, created_at, submitted_at, completed_at, deliverable_url, deliverable_notes')
       .eq('contract_id', contract_id)
       .order('sequence', { ascending: true });
+
+    // Defensive fallback if migration 002 has not been run yet
+    if (error && error.message && error.message.includes('deliverable_url does not exist')) {
+      const fallback = await supabaseAdmin
+        .from('milestones')
+        .select('milestone_id, contract_id, title, amount, sequence, status, created_at, submitted_at, completed_at')
+        .eq('contract_id', contract_id)
+        .order('sequence', { ascending: true });
+      milestones = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) throw error;
 
@@ -70,9 +105,25 @@ exports.submitMilestone = async (req, res) => {
   try {
     const { id: contract_id, milestoneId } = req.params;
     const userId = req.user.id;
+    const deliverable_url = (req.body.deliverable_url || '').trim();
+    const deliverable_notes = (req.body.deliverable_notes || '').trim();
 
     if (req.user.active_role !== 'freelancer') {
       return res.status(403).json({ success: false, error: 'Switch to Freelancer mode to submit milestone work.' });
+    }
+
+    if (!deliverable_url) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide a deliverable link (Google Drive, GitHub, Figma, etc.).',
+      });
+    }
+
+    if (!/^https?:\/\//i.test(deliverable_url)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Deliverable link must start with http:// or https://',
+      });
     }
 
     const contract = await loadContract(contract_id);
@@ -99,16 +150,39 @@ exports.submitMilestone = async (req, res) => {
       });
     }
 
-    const { data: updated, error: updateError } = await supabaseAdmin
+    const updatePayload = {
+      status: 'submitted',
+      submitted_at: new Date().toISOString(),
+      deliverable_url,
+      deliverable_notes: deliverable_notes || null,
+    };
+
+    let { data: updated, error: updateError } = await supabaseAdmin
       .from('milestones')
-      .update({ status: 'submitted', submitted_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq('milestone_id', milestoneId)
       .select()
       .single();
 
+    // Fallback if migration 002 has not been run yet
+    if (updateError && updateError.message && updateError.message.includes('deliverable_url does not exist')) {
+      const fallback = await supabaseAdmin
+        .from('milestones')
+        .update({ status: 'submitted', submitted_at: new Date().toISOString() })
+        .eq('milestone_id', milestoneId)
+        .select()
+        .single();
+      updated = fallback.data;
+      updateError = fallback.error;
+    }
+
     if (updateError) throw updateError;
 
-    await postSystemMessage(contract_id, userId, `Milestone "${milestone.title}" was submitted for review.`);
+    await postSystemMessage(
+      contract_id,
+      userId,
+      `Milestone "${milestone.title}" was submitted for review: ${deliverable_url}${deliverable_notes ? ` — "${deliverable_notes}"` : ''}`
+    );
 
     return res.status(200).json({
       success: true,

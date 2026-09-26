@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyProposals, withdrawProposal, unwithdrawProposal } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
+import { formatCurrency, getCurrencySymbol } from '../utils/formatters';
 import BackToTop from '../components/BackToTop';
 
 const FILTERS = [
@@ -160,7 +161,23 @@ function ProposalsSkeleton() {
           {loading && <ProposalsSkeleton />}
 
             {!loading && loadError && (
-              <StateCard title="Couldn't load your proposals" body={loadError} action={{ label: 'Try again', onClick: load }} />
+              <StateCard
+                title={/expired|token/i.test(loadError) ? 'Session Expired' : "Couldn't load your proposals"}
+                body={loadError}
+                action={{
+                  label: /expired|token/i.test(loadError) ? 'Log In Again' : 'Try again',
+                  onClick: () => {
+                    if (/expired|token/i.test(loadError)) {
+                      localStorage.removeItem('token');
+                      localStorage.removeItem('refreshToken');
+                      localStorage.removeItem('user');
+                      window.location.href = '/login?expired=1';
+                    } else {
+                      load();
+                    }
+                  },
+                }}
+              />
             )}
 
             {!loading && !loadError && visibleProposals.length === 0 && (
@@ -241,7 +258,7 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
             </p>
           </div>
           <p className="fs-5 fw-bold text-success mb-0">
-            ₱{Number(proposal.bid_amount || 0).toLocaleString()}
+            {formatCurrency(proposal.bid_amount, proposal.jobs?.currency)}
           </p>
         </div>
 
@@ -294,7 +311,7 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
           <div className="mt-4 pt-3 border-top">
             <div className="mb-3">
               <label className="form-label small fw-medium text-muted mb-1">
-                Your bid (₱)
+                Your bid ({getCurrencySymbol(proposal.jobs?.currency)})
               </label>
               <input
                 type="number"

@@ -517,10 +517,19 @@ function ProfileSkeleton() {
                     </div>
                   ) : (
                     <div className="d-flex flex-wrap gap-2">
-                      {skillsArray.length > 0 ? skillsArray.map((skill) => (
-                        <span key={skill} className="badge bg-light text-dark border fw-medium px-3 py-2 rounded-pill" style={{ fontSize: '0.8rem' }}>{skill}</span>
-                      )) : (
-                        <span className="text-muted small">No skills added yet.</span>
+                      {skillsArray.length > 0 ? (
+                        skillsArray.map((skill) => (
+                          <span key={skill} className="badge bg-light text-dark border fw-medium px-3 py-2 rounded-pill" style={{ fontSize: '0.8rem' }}>{skill}</span>
+                        ))
+                      ) : (
+                        <div className="d-flex align-items-center justify-content-between p-2 bg-light rounded-3 text-muted small w-100">
+                          <span><i className="bi bi-tag me-1"></i>No skills added yet.</span>
+                          {isOwnProfile && (
+                            <button type="button" className="btn btn-sm btn-link p-0 text-decoration-none fw-semibold" onClick={() => setEditing(true)}>
+                              + Add Skills
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
@@ -563,39 +572,70 @@ function ProfileSkeleton() {
                     {editing ? (
                       <textarea className="form-control bg-light" rows="8" placeholder="Tell clients about yourself, your experience, and what makes you unique..." value={form.bio} onChange={(e) => handleChange('bio', e.target.value)} />
                     ) : (
-                      f.bio ? f.bio.split('\n\n').map((p, i) => (
-                        <p key={i} className="text-muted" style={{ lineHeight: '1.8', fontSize: '0.95rem' }}>{p}</p>
-                      )) : (
-                        <p className="text-muted fst-italic">No bio added yet.</p>
+                      f.bio ? (
+                        f.bio.split('\n\n').map((p, i) => (
+                          <p key={i} className="text-muted" style={{ lineHeight: '1.8', fontSize: '0.95rem' }}>{p}</p>
+                        ))
+                      ) : (
+                        <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded-3 text-muted">
+                          <div className="d-flex align-items-center gap-2 small">
+                            <i className="bi bi-card-text text-muted fs-5"></i>
+                            <span>No bio added yet. Tell clients about your experience and services.</span>
+                          </div>
+                          {isOwnProfile && (
+                            <button type="button" className="btn btn-sm btn-outline-dark rounded-pill px-3" onClick={() => setEditing(true)}>
+                              <i className="bi bi-pencil me-1"></i> Add Bio
+                            </button>
+                          )}
+                        </div>
                       )
                     )}
                     {!editing && (
                       <>
                         <hr className="my-4" />
-                        <div className="row g-3">
-                          <div className="col-sm-6">
-                            <div className="d-flex align-items-center gap-3 bg-light rounded-3 p-3">
-                              <div className="rounded-circle bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style={{ width: '45px', height: '45px', minWidth: '45px' }}>
-                                <i className="bi bi-check-circle-fill text-success"></i>
+                        {(!f.completed_jobs && !f.total_earnings) ? (
+                          <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded-3 text-muted">
+                            <div className="d-flex align-items-center gap-3">
+                              <div className="rounded-circle bg-white border d-flex align-items-center justify-content-center text-muted" style={{ width: '40px', height: '40px' }}>
+                                <i className="bi bi-briefcase"></i>
                               </div>
                               <div>
-                                <div className="fw-bold text-dark">{f.completed_jobs || 0} Projects</div>
-                                <div className="text-muted small">Completed successfully</div>
+                                <div className="fw-medium text-dark small">No completed contracts yet</div>
+                                <div className="text-muted small">Completed projects and escrow earnings will display here.</div>
+                              </div>
+                            </div>
+                            {isOwnProfile && (
+                              <Link to="/explore" className="btn btn-sm btn-outline-dark rounded-pill px-3">
+                                Find Work
+                              </Link>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="row g-3">
+                            <div className="col-sm-6">
+                              <div className="d-flex align-items-center gap-3 bg-light rounded-3 p-3">
+                                <div className="rounded-circle bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style={{ width: '45px', height: '45px', minWidth: '45px' }}>
+                                  <i className="bi bi-check-circle-fill text-success"></i>
+                                </div>
+                                <div>
+                                  <div className="fw-bold text-dark">{f.completed_jobs || 0} {f.completed_jobs === 1 ? 'Project' : 'Projects'}</div>
+                                  <div className="text-muted small">Completed successfully</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="col-sm-6">
+                              <div className="d-flex align-items-center gap-3 bg-light rounded-3 p-3">
+                                <div className="rounded-circle bg-warning bg-opacity-10 d-flex align-items-center justify-content-center" style={{ width: '45px', height: '45px', minWidth: '45px' }}>
+                                  <i className="bi bi-cash-stack text-warning"></i>
+                                </div>
+                                <div>
+                                  <div className="fw-bold text-dark">₱{(f.total_earnings || 0).toLocaleString()}</div>
+                                  <div className="text-muted small">Total earnings on RaketBase</div>
+                                </div>
                               </div>
                             </div>
                           </div>
-                          <div className="col-sm-6">
-                            <div className="d-flex align-items-center gap-3 bg-light rounded-3 p-3">
-                              <div className="rounded-circle bg-warning bg-opacity-10 d-flex align-items-center justify-content-center" style={{ width: '45px', height: '45px', minWidth: '45px' }}>
-                                <i className="bi bi-cash-stack text-warning"></i>
-                              </div>
-                              <div>
-                                <div className="fw-bold text-dark">₱{(f.total_earnings || 0).toLocaleString()}</div>
-                                <div className="text-muted small">Total earnings on RaketBase</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                        )}
                       </>
                     )}
                   </div>

@@ -5,6 +5,7 @@ import { loginUser } from '../services/api';
 export default function Login() {
   const [searchParams] = useSearchParams();
   const justRegistered = searchParams.get('registered') === '1';
+  const sessionExpired = searchParams.get('expired') === '1';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,6 +20,9 @@ export default function Login() {
     try {
       const res = await loginUser({ email, password });
       localStorage.setItem('token', res.token);
+      if (res.refreshToken) {
+        localStorage.setItem('refreshToken', res.refreshToken);
+      }
       if (res.user) {
         localStorage.setItem('user', JSON.stringify(res.user));
       }
@@ -52,6 +56,12 @@ export default function Login() {
         {justRegistered && (
           <div className="alert alert-success py-2 mb-4" role="alert">
             Account created. Log in below.
+          </div>
+        )}
+        {sessionExpired && (
+          <div className="alert alert-warning py-2 mb-4 small d-flex align-items-center gap-2" role="alert">
+            <i className="bi bi-clock-history flex-shrink-0"></i>
+            <span>Your session has expired. Please log in again to continue.</span>
           </div>
         )}
         {error && (

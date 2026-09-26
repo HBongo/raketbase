@@ -21,7 +21,8 @@ body {
 }
 
 img.rocket-logo {
-  width: 50% !important; /* Takes up exactly half the width of the container */
+  max-width: 120px;
+  width: 38% !important; /* Scaled nicely within container without overflowing */
   height: auto !important; /* Keeps the rocket perfectly proportioned */
   transform: rotate(0deg); 
   transition: transform 0.2s ease;

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams, Outlet } from 'react-router-dom';
 import { clearCached } from '../utils/cache';
+import { switchRole } from '../services/api';
 
 export default function Layout() {
   const location = useLocation();
@@ -80,6 +81,24 @@ export default function Layout() {
           console.error(`Error attempting to exit fullscreen mode: ${err.message}`);
         });
       }
+    }
+  };
+
+  const [isSwitchingRole, setIsSwitchingRole] = useState(false);
+
+  const handleToggleRole = async () => {
+    const currentRole = user?.active_role || 'freelancer';
+    const newRole = currentRole === 'customer' ? 'freelancer' : 'customer';
+    try {
+      setIsSwitchingRole(true);
+      await switchRole(newRole);
+      const updatedUser = { ...user, active_role: newRole };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to switch role:', err);
+    } finally {
+      setIsSwitchingRole(false);
     }
   };
 
@@ -196,12 +215,27 @@ export default function Layout() {
           </div>
 
           <div className="navbar-actions d-flex align-items-center gap-3">
-            <button className="navbar-action-btn me-1 d-none d-md-flex align-items-center justify-content-center" onClick={toggleFullscreen} aria-label="Toggle Fullscreen">
+            <button
+              className="navbar-action-btn me-1 d-none d-md-flex align-items-center justify-content-center"
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            >
               <i className={isFullscreen ? "bi bi-fullscreen-exit" : "bi bi-arrows-fullscreen"}></i>
             </button>
-            <div className="d-none d-md-flex align-items-center gap-2 px-3 py-1 bg-light rounded-pill border">
-              <span className="small text-muted fw-medium text-capitalize">{user?.active_role || 'freelancer'} Mode</span>
-            </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-light border rounded-pill px-3 py-1 d-none d-md-flex align-items-center gap-2 text-decoration-none shadow-none"
+              title={`Currently in ${user?.active_role || 'freelancer'} mode. Click to switch to ${user?.active_role === 'customer' ? 'freelancer' : 'customer'} mode.`}
+              onClick={handleToggleRole}
+              disabled={isSwitchingRole}
+              aria-label={`Switch mode, currently ${user?.active_role || 'freelancer'} mode`}
+            >
+              <i className={`bi ${user?.active_role === 'customer' ? 'bi-briefcase-fill text-primary' : 'bi-person-badge-fill text-success'}`}></i>
+              <span className="small text-dark fw-medium text-capitalize">{user?.active_role || 'freelancer'} Mode</span>
+              <i className="bi bi-arrow-left-right text-muted" style={{ fontSize: '0.75rem' }}></i>
+            </button>
+            <div className="d-none d-md-block vr mx-1 text-secondary opacity-25" style={{ height: '24px' }}></div>
             <div className="dropdown">
               <button className="navbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <img src={user?.avatar_url || "https://ui-avatars.com/api/?name=User&background=random"} alt="Profile" className="navbar-profile-img" />

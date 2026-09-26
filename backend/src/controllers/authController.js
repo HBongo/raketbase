@@ -137,8 +137,31 @@ async function login(req, res) {
 
   return res.status(200).json({
     token: data.session.access_token,
+    refreshToken: data.session.refresh_token,
     user: profile,
   });
+}
+
+// POST /api/v1/auth/refresh
+async function refreshSession(req, res) {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ status: 400, message: 'refreshToken is required' });
+    }
+
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+    if (error || !data?.session) {
+      return res.status(401).json({ status: 401, message: 'Invalid or expired refresh token' });
+    }
+
+    return res.status(200).json({
+      token: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 500, message: err.message });
+  }
 }
 
 // PATCH /api/v1/auth/switch-role (Member 1)
@@ -393,7 +416,7 @@ async function removeAvatar(req, res) {
   });
 }
 
-module.exports = { register, login, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout };
+module.exports = { register, login, refreshSession, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout };
 
 // POST /api/v1/auth/logout
 // Securely invalidates the user's session (for stateless JWT, this signals the client to clear tokens)

@@ -1,5 +1,13 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+function onTokenRefreshed(token) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
 async function request(path, options = {}) {
   const token = localStorage.getItem('token');
   const headers = {
@@ -10,6 +18,58 @@ async function request(path, options = {}) {
 
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
   const data = await res.json().catch(() => ({}));
+
+  if (res.status === 401 && !path.startsWith('/auth/login') && !path.startsWith('/auth/register') && !options._isRetry) {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          });
+          const refreshData = await refreshRes.json().catch(() => ({}));
+          if (refreshRes.ok && refreshData.token) {
+            localStorage.setItem('token', refreshData.token);
+            if (refreshData.refreshToken) {
+              localStorage.setItem('refreshToken', refreshData.refreshToken);
+            }
+            isRefreshing = false;
+            onTokenRefreshed(refreshData.token);
+            return request(path, { ...options, _isRetry: true });
+          }
+        } catch (e) {
+          console.warn('Auto token refresh failed:', e);
+        }
+        isRefreshing = false;
+        onTokenRefreshed(null);
+      } else {
+        // Wait for active refresh request to resolve
+        return new Promise((resolve, reject) => {
+          refreshSubscribers.push((newToken) => {
+            if (newToken) {
+              resolve(request(path, { ...options, _isRetry: true }));
+            } else {
+              reject(new Error('Your session has expired. Please log in again.'));
+            }
+          });
+        });
+      }
+    }
+
+    // No refresh token available or refresh failed
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+      window.location.href = '/login?expired=1';
+    }
+
+    throw new Error('Your session has expired. Please log in again.');
+  }
 
   if (!res.ok) {
     throw new Error(data.message || data.error || 'Something went wrong');
@@ -114,12 +174,28 @@ export function getContractById(contractId) {
   return request(`/contracts/${contractId}`);
 }
 
-export function submitContractWork(contractId) {
-  return request(`/contracts/${contractId}/submit`, { method: 'PATCH' });
+export function submitContractWork(contractId, payload = {}) {
+  return request(`/contracts/${contractId}/submit`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function completeContract(contractId) {
   return request(`/contracts/${contractId}/complete`, { method: 'PATCH' });
+}
+
+export function submitMilestoneWork(contractId, milestoneId, payload = {}) {
+  return request(`/contracts/${contractId}/milestones/${milestoneId}/submit`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function approveMilestoneWork(contractId, milestoneId) {
+  return request(`/contracts/${contractId}/milestones/${milestoneId}/approve`, {
+    method: 'PATCH',
+  });
 }
 
 // Admin API (Part 4)
@@ -243,6 +319,7 @@ export async function logout() {
     console.warn('Logout API failed, continuing with local cleanup:', err);
   } finally {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
   }
 }
