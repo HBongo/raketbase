@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getMyJobs, getJobProposals, acceptProposal, rejectProposal } from '../services/api';
+import { getMyJobs, getJobProposals, acceptProposal, rejectProposal, switchRole } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 
 export default function ClientJobView() {
@@ -13,6 +13,16 @@ function MyJobsList() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+
+  const user = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  })();
+  const isCustomer = user?.active_role === 'customer';
+  const [switchingRole, setSwitchingRole] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +42,66 @@ function MyJobsList() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isCustomer]);
+
+  if (!isCustomer) {
+    return (
+      <div className="row justify-content-center py-5">
+        <div className="col-12 col-md-8 col-lg-6 text-center">
+          <div className="card shadow-sm border-0 p-5 bg-white">
+            <div
+              className="d-inline-flex align-items-center justify-content-center bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-circle mb-3 mx-auto"
+              style={{ width: '64px', height: '64px', fontSize: '1.75rem' }}
+            >
+              <i className="bi bi-briefcase"></i>
+            </div>
+            <h4 className="fw-bold mb-2">Customer Mode Required</h4>
+            <p className="text-muted small mb-4 mx-auto" style={{ maxWidth: '380px' }}>
+              You are currently in <strong>Freelancer Mode</strong>. Job postings and proposal management are reserved for clients.
+            </p>
+            <div className="d-flex justify-content-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    setSwitchingRole(true);
+                    await switchRole('customer');
+                    const updatedUser = { ...user, active_role: 'customer' };
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                    window.location.reload();
+                  } catch (err) {
+                    setSwitchingRole(false);
+                    alert(err.message || 'Failed to switch role');
+                  }
+                }}
+                disabled={switchingRole}
+                className="btn text-white fw-bold px-4 py-2 rounded-pill"
+                style={{ backgroundColor: '#FF5A1E', borderColor: '#FF5A1E' }}
+              >
+                {switchingRole ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Switching...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-arrow-repeat me-1"></i> Switch to Customer Mode
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/my-proposals')}
+                className="btn btn-outline-secondary px-4 py-2 rounded-pill"
+              >
+                My Proposals
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

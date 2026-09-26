@@ -1,10 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCategories, createJob } from '../services/api';
+import { getCategories, createJob, switchRole } from '../services/api';
 import { clearCached } from '../utils/cache';
 
 export default function CreateJob() {
   const navigate = useNavigate();
+
+  const user = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  })();
+  const isCustomer = user?.active_role === 'customer';
+  const [switchingRole, setSwitchingRole] = useState(false);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -122,6 +132,67 @@ export default function CreateJob() {
       setError(err.message);
       setLoading(false);
     }
+  }
+
+  async function handleSwitchToCustomer() {
+    try {
+      setSwitchingRole(true);
+      await switchRole('customer');
+      const updatedUser = { ...user, active_role: 'customer' };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      window.location.reload();
+    } catch (err) {
+      setError(err.message || 'Failed to switch to customer mode');
+      setSwitchingRole(false);
+    }
+  }
+
+  if (!isCustomer) {
+    return (
+      <div className="row justify-content-center py-5">
+        <div className="col-12 col-md-8 col-lg-6 text-center">
+          <div className="card shadow-sm border-0 p-5 bg-white">
+            <div
+              className="d-inline-flex align-items-center justify-content-center bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-circle mb-3 mx-auto"
+              style={{ width: '64px', height: '64px', fontSize: '1.75rem' }}
+            >
+              <i className="bi bi-briefcase"></i>
+            </div>
+            <h4 className="fw-bold mb-2">Customer Mode Required</h4>
+            <p className="text-muted small mb-4 mx-auto" style={{ maxWidth: '380px' }}>
+              You are currently in <strong>Freelancer Mode</strong>. Job posting is exclusively available to clients and project owners.
+            </p>
+            <div className="d-flex justify-content-center gap-2">
+              <button
+                type="button"
+                onClick={handleSwitchToCustomer}
+                disabled={switchingRole}
+                className="btn text-white fw-bold px-4 py-2 rounded-pill"
+                style={{ backgroundColor: '#FF5A1E', borderColor: '#FF5A1E' }}
+              >
+                {switchingRole ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Switching...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-arrow-repeat me-1"></i> Switch to Customer Mode
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/explore')}
+                className="btn btn-outline-secondary px-4 py-2 rounded-pill"
+              >
+                Explore Jobs
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

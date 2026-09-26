@@ -94,7 +94,15 @@ export default function Layout() {
       await switchRole(newRole);
       const updatedUser = { ...user, active_role: newRole };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      window.location.reload();
+
+      // Redirect if the current page is role-restricted
+      if (newRole === 'freelancer' && (location.pathname.startsWith('/jobs/create') || location.pathname.startsWith('/my-jobs'))) {
+        window.location.href = '/explore';
+      } else if (newRole === 'customer' && location.pathname.startsWith('/my-proposals')) {
+        window.location.href = '/dashboard';
+      } else {
+        window.location.reload();
+      }
     } catch (err) {
       console.error('Failed to switch role:', err);
     } finally {
