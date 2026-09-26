@@ -365,6 +365,43 @@ export default function Messages() {
         .file-bubble-btn-theirs { background: #F4F6F5; color: #0B130F; }
         .file-bubble-btn-theirs:hover { background: #E9EFEF; }
         .deletion-banner { background: #FFF8F0; border-bottom: 1px solid #FDD9B0; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+        /* Dark Mode overrides for Messages */
+        body.dark-mode .msg-sidebar { background: #1A2420 !important; border-right-color: #2A3832 !important; }
+        body.dark-mode .msg-sidebar-header { border-bottom-color: #2A3832 !important; }
+        body.dark-mode .msg-sidebar-title { color: #E8EDEB !important; }
+        body.dark-mode .msg-sidebar-sub { color: #9EAAA3 !important; }
+        body.dark-mode .msg-search { border-bottom-color: #2A3832 !important; }
+        body.dark-mode .msg-search input { background: #111816 !important; border-color: #2A3832 !important; color: #E8EDEB !important; }
+        body.dark-mode .msg-search input:focus { border-color: #B4F105 !important; box-shadow: 0 4px 12px rgba(180,241,5,0.1) !important; }
+        body.dark-mode .conv-item:hover { background: #1F2D27 !important; }
+        body.dark-mode .conv-item.active { background: #2A3832 !important; border-left-color: #B4F105 !important; }
+        body.dark-mode .conv-item .conv-title { color: #E8EDEB !important; }
+        body.dark-mode .conv-item .conv-sub { color: #9EAAA3 !important; }
+        body.dark-mode .conv-item .conv-time { color: #9EAAA3 !important; }
+        body.dark-mode .chat-area { background: #111816 !important; }
+        body.dark-mode .chat-header { background: #1A2420 !important; border-bottom-color: #2A3832 !important; }
+        body.dark-mode .chat-header-name { color: #E8EDEB !important; }
+        body.dark-mode .chat-header-sub { color: #9EAAA3 !important; }
+        body.dark-mode .bubble-theirs { background: #1F2D27 !important; color: #E8EDEB !important; border-color: #2A3832 !important; }
+        body.dark-mode .bubble-theirs .bubble-time { color: #9EAAA3 !important; }
+        body.dark-mode .bubble-mine { background: #072F1F !important; }
+        body.dark-mode .msg-composer { background: #1A2420 !important; border-top-color: #2A3832 !important; }
+        body.dark-mode .msg-composer textarea { background: #111816 !important; border-color: #2A3832 !important; color: #E8EDEB !important; }
+        body.dark-mode .msg-composer textarea:focus { border-color: #B4F105 !important; background: #1A2420 !important; }
+        body.dark-mode .attach-btn { background: #1F2D27 !important; border-color: #2A3832 !important; color: #9EAAA3 !important; }
+        body.dark-mode .attach-btn:hover { background: #2A3832 !important; color: #E8EDEB !important; }
+        body.dark-mode .empty-state { background: #111816 !important; color: #9EAAA3 !important; }
+        body.dark-mode .empty-state-circle { background: #1A2420 !important; }
+        body.dark-mode .empty-state-title { color: #E8EDEB !important; }
+        body.dark-mode .empty-state-sub { color: #9EAAA3 !important; }
+        body.dark-mode .system-msg::before, body.dark-mode .system-msg::after { background: #2A3832 !important; }
+        body.dark-mode .system-msg-text { color: #9EAAA3 !important; }
+        body.dark-mode .deletion-banner { background: #2A2015 !important; border-bottom-color: #3A3025 !important; }
+        body.dark-mode .file-attach-preview { background: #1F2D27 !important; border-color: #2A3832 !important; }
+        body.dark-mode .file-bubble-btn-theirs { background: #1F2D27 !important; color: #E8EDEB !important; }
+        body.dark-mode .file-bubble-btn-theirs:hover { background: #2A3832 !important; }
+        body.dark-mode .msg-loading-text { color: #9EAAA3 !important; }
       `}</style>
 
       <div className="page-content-wrapper flex-grow-1 p-0" style={{ overflow: "hidden" }}>
@@ -373,10 +410,10 @@ export default function Messages() {
           {/* ── Sidebar ── */}
           <div className={`col-md-4 col-lg-3 h-100 ${selectedId ? "d-none d-md-flex" : "d-flex"} flex-column msg-sidebar`}>
             {/* Header */}
-            <div style={{ padding: "18px 16px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E9EFEF" }}>
+            <div className="msg-sidebar-header" style={{ padding: "18px 16px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E9EFEF" }}>
               <div>
-                <div style={{ fontWeight: 800, fontSize: "17px", color: "#0B130F" }}>Messages</div>
-                <div style={{ fontSize: "12px", color: "#6C7E75" }}>Your conversations</div>
+                <div className="msg-sidebar-title" style={{ fontWeight: 800, fontSize: "17px" }}>Messages</div>
+                <div className="msg-sidebar-sub" style={{ fontSize: "12px" }}>Your conversations</div>
               </div>
               <span className="conv-badge-count">{conversations.length}</span>
             </div>
@@ -446,11 +483,11 @@ export default function Messages() {
             {/* No chat selected */}
             {!selectedId ? (
               <div className="empty-state">
-                <div style={{ width: 80, height: 80, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}>
+                <div className="empty-state-circle" style={{ width: 80, height: 80, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}>
                   <i className="bi bi-chat-heart" style={{ fontSize: "2.2rem", color: "#B4F105" }}></i>
                 </div>
-                <div style={{ fontWeight: 700, fontSize: "16px", color: "#0B130F" }}>Select a conversation</div>
-                <div style={{ fontSize: "13.5px", color: "#6C7E75" }}>Choose from the list to start chatting.</div>
+                <div className="empty-state-title" style={{ fontWeight: 700, fontSize: "16px" }}>Select a conversation</div>
+                <div className="empty-state-sub" style={{ fontSize: "13.5px" }}>Choose from the list to start chatting.</div>
               </div>
             ) : !active ? (
               <div className="empty-state">
@@ -470,8 +507,8 @@ export default function Messages() {
                   </button>
                   <Avatar src={other?.avatar_url} name={personName(other)} size={44} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 800, fontSize: "15px", color: "#0B130F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{active.title}</div>
-                    <div style={{ fontSize: "12.5px", color: "#6C7E75", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div className="chat-header-name" style={{ fontWeight: 800, fontSize: "15px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{active.title}</div>
+                    <div className="chat-header-sub" style={{ fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {isParticipant ? personName(other) : `${personName(active.client)} & ${personName(active.freelancer)}`}
                     </div>
                   </div>

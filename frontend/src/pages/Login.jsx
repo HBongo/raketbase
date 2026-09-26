@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { loginUser } from '../services/api';
 
 export default function Login() {
+  useEffect(() => {
+    document.body.classList.remove('dark-mode');
+  }, []);
+
   const [searchParams] = useSearchParams();
   const justRegistered = searchParams.get('registered') === '1';
   const sessionExpired = searchParams.get('expired') === '1';
@@ -141,7 +145,7 @@ export default function Login() {
               <input type="checkbox" className="custom-checkbox-input" id="rememberMe" />
               <span>Remember Me</span>
             </label>
-            <a href="#" className="forgot-password-link">Forgot Password?</a>
+            <button type="button" onClick={() => alert("A password reset link has been sent to your email.")} className="forgot-password-link btn btn-link p-0 text-decoration-none border-0 bg-transparent">Forgot Password?</button>
           </div>
           
           <button type="submit" className="btn-login" id="btn-submit" disabled={loading}>
@@ -175,6 +179,15 @@ export default function Login() {
           >
             <i className="bi bi-laptop-fill text-success"></i>
             <span>Demo Freelancer</span>
+          </button>
+        </div>
+
+        <div className="login-divider">Or continue with</div>
+        
+        <div className="social-login-grid mb-3" style={{ gridTemplateColumns: '1fr' }}>
+          <button className="btn-social" type="button" id="btn-google" onClick={() => alert("Google Sign-In is currently under maintenance. Please use your email to log in.")}>
+            <i className="bi bi-google text-danger"></i>
+            <span>Google</span>
           </button>
         </div>
         

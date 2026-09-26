@@ -17,6 +17,12 @@
     <link rel="stylesheet" href="/assets/css/main.css">
   </head>
   <body>
+    <script>
+      const path = window.location.pathname;
+      if (localStorage.getItem('darkMode') === 'true' && path !== '/login' && path !== '/register') {
+        document.body.classList.add('dark-mode');
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script src="/assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>

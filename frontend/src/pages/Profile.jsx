@@ -134,9 +134,9 @@ export default function Profile() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const maxSize = 2 * 1024 * 1024; // 2MB
+    const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      setSaveMsg({ type: 'error', text: 'Image must be under 2MB.' });
+      setSaveMsg({ type: 'error', text: 'Image must be under 5MB.' });
       return;
     }
 

@@ -140,7 +140,7 @@ function ProposalsSkeleton() {
                 <button
                   key={f.value}
                   onClick={() => setFilter(f.value)}
-                  className={`btn btn-sm rounded-pill px-3 py-1 ${
+                  className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium ${
                     isActive ? 'text-white border-0' : 'btn-outline-secondary'
                   }`}
                   style={isActive ? { backgroundColor: '#FF5A1E' } : {}}

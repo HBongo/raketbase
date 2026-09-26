@@ -37,6 +37,18 @@ export default function Layout() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('darkMode') === 'true';
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+    localStorage.setItem('darkMode', isDarkMode);
+  }, [isDarkMode]);
 
   const user = (() => {
     try {
@@ -228,6 +240,15 @@ export default function Layout() {
           </div>
 
           <div className="navbar-actions d-flex align-items-center gap-3">
+            <button
+              type="button"
+              className="navbar-action-btn d-flex align-items-center justify-content-center"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              aria-label="Toggle Dark Mode"
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              <i className={isDarkMode ? "bi bi-sun-fill" : "bi bi-moon-fill"}></i>
+            </button>
             <button
               className="navbar-action-btn me-1 d-none d-md-flex align-items-center justify-content-center"
               onClick={toggleFullscreen}
