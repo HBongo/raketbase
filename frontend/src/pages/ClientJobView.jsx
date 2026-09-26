@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getMyJobs, getJobProposals, acceptProposal, rejectProposal, switchRole } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
+import { showToast } from '../utils/toast';
 
 export default function ClientJobView() {
   const { id } = useParams();
@@ -65,13 +66,14 @@ function MyJobsList() {
                 onClick={async () => {
                   try {
                     setSwitchingRole(true);
+                    showToast('Switching to Customer Mode...', { loading: true, duration: 0 });
                     await switchRole('customer');
                     const updatedUser = { ...user, active_role: 'customer' };
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     window.location.reload();
                   } catch (err) {
                     setSwitchingRole(false);
-                    alert(err.message || 'Failed to switch role');
+                    showToast(err.message || 'Failed to switch role', 4000);
                   }
                 }}
                 disabled={switchingRole}

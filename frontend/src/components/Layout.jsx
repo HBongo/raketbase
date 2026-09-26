@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams, Outlet } from 'react-router-dom';
 import { clearCached } from '../utils/cache';
 import { switchRole } from '../services/api';
+import { showToast } from '../utils/toast';
 
 export default function Layout() {
   const location = useLocation();
@@ -89,8 +90,10 @@ export default function Layout() {
   const handleToggleRole = async () => {
     const currentRole = user?.active_role || 'freelancer';
     const newRole = currentRole === 'customer' ? 'freelancer' : 'customer';
+    const targetLabel = newRole === 'customer' ? 'Customer' : 'Freelancer';
     try {
       setIsSwitchingRole(true);
+      showToast(`Switching to ${targetLabel} Mode...`, { loading: true, duration: 0 });
       await switchRole(newRole);
       const updatedUser = { ...user, active_role: newRole };
       localStorage.setItem('user', JSON.stringify(updatedUser));
@@ -105,7 +108,7 @@ export default function Layout() {
       }
     } catch (err) {
       console.error('Failed to switch role:', err);
-    } finally {
+      showToast(err.message || 'Failed to switch role', 4000);
       setIsSwitchingRole(false);
     }
   };
@@ -240,8 +243,14 @@ export default function Layout() {
               disabled={isSwitchingRole}
               aria-label={`Switch mode, currently ${user?.active_role || 'freelancer'} mode`}
             >
-              <i className={`bi ${user?.active_role === 'customer' ? 'bi-briefcase-fill text-primary' : 'bi-person-badge-fill text-success'}`}></i>
-              <span className="small text-dark fw-medium text-capitalize">{user?.active_role || 'freelancer'} Mode</span>
+              {isSwitchingRole ? (
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: '0.85rem', height: '0.85rem', color: '#FF5A1E', borderWidth: '2px' }}></span>
+              ) : (
+                <i className={`bi ${user?.active_role === 'customer' ? 'bi-briefcase-fill text-primary' : 'bi-person-badge-fill text-success'}`}></i>
+              )}
+              <span className="small text-dark fw-medium text-capitalize">
+                {isSwitchingRole ? 'Switching...' : `${user?.active_role || 'freelancer'} Mode`}
+              </span>
               <i className="bi bi-arrow-left-right text-muted" style={{ fontSize: '0.75rem' }}></i>
             </button>
             <div className="d-none d-md-block vr mx-1 text-secondary opacity-25" style={{ height: '24px' }}></div>
@@ -256,6 +265,13 @@ export default function Layout() {
                   <div className="fw-bold text-dark text-truncate" title={`${user?.first_name || 'User'} ${user?.last_name || ''}`}>{user?.first_name || 'User'} {user?.last_name || ''}</div>
                   <div className="small text-muted text-truncate" title={user?.email || 'user@example.com'}>{user?.email || 'user@example.com'}</div>
                 </li>
+                <li className="d-md-none">
+                  <button type="button" className="dropdown-item d-flex align-items-center gap-2 py-2" onClick={handleToggleRole} disabled={isSwitchingRole}>
+                    <i className="bi bi-arrow-left-right text-primary"></i>
+                    <span>Switch to {user?.active_role === 'customer' ? 'Freelancer' : 'Customer'} Mode</span>
+                  </button>
+                </li>
+                <li className="d-md-none"><hr className="dropdown-divider" /></li>
                 <li><Link className="dropdown-item" to={`/profile/${user?.user_id || user?.id}`}><i className="bi bi-person"></i> My Profile</Link></li>
                 <li><Link className="dropdown-item" to="#"><i className="bi bi-gear"></i> Settings</Link></li>
                 <li><hr className="dropdown-divider" /></li>

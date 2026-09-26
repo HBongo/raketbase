@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCategories, createJob, switchRole } from '../services/api';
 import { clearCached } from '../utils/cache';
+import { showToast } from '../utils/toast';
 
 export default function CreateJob() {
   const navigate = useNavigate();
@@ -137,12 +138,14 @@ export default function CreateJob() {
   async function handleSwitchToCustomer() {
     try {
       setSwitchingRole(true);
+      showToast('Switching to Customer Mode...', { loading: true, duration: 0 });
       await switchRole('customer');
       const updatedUser = { ...user, active_role: 'customer' };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       window.location.reload();
     } catch (err) {
       setError(err.message || 'Failed to switch to customer mode');
+      showToast(err.message || 'Failed to switch mode', 4000);
       setSwitchingRole(false);
     }
   }

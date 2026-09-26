@@ -15,10 +15,13 @@ import Messages from './pages/Messages';
 import TopUsers from './pages/TopUsers';
 import MyProposals from './pages/MyProposals';
 import Layout from './components/Layout';
+import Toaster from './components/Toaster';
 
 function App() {
   return (
-    <Routes>
+    <>
+      <Toaster />
+      <Routes>
       <Route
         path="/"
         element={
@@ -69,6 +72,7 @@ function App() {
         }
       />
     </Routes>
+    </>
   );
 }
 
