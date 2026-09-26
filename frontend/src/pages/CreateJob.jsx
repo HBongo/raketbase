@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCategories, createJob, switchRole } from '../services/api';
-import { clearCached } from '../utils/cache';
+import { getCached, setCached, clearCached } from '../utils/cache';
 import { showToast } from '../utils/toast';
 
 export default function CreateJob() {
@@ -26,7 +26,9 @@ export default function CreateJob() {
   const [budget, setBudget] = useState('');
   const [deadline, setDeadline] = useState('');
 
-  const [categories, setCategories] = useState([]);
+  const cachedCategories = getCached('job_categories');
+  const [categories, setCategories] = useState(cachedCategories || []);
+  const [loadingCategories, setLoadingCategories] = useState(!cachedCategories || cachedCategories.length === 0);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [touched, setTouched] = useState({
@@ -40,15 +42,31 @@ export default function CreateJob() {
   const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
   useEffect(() => {
+    let cancelled = false;
     async function loadCategories() {
+      const cached = getCached('job_categories');
+      if (cached && cached.length > 0) {
+        setCategories(cached);
+        setLoadingCategories(false);
+      }
       try {
         const res = await getCategories();
-        setCategories(res.data || []);
+        if (cancelled) return;
+        const data = res.data || [];
+        setCategories(data);
+        setCached('job_categories', data);
       } catch {
-        setError('Failed to fetch job categories.');
+        if (!cancelled && (!cached || cached.length === 0)) {
+          setError('Failed to fetch job categories.');
+        }
+      } finally {
+        if (!cancelled) setLoadingCategories(false);
       }
     }
     loadCategories();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const selectedCategoryObj = categories.find((c) => c.category_id === categoryId);
@@ -253,9 +271,12 @@ export default function CreateJob() {
                     value={categoryId}
                     onChange={(e) => setCategoryId(e.target.value)}
                     onBlur={() => setTouched((prev) => ({ ...prev, category: true }))}
+                    disabled={loadingCategories && categories.length === 0}
                     className={`form-select ${touched.category && !categoryId ? 'is-invalid border-danger' : ''}`}
                   >
-                    <option value="">Select Category</option>
+                    <option value="">
+                      {loadingCategories && categories.length === 0 ? 'Loading categories...' : 'Select Category'}
+                    </option>
                     {categories.map((cat) => (
                       <option key={cat.category_id} value={cat.category_id}>
                         {cat.category_name}

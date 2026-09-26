@@ -100,7 +100,15 @@ export default function Explore() {
       counts[name] = (counts[name] || 0) + 1;
     }
 
-    const core = [{ id: 'all', name: 'All', label: 'All', count: jobs.length }];
+    const defaultCore = [
+      { id: 'all', name: 'All', label: 'All', count: jobs.length },
+      { id: 'web-development', name: 'Web Development', label: 'Web Development', count: counts['Web Development'] || 0 },
+      { id: 'graphic-design', name: 'Graphic & Design', label: 'Graphic & Design', count: (counts['Graphic & Design'] || counts['Graphic Design'] || 0) },
+      { id: 'writing-content', name: 'Writing & Translation', label: 'Writing & Translation', count: (counts['Writing & Translation'] || counts['Writing & Content'] || 0) },
+      { id: 'mobile-development', name: 'Mobile Development', label: 'Mobile Development', count: counts['Mobile Development'] || 0 },
+      { id: 'digital-marketing', name: 'Digital Marketing', label: 'Digital Marketing', count: counts['Digital Marketing'] || 0 },
+    ];
+
     const others = [];
     const otherIds = new Set();
     let otherCount = 0;
@@ -108,9 +116,7 @@ export default function Explore() {
     for (const [name, count] of Object.entries(counts)) {
       const slug = name.toLowerCase().replace(/\s+/g, '-');
       const lowerName = name.toLowerCase();
-      if (CORE_CATEGORY_NAMES.has(lowerName)) {
-        core.push({ id: slug, name, label: name, count });
-      } else {
+      if (!CORE_CATEGORY_NAMES.has(lowerName)) {
         others.push({ id: slug, name, label: name, count });
         otherIds.add(slug);
         otherCount += count;
@@ -118,7 +124,7 @@ export default function Explore() {
     }
 
     return {
-      coreCategories: core,
+      coreCategories: defaultCore,
       otherCategories: others,
       otherCategoryIds: otherIds,
       othersTotalCount: otherCount,
