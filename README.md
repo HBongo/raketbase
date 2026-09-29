@@ -64,9 +64,51 @@ Changes 4
 - Restored the official rocket logo SVG with responsive scaling and hover wiggle animation
 
 
+Changes 5
+
+
+[Legal & Compliance System]
+- Added interactive Legal Document Viewer (`LegalDocViewer.jsx`), `LegalModal.jsx`, and a dedicated `/legal` route
+- Integrated comprehensive legal documents covering Terms of Service, Privacy Policy, and Community Guidelines with in-app tabbed browsing
+- Added legal acceptance checkboxes and interactive preview modals directly within the registration flow
+
+[Registration & Onboarding Roadmap Fulfilled]
+- Implemented Philippine Standard Geographic Code (PSGC) cascaded address selectors (Region, Province, City/Municipality, Barangay)
+- Added dedicated Freelancer onboarding requiring phone number, bank name, and bank account number for payouts
+- Added dedicated Client onboarding allowing users to classify as Small Business or Major Contractor with mandatory Business Name input
+- Added password strength indicators, real-time input sanitization, and inline validation
+
+[Authentication & Quick Demo Access]
+- Added one-click "Demo Customer" and "Demo Freelancer" guest login buttons for instant platform testing
+- Enforced strict customer mode guard on `/jobs/create` and `/my-jobs` with automatic redirect upon role switch
+
+[Dark Mode & Visual Polish]
+- Integrated platform-wide Dark Mode with persistent theme switching and role-adaptive contrast
+- Added animated floating loading toast with a progress bar when toggling between Freelancer and Client modes
+- Added velocity-aware floating Back-To-Top button for fast navigation on long feeds
+- Polished badge contrasts, status pills, and empty states across Dashboard, Profile, and Explore pages
+
+[Anti-Slop Sanitization & Platform QA]
+- Built centralized anti-slop filter (`slopFilter.js`) preventing script injection, excessive uppercase shouting (>70%), repetitive spam text, off-platform contact leaks (emails, phones, Discord/Telegram), and troll budgets
+- Enforced strict inline validation across job postings, proposals, contracts, reviews, and dispute tickets
+
+[Contracts, Milestones & Deliverables]
+- Added deliverable submission modal supporting both fixed-price contracts and milestone-based work with URL validation
+- Added escrow pre-warning modal with clear financial breakdown before releasing funds
+- Added milestone decimal budget support and automated deliverable notification alerts inside contract chat threads
+
+[Explore & Discovery Enhancements]
+- Pre-cached job categories in memory for instant, zero-flicker filter dropdowns
+- Added custom category input when "Others" is selected, with matching dropdown filters on Explore
+- Made job card titles directly clickable and added labeled action buttons, proposal character counters, and chat image previews
+
+[Deployment & Tunnels]
+- Integrated ngrok tunnel automation for instant background deployment and public verification
+
+
 Roadmap
-- Make it so that people who choose the freelancer option also need to put in their bank details and phone number
-- Make it so that people who choose the client option choose whether or not they are a small business or a major contractor and need to put in their business name. 
-- Have the toast that appears when changing from client to freelancer slide in and have a mini loading bar to show how much time is left before it disappears
+- Make it so that people who choose the freelancer option also need to put in their bank details and phone number - Complete
+- Make it so that people who choose the client option choose whether or not they are a small business or a major contractor and need to put in their business name. - Complete
+- Have the toast that appears when changing from client to freelancer slide in and have a mini loading bar to show how much time is left before it disappears - Complete
 - Develop a messaging system - Complete
-- Have clients be able to delete their posting as long as they have not accepted a freelancer for it yet
+- Have clients be able to delete their posting as long as they have not accepted a freelancer for it yet
