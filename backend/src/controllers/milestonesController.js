@@ -108,8 +108,16 @@ exports.submitMilestone = async (req, res) => {
     const deliverable_url = (req.body.deliverable_url || '').trim();
     const deliverable_notes = (req.body.deliverable_notes || '').trim();
 
+    const contract = await loadContract(contract_id);
+    if (!contract) return res.status(404).json({ success: false, error: 'Contract not found' });
+    if (contract.freelancer_id !== userId) {
+      return res.status(403).json({ success: false, error: 'Only the assigned freelancer can submit milestone work' });
+    }
+
+    // Auto-align active role if user is in customer mode
     if (req.user.active_role !== 'freelancer') {
-      return res.status(403).json({ success: false, error: 'Switch to Freelancer mode to submit milestone work.' });
+      await supabaseAdmin.from('users').update({ active_role: 'freelancer' }).eq('user_id', userId);
+      req.user.active_role = 'freelancer';
     }
 
     if (!deliverable_url) {
@@ -124,12 +132,6 @@ exports.submitMilestone = async (req, res) => {
         success: false,
         error: 'Deliverable link must start with http:// or https://',
       });
-    }
-
-    const contract = await loadContract(contract_id);
-    if (!contract) return res.status(404).json({ success: false, error: 'Contract not found' });
-    if (contract.freelancer_id !== userId) {
-      return res.status(403).json({ success: false, error: 'Only the assigned freelancer can submit milestone work' });
     }
     if (contract.status !== 'active') {
       return res.status(409).json({ success: false, error: `Cannot submit work on a contract that is currently '${contract.status}'` });
@@ -203,14 +205,16 @@ exports.approveMilestone = async (req, res) => {
     const { id: contract_id, milestoneId } = req.params;
     const userId = req.user.id;
 
-    if (req.user.active_role !== 'customer') {
-      return res.status(403).json({ success: false, error: 'Switch to Client mode to approve milestone work.' });
-    }
-
     const contract = await loadContract(contract_id);
     if (!contract) return res.status(404).json({ success: false, error: 'Contract not found' });
     if (contract.client_id !== userId) {
       return res.status(403).json({ success: false, error: 'Only the client can approve deliverables and release funds' });
+    }
+
+    // Auto-align active role if user is in freelancer mode
+    if (req.user.active_role !== 'customer') {
+      await supabaseAdmin.from('users').update({ active_role: 'customer' }).eq('user_id', userId);
+      req.user.active_role = 'customer';
     }
     if (contract.status !== 'active') {
       return res.status(409).json({ success: false, error: `Cannot approve work on a contract that is currently '${contract.status}'` });

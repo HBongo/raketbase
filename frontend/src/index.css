@@ -20,6 +20,151 @@ body {
   font-family: var(--font-sans);
 }
 
+/* ── GitHub main Dark Split-Screen System ── */
+.auth-split-wrapper {
+  background-color: #10131A !important;
+  color: #EDEEF2 !important;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  display: flex;
+}
+
+.auth-split-sidebar {
+  width: 42%;
+  background-color: #141824;
+  border-right: 1px solid #262B36;
+  padding: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.auth-split-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.5rem;
+  background-color: #10131A;
+}
+
+.auth-split-card {
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-input {
+  width: 100%;
+  background-color: #1D2129 !important;
+  border: 1px solid #262B36 !important;
+  color: #EDEEF2 !important;
+  padding: 0.625rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.auth-input:focus {
+  border-color: #E7B24B !important;
+  box-shadow: 0 0 0 1px #E7B24B !important;
+}
+
+.auth-input::placeholder {
+  color: #5A6275 !important;
+}
+
+.auth-input-error {
+  border-color: #E5484D !important;
+}
+
+.auth-btn-primary {
+  width: 100%;
+  background-color: #E7B24B !important;
+  color: #1A1305 !important;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.auth-btn-primary:hover:not(:disabled) {
+  background-color: #F2C368 !important;
+}
+
+.auth-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.auth-btn-secondary {
+  background-color: #1D2129;
+  border: 1px solid #262B36;
+  color: #EDEEF2;
+  font-size: 0.8125rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.auth-btn-secondary:hover:not(:disabled) {
+  background-color: #252B37;
+  border-color: #373E4F;
+  color: #FFFFFF;
+}
+
+.auth-btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.auth-checklist {
+  background-color: #141824;
+  border: 1px solid #262B36;
+  border-radius: 6px;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.75rem;
+}
+
+/* ── Standardize page-header to match Dashboard heading position (left-aligned) ── */
+.page-header {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  text-align: left !important;
+}
+
+.page-header > div {
+  text-align: left !important;
+}
+
+.page-header .page-title,
+.page-header .page-subtitle {
+  text-align: left !important;
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    gap: 0.75rem !important;
+  }
+}
+
 img.rocket-logo {
   max-width: 120px;
   width: 38% !important; /* Scaled nicely within container without overflowing */
@@ -45,10 +190,12 @@ img.rocket-logo {
 }
 
 .logo-shake {
+  display: inline-block;
   transition: transform 0.2s ease;
 }
 
-.logo-shake:hover {
+.logo-shake:hover,
+.sidebar-brand:hover .logo-shake {
   animation: wiggle-rocket 0.4s ease-in-out infinite;
 }
 /* ── LinkedIn-style Shimmer & Progress Bar Loaders ── */
@@ -122,3 +269,115 @@ img.rocket-logo {
     transform: translateY(0);
   }
 }
+
+/* ── Modal & Alert Dark Mode Enhancements ── */
+body.dark-mode .modal-content {
+  background-color: #1A2420 !important;
+  color: #E8EDEB !important;
+  border: 1px solid #2A3832 !important;
+}
+
+body.dark-mode .modal-header,
+body.dark-mode .modal-footer {
+  background-color: #151F1B !important;
+  border-color: #2A3832 !important;
+}
+
+body.dark-mode .modal-title {
+  color: #E8EDEB !important;
+}
+
+body.dark-mode .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Alert styles in dark mode */
+body.dark-mode .alert-warning,
+body.dark-mode .escrow-notice-alert {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  border: 1px solid rgba(245, 158, 11, 0.38) !important;
+  color: #fde68a !important;
+}
+
+body.dark-mode .alert-warning *,
+body.dark-mode .escrow-notice-alert * {
+  color: #fde68a !important;
+}
+
+body.dark-mode .escrow-notice-alert strong {
+  color: #fcd34d !important;
+}
+
+body.dark-mode .escrow-notice-alert .notice-icon,
+body.dark-mode .alert-warning i {
+  color: #f59e0b !important;
+}
+
+body.dark-mode .alert-info {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  border: 1px solid rgba(59, 130, 246, 0.35) !important;
+  color: #93c5fd !important;
+}
+
+body.dark-mode .alert-info * {
+  color: #93c5fd !important;
+}
+
+body.dark-mode .alert-danger {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+  color: #fca5a5 !important;
+}
+
+body.dark-mode .alert-danger * {
+  color: #fca5a5 !important;
+}
+
+body.dark-mode .alert-success {
+  background-color: rgba(34, 197, 94, 0.15) !important;
+  border: 1px solid rgba(34, 197, 94, 0.35) !important;
+  color: #86efac !important;
+}
+
+body.dark-mode .alert-success * {
+  color: #86efac !important;
+}
+
+/* High-contrast deliverable action button */
+.btn-deliverable-link {
+  background-color: rgba(25, 135, 84, 0.12) !important;
+  border: 1px solid rgba(25, 135, 84, 0.35) !important;
+  color: #198754 !important;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-deliverable-link:hover {
+  background-color: #198754 !important;
+  border-color: #198754 !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .btn-deliverable-link {
+  background-color: rgba(52, 211, 153, 0.18) !important;
+  border: 1px solid rgba(52, 211, 153, 0.5) !important;
+  color: #34d399 !important;
+}
+
+body.dark-mode .btn-deliverable-link:hover {
+  background-color: #10b981 !important;
+  border-color: #10b981 !important;
+  color: #030E08 !important;
+}
+
+body.dark-mode .btn-outline-success {
+  color: #34d399 !important;
+  border-color: #34d399 !important;
+  background-color: rgba(52, 211, 153, 0.1) !important;
+}
+
+body.dark-mode .btn-outline-success:hover {
+  background-color: #10b981 !important;
+  border-color: #10b981 !important;
+  color: #030E08 !important;
+}
+

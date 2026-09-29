@@ -27,20 +27,6 @@ exports.createProposal = async (req, res) => {
       });
     }
 
-    // Phase 0 Anti-Slop & Input Sanitization
-    const validation = validateProposalInput({
-      cover_letter,
-      bid_amount: isMilestoneJob ? undefined : bid_amount,
-    });
-
-    if (!validation.valid) {
-      return res.status(400).json({
-        success: false,
-        error: validation.errors[0],
-        errors: validation.errors,
-      });
-    }
-
     // Nobody may bid on a job they posted themselves, regardless of mode.
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
@@ -66,6 +52,21 @@ exports.createProposal = async (req, res) => {
     }
 
     const isMilestoneJob = job.budget_type === 'milestone';
+
+    // Phase 0 Anti-Slop & Input Sanitization
+    const validation = validateProposalInput({
+      cover_letter,
+      bid_amount: isMilestoneJob ? undefined : bid_amount,
+    });
+
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: validation.errors[0],
+        errors: validation.errors,
+      });
+    }
+
     let finalBidAmount = bid_amount;
     let cleanMilestones = [];
 

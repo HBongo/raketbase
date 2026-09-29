@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { getTopUsers } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
@@ -23,11 +23,33 @@ function useDebounced(value, delay) {
   return debounced;
 }
 
+function TopUsersSkeleton() {
+  return (
+    <div className="row g-4">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div className="col-12 col-md-6 col-xl-4" key={i}>
+          <div className="card shadow-sm border-0 h-100 p-4 bg-white">
+            <div className="d-flex align-items-center gap-3 mb-3">
+              <div className="skeleton-box rounded-circle flex-shrink-0" style={{ width: 56, height: 56 }} />
+              <div className="flex-grow-1">
+                <div className="skeleton-box mb-2" style={{ width: "70%", height: 16 }} />
+                <div className="skeleton-box" style={{ width: "40%", height: 12 }} />
+              </div>
+            </div>
+            <div className="skeleton-box mb-2" style={{ width: "100%", height: 12 }} />
+            <div className="skeleton-box mb-3" style={{ width: "80%", height: 12 }} />
+            <div className="d-flex gap-2 mt-auto">
+              <div className="skeleton-box rounded-pill" style={{ width: 60, height: 24 }} />
+              <div className="skeleton-box rounded-pill" style={{ width: 70, height: 24 }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function TopUsers() {
-  const user = (() => {
-    try { return JSON.parse(localStorage.getItem('user') || '{}'); }
-    catch { return {}; }
-  })();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') === 'clients' ? 'clients' : 'freelancers';
@@ -137,31 +159,7 @@ export default function TopUsers() {
   const filtersActive = minRating > 0 || apiMin !== undefined || apiMax !== undefined;
   const who = isFreelancer ? 'freelancers' : 'clients';
 
-function TopUsersSkeleton() {
-  return (
-    <div className="row g-4">
-      {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div className="col-12 col-md-6 col-xl-4" key={i}>
-          <div className="card shadow-sm border-0 h-100 p-4 bg-white">
-            <div className="d-flex align-items-center gap-3 mb-3">
-              <div className="skeleton-box rounded-circle flex-shrink-0" style={{ width: 56, height: 56 }} />
-              <div className="flex-grow-1">
-                <div className="skeleton-box mb-2" style={{ width: "70%", height: 16 }} />
-                <div className="skeleton-box" style={{ width: "40%", height: 12 }} />
-              </div>
-            </div>
-            <div className="skeleton-box mb-2" style={{ width: "100%", height: 12 }} />
-            <div className="skeleton-box mb-3" style={{ width: "80%", height: 12 }} />
-            <div className="d-flex gap-2 mt-auto">
-              <div className="skeleton-box rounded-pill" style={{ width: 60, height: 24 }} />
-              <div className="skeleton-box rounded-pill" style={{ width: 70, height: 24 }} />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+
 
   return (
     <>
@@ -171,7 +169,7 @@ function TopUsersSkeleton() {
         </div>
       )}
 
-      <div className="page-header d-flex justify-content-between align-items-center">
+      <div className="page-header">
         <div>
           <h1 className="page-title">Top users</h1>
           <p className="page-subtitle">
@@ -293,9 +291,7 @@ function FiltersSidebar({
   resetFilters,
   resultCount,
   who,
-  open,
-  setFiltersOpen,
-  filtersActive
+  open
 }) {
   const priceLabel = isFreelancer ? 'Average price' : 'Average budget';
   const low = range ? range.min : bounds?.min;

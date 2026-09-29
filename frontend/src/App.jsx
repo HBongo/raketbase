@@ -14,6 +14,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import Messages from './pages/Messages';
 import TopUsers from './pages/TopUsers';
 import MyProposals from './pages/MyProposals';
+import LegalPage from './pages/LegalPage';
 import Layout from './components/Layout';
 import Toaster from './components/Toaster';
 
@@ -34,6 +35,10 @@ function App() {
       />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/terms" element={<LegalPage defaultDoc="terms" />} />
+      <Route path="/privacy" element={<LegalPage defaultDoc="privacy" />} />
+      <Route path="/terms-of-service" element={<Navigate to="/terms" replace />} />
+      <Route path="/privacy-policy" element={<Navigate to="/privacy" replace />} />
       <Route path="/jobs" element={<Navigate to="/explore" replace />} />
       
       {/* Protected Routes */}

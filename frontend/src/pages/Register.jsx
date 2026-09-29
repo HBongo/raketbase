@@ -1,52 +1,70 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser, updateProfile } from '../services/api';
+import LegalModal from '../components/LegalModal';
 
-function CustomAutocomplete({ value, onChange, options, placeholder, icon, disabled, isLoading }) {
+function CustomAutocomplete({ value, onChange, options, placeholder, disabled, isLoading }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState(value);
-
-  // Sync internal search state with external value changes
-  useEffect(() => {
-    setSearch(value);
-  }, [value]);
 
   const filteredOptions = options.filter(opt => 
-    opt.toLowerCase().includes(search.toLowerCase())
+    opt.toLowerCase().includes((value || '').toLowerCase())
   );
 
   return (
-    <div className="login-input-group position-relative" style={{ overflow: 'visible' }}>
-      <i className={`bi ${icon} input-icon`}></i>
+    <div style={{ position: 'relative', overflow: 'visible' }}>
       <input 
         type="text" 
-        className="login-input" 
+        className="auth-input" 
         placeholder={isLoading ? "Loading..." : placeholder}
-        value={search}
+        value={value || ''}
         disabled={disabled}
         onChange={(e) => {
-          setSearch(e.target.value);
           onChange(e.target.value);
           setIsOpen(true);
         }}
         onFocus={() => setIsOpen(true)}
         onBlur={() => {
-          // Delay closing so that the click event on a list item can fire
           setTimeout(() => setIsOpen(false), 200);
         }}
         autoComplete="off"
       />
       {isOpen && !disabled && filteredOptions.length > 0 && (
-        <ul className="custom-autocomplete-menu m-0 p-0">
+        <ul style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          maxHeight: '180px',
+          overflowY: 'auto',
+          backgroundColor: '#1D2129',
+          border: '1px solid #262B36',
+          borderRadius: '6px',
+          listStyle: 'none',
+          padding: '4px 0',
+          margin: '4px 0 0',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+        }}>
           {filteredOptions.map((opt, i) => (
             <li key={i}>
               <button 
                 type="button" 
                 onClick={() => {
                   onChange(opt);
-                  setSearch(opt);
                   setIsOpen(false);
                 }}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  background: 'none',
+                  border: 'none',
+                  color: '#EDEEF2',
+                  padding: '7px 12px',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#252B37'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
               >
                 {opt}
               </button>
@@ -58,6 +76,25 @@ function CustomAutocomplete({ value, onChange, options, placeholder, icon, disab
   );
 }
 
+const ALLOWED_EMAIL_DOMAINS = [
+  'gmail.com',
+  'googlemail.com',
+  'yahoo.com',
+  'yahoo.com.ph',
+  'ymail.com',
+  'outlook.com',
+  'hotmail.com',
+  'live.com',
+  'msn.com',
+  'icloud.com',
+  'me.com',
+  'mac.com',
+  'proton.me',
+  'protonmail.com',
+  'zoho.com',
+  'aol.com',
+];
+
 export default function Register() {
   useEffect(() => {
     document.body.classList.remove('dark-mode');
@@ -65,14 +102,12 @@ export default function Register() {
 
   const navigate = useNavigate();
 
-  // Step state
+  // Step state (1: Core details, 2: Role profile & Password)
   const [step, setStep] = useState(1);
 
-  // Step 1 fields
+  // Step 1 fields (No middle initial, no suffix)
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [middleInitial, setMiddleInitial] = useState('');
-  const [suffix, setSuffix] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('freelancer');
 
@@ -99,6 +134,13 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
+  const [legalModalDoc, setLegalModalDoc] = useState('terms');
+
+  const openLegalModal = (docType) => {
+    setLegalModalDoc(docType);
+    setLegalModalOpen(true);
+  };
 
   // Fetch Regions when reaching Step 2 as Freelancer
   useEffect(() => {
@@ -106,7 +148,6 @@ export default function Register() {
       fetch('https://psgc.gitlab.io/api/regions/')
         .then(res => res.json())
         .then(data => {
-          // Sort regions alphabetically
           const sorted = data.sort((a, b) => a.name.localeCompare(b.name));
           setRegionsList(sorted);
         })
@@ -116,14 +157,17 @@ export default function Register() {
 
   // Fetch Cities when a valid Region is selected
   useEffect(() => {
+    let cancelled = false;
     if (region) {
       const selectedRegion = regionsList.find(r => r.name === region);
       if (selectedRegion) {
-        setIsFetchingCities(true);
-        // Only clear city if the new regions cities list doesn't contain the current city
+        Promise.resolve().then(() => {
+          if (!cancelled) setIsFetchingCities(true);
+        });
         fetch(`https://psgc.gitlab.io/api/regions/${selectedRegion.code}/cities-municipalities/`)
           .then(res => res.json())
           .then(data => {
+            if (cancelled) return;
             const cleanedCities = data.map(c => ({
               ...c,
               name: c.name.replace(/^City of /i, '').replace(/ City$/i, '').trim()
@@ -132,12 +176,12 @@ export default function Register() {
             setCitiesList(cleanedCities);
             setIsFetchingCities(false);
             
-            // If the currently typed city isn't in this new region, clear it
             if (city && !cleanedCities.some(c => c.name === city)) {
               setCity('');
             }
           })
           .catch(err => {
+            if (cancelled) return;
             console.error('Failed to fetch cities', err);
             setIsFetchingCities(false);
           });
@@ -147,21 +191,26 @@ export default function Register() {
     } else {
       setCitiesList([]);
     }
-    // We intentionally leave 'city' out of the dependency array so it doesn't trigger on every keystroke
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { cancelled = true; };
   }, [region, regionsList]);
 
   const isNameValid = (name) => /^[A-Za-z\s\-']{2,50}$/.test(name.trim());
-  const isEmailValid = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+  const isEmailFormatValid = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+  const isLegitEmailDomain = (e) => {
+    if (!isEmailFormatValid(e)) return false;
+    const parts = e.trim().toLowerCase().split('@');
+    if (parts.length !== 2) return false;
+    const domain = parts[1];
+    if (!domain || !domain.includes('.')) return false;
+    if (domain.endsWith('.edu') || domain.endsWith('.edu.ph') || domain.endsWith('.ac.uk')) {
+      return true;
+    }
+    return ALLOWED_EMAIL_DOMAINS.includes(domain);
+  };
   const isPasswordValid = (p) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/.test(p);
 
-  const isStep1Complete = isNameValid(firstName) && isNameValid(lastName) && isEmailValid(email) && Boolean(role);
-  
+  const isStep1Complete = isNameValid(firstName) && isNameValid(lastName) && isEmailFormatValid(email) && isLegitEmailDomain(email) && Boolean(role);
   const isStep2Complete = isPasswordValid(password) && password === confirmPassword;
-
-  const hasStep1Input = firstName || lastName || middleInitial || suffix || email || role !== 'freelancer';
-  
-  const hasStep2Input = professionalTitle || hourlyRate || region || city || companyName || password || confirmPassword;
 
   function handleNext(e) {
     e.preventDefault();
@@ -181,13 +230,17 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      const res = await registerUser({ firstName, lastName, email, password, role });
+      const res = await registerUser({ 
+        firstName: firstName.trim(), 
+        lastName: lastName.trim(), 
+        email: email.trim(), 
+        password, 
+        role 
+      });
       
       if (res.token) {
         localStorage.setItem('token', res.token);
         const updates = {};
-        if (middleInitial && middleInitial.toLowerCase() !== 'n/a') updates.middle_initial = middleInitial;
-        if (suffix && suffix.toLowerCase() !== 'n/a') updates.suffix = suffix;
         if (role === 'freelancer') {
           if (professionalTitle) updates.professional_title = professionalTitle;
           if (hourlyRate) updates.hourly_rate = Number(hourlyRate);
@@ -208,250 +261,387 @@ export default function Register() {
     }
   }
 
-  function handleClear() {
-    setFirstName('');
-    setLastName('');
-    setMiddleInitial('');
-    setSuffix('');
-    setEmail('');
-    setRole('freelancer');
-    setError('');
-  }
-
-  function handleClearStep2() {
-    setProfessionalTitle('');
-    setHourlyRate('');
-    setRegion('');
-    setCity('');
-    setCompanyName('');
-    setPassword('');
-    setConfirmPassword('');
-    setError('');
-  }
-
   return (
-    <div className="login-wrapper">
-      <div className="login-bg-shape login-bg-shape-1"></div>
-      <div className="login-bg-shape login-bg-shape-2"></div>
-      
-      <div className="login-card register-card">
-        
-        <div className="text-center mb-4 mt-2">
-          <Link to="/" className="text-decoration-none d-flex flex-column align-items-center">
-            <div className="d-flex align-items-center justify-content-center mb-2">
-              <img src="/racketbaseSVG.svg" alt="RaketBase Logo" className="logo-shake" style={{ height: '100px', objectFit: 'contain', marginRight: '5px', marginTop: '-15px' }} />
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '36px', color: '#072F1F', letterSpacing: '1px', display: 'flex', alignItems: 'center' }}>
-                <span style={{ fontWeight: 800 }}>RAKET</span>
-                <span style={{ fontWeight: 400 }}>BASE</span>
-              </div>
-            </div>
-            <p className="login-subtitle" style={{ marginTop: '5px', fontSize: '15px' }}>The Homebase for Your Next Big Raket.</p>
-          </Link>
-        </div>
-        
-        {error && (
-          <div className="alert alert-danger py-2 mb-4" role="alert">
-            {error}
+    <div className="auth-split-wrapper">
+      {/* Left branding banner (GitHub main split layout) */}
+      <div className="hidden md:flex auth-split-sidebar">
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+          <img 
+            src="/racketbaseSVG.svg" 
+            alt="RaketBase Logo" 
+            className="logo-shake" 
+            style={{ height: '46px', width: 'auto', objectFit: 'contain' }} 
+          />
+          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.5rem', letterSpacing: '0.5px', display: 'flex', alignItems: 'center' }}>
+            <span style={{ fontWeight: 800, color: '#EDEEF2' }}>RAKET</span>
+            <span style={{ fontWeight: 400, color: '#EDEEF2' }}>BASE</span>
           </div>
-        )}
+        </div>
 
-        {step === 1 ? (
-          <form onSubmit={handleNext} id="registerFormStep1" noValidate>
-            <div className="row g-3 mb-3">
-              <div className="col-md-6">
-                <label htmlFor="first-name" className="login-form-label">First Name <span className="text-danger">*</span></label>
-                <div className="login-input-group">
-                  <i className="bi bi-person input-icon"></i>
-                  <input type="text" id="first-name" className="login-input" placeholder="First" value={firstName} onChange={(e) => setFirstName(e.target.value.replace(/[^A-Za-z\s\-']/g, ''))} required />
+        <div style={{ maxWidth: '320px' }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.875rem', fontWeight: 500, lineHeight: 1.3, marginBottom: '0.75rem', color: '#EDEEF2' }}>
+            Built for the people who get things done.
+          </h1>
+          <p style={{ color: '#8D93A3', fontSize: '15px', lineHeight: 1.6 }}>
+            Post the work. Find the work. RaketBase connects clients and freelancers directly.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: '#262B36', width: '70%' }} />
+          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: '#262B36', width: '45%' }} />
+          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: '#262B36', width: '85%' }} />
+          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: '#262B36', width: '30%' }} />
+        </div>
+      </div>
+
+      {/* Right form container */}
+      <div className="auth-split-content">
+        <div className="auth-split-card">
+          {/* Brand header for mobile */}
+          <div className="md:hidden" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <img 
+                src="/racketbaseSVG.svg" 
+                alt="RaketBase Logo" 
+                className="logo-shake" 
+                style={{ height: '38px', width: 'auto', objectFit: 'contain' }} 
+              />
+              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.35rem', letterSpacing: '0.5px', display: 'flex', alignItems: 'center' }}>
+                <span style={{ fontWeight: 800, color: '#EDEEF2' }}>RAKET</span>
+                <span style={{ fontWeight: 400, color: '#EDEEF2' }}>BASE</span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 500, margin: 0, color: '#EDEEF2' }}>
+              Create your account
+            </h2>
+            <span style={{ fontSize: '12px', color: '#8D93A3', padding: '3px 8px', borderRadius: '12px', border: '1px solid #262B36', backgroundColor: '#141824' }}>
+              Step {step} of 2
+            </span>
+          </div>
+          <p style={{ color: '#8D93A3', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+            {step === 1 ? 'Start posting jobs or picking up work.' : 'Complete your profile credentials.'}
+          </p>
+
+          {error && (
+            <div style={{ backgroundColor: 'rgba(229, 72, 77, 0.1)', borderColor: 'rgba(229, 72, 77, 0.3)', color: '#E5484D' }} className="text-sm mb-4 px-3 py-2.5 rounded-md border">
+              {error}
+            </div>
+          )}
+
+          {step === 1 ? (
+            <form onSubmit={handleNext}>
+              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="first-name">
+                    First name
+                  </label>
+                  <input
+                    id="first-name"
+                    type="text"
+                    required
+                    autoComplete="given-name"
+                    placeholder="First"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value.replace(/[^A-Za-z\s\-']/g, ''))}
+                    className="auth-input"
+                  />
+                  {firstName && !isNameValid(firstName) && (
+                    <div style={{ color: '#E5484D', fontSize: '11px', marginTop: '4px' }}>2-50 letters.</div>
+                  )}
                 </div>
-                {firstName && !isNameValid(firstName) && <div className="text-danger small mt-1">2-50 letters.</div>}
+
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="last-name">
+                    Last name
+                  </label>
+                  <input
+                    id="last-name"
+                    type="text"
+                    required
+                    autoComplete="family-name"
+                    placeholder="Last"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value.replace(/[^A-Za-z\s\-']/g, ''))}
+                    className="auth-input"
+                  />
+                  {lastName && !isNameValid(lastName) && (
+                    <div style={{ color: '#E5484D', fontSize: '11px', marginTop: '4px' }}>2-50 letters.</div>
+                  )}
+                </div>
               </div>
 
-              <div className="col-md-6">
-                <label htmlFor="last-name" className="login-form-label">Last Name <span className="text-danger">*</span></label>
-                <div className="login-input-group">
-                  <i className="bi bi-person input-icon"></i>
-                  <input type="text" id="last-name" className="login-input" placeholder="Last" value={lastName} onChange={(e) => setLastName(e.target.value.replace(/[^A-Za-z\s\-']/g, ''))} required />
-                </div>
-                {lastName && !isNameValid(lastName) && <div className="text-danger small mt-1">2-50 letters.</div>}
-              </div>
-
-              <div className="col-md-6">
-                <label htmlFor="middle-initial" className="login-form-label">
-                  Middle Initial <span className="text-muted fw-normal" style={{ fontSize: '11px' }}>(write n/a if not applicable)</span>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="email">
+                  Email
                 </label>
-                <div className="login-input-group">
-                  <input type="text" id="middle-initial" className="login-input text-center px-2" placeholder="e.g. M" maxLength="3" value={middleInitial} onChange={(e) => setMiddleInitial(e.target.value.replace(/[^A-Za-z/]/g, '').toUpperCase())} />
-                </div>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`auth-input ${email && (!isEmailFormatValid(email) || !isLegitEmailDomain(email)) ? 'auth-input-error' : ''}`}
+                />
+                {email && !isEmailFormatValid(email) && (
+                  <div style={{ color: '#E5484D', fontSize: '11px', marginTop: '4px' }}>Please enter a valid email.</div>
+                )}
+                {email && isEmailFormatValid(email) && !isLegitEmailDomain(email) && (
+                  <div style={{ color: '#E5484D', fontSize: '11px', marginTop: '4px' }}>
+                    Please use a recognized provider (Gmail, Yahoo, Outlook, etc.) or school email (.edu). Disposable emails are not allowed.
+                  </div>
+                )}
               </div>
 
-              <div className="col-md-6">
-                <label htmlFor="suffix" className="login-form-label">
-                  Suffix <span className="text-muted fw-normal" style={{ fontSize: '11px' }}>(write n/a if not applicable)</span>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="role">
+                  I want to join as a:
                 </label>
-                <div className="login-input-group">
-                  <input type="text" id="suffix" className="login-input px-3" placeholder="e.g. Jr., III" value={suffix} onChange={(e) => setSuffix(e.target.value)} />
-                </div>
-              </div>
-            </div>
-            
-            <div className="row g-3 mb-4">
-              <div className="col-md-6">
-                <div className="login-form-group mb-0">
-                  <label htmlFor="email" className="login-form-label">Email Address <span className="text-danger">*</span></label>
-                  <div className="login-input-group">
-                    <i className="bi bi-envelope input-icon"></i>
-                    <input type="email" id="email" className="login-input" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                  </div>
-                  {email && !isEmailValid(email) && <div className="text-danger small mt-1">Enter a valid email address.</div>}
-                </div>
+                <select
+                  id="role"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="auth-input"
+                  style={{ cursor: 'pointer' }}
+                >
+                  <option value="freelancer">Freelancer</option>
+                  <option value="customer">Client (Customer)</option>
+                </select>
               </div>
 
-              <div className="col-md-6">
-                <div className="login-form-group mb-0">
-                  <label htmlFor="role" className="login-form-label">I want to join as a: <span className="text-danger">*</span></label>
-                  <div className="login-input-group">
-                    <i className={`bi ${role === 'freelancer' ? 'bi-laptop' : 'bi-briefcase'} input-icon`}></i>
-                    <select id="role" className="form-select login-input bg-transparent" value={role} onChange={(e) => setRole(e.target.value)} required>
-                      <option value="freelancer" style={{color: 'black'}}>Freelancer</option>
-                      <option value="customer" style={{color: 'black'}}>Client (Customer)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="d-flex gap-2 justify-content-center">
-              <button type="button" className="btn btn-outline-secondary register-btn" onClick={handleClear} disabled={!hasStep1Input}>Clear</button>
-              <button type="submit" className="btn btn-login register-btn" style={{ backgroundColor: isStep1Complete ? '#FF5A1E' : '#6c757d', borderColor: isStep1Complete ? '#FF5A1E' : '#6c757d', cursor: isStep1Complete ? 'pointer' : 'not-allowed' }} disabled={!isStep1Complete}>Next Step <i className="bi bi-arrow-right"></i></button>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={handleSubmit} id="registerFormStep2" noValidate>
-            <div className="mb-4 text-center">
-              <h5 className="fw-bold mb-1" style={{ color: '#072F1F' }}>{role === 'freelancer' ? 'Freelancer Profile' : 'Client Profile'}</h5>
-              <p className="text-muted small mb-0">Just a few more details to secure your account.</p>
-            </div>
-
-            <div className="row g-3 mb-3">
+              <button
+                type="submit"
+                disabled={!isStep1Complete}
+                className="auth-btn-primary"
+              >
+                <span>Continue to Step 2</span>
+                <i className="bi bi-arrow-right"></i>
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit}>
               {role === 'freelancer' ? (
                 <>
-                  <div className="col-md-6">
-                    <label htmlFor="title" className="login-form-label">Professional Title <span className="text-muted fw-normal">(Optional)</span></label>
-                    <div className="login-input-group">
-                      <i className="bi bi-person-badge input-icon"></i>
-                      <input type="text" id="title" className="login-input" placeholder="e.g. Full-Stack Developer" value={professionalTitle} onChange={(e) => setProfessionalTitle(e.target.value)} />
+                  <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="title">
+                        Title <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
+                      </label>
+                      <input
+                        id="title"
+                        type="text"
+                        placeholder="e.g. Web Developer"
+                        value={professionalTitle}
+                        onChange={(e) => setProfessionalTitle(e.target.value)}
+                        className="auth-input"
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="rate">
+                        Rate (₱) <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
+                      </label>
+                      <input
+                        id="rate"
+                        type="number"
+                        placeholder="0.00"
+                        value={hourlyRate}
+                        onChange={(e) => setHourlyRate(e.target.value)}
+                        className="auth-input"
+                      />
                     </div>
                   </div>
-                  <div className="col-md-6">
-                    <label htmlFor="rate" className="login-form-label">Hourly Rate (Γé▒) <span className="text-muted fw-normal">(Optional)</span></label>
-                    <div className="login-input-group">
-                      <i className="bi bi-currency-dollar input-icon"></i>
-                      <input type="number" id="rate" className="login-input" placeholder="0.00" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} />
+
+                  <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }}>
+                        Region <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
+                      </label>
+                      <CustomAutocomplete
+                        value={region}
+                        onChange={setRegion}
+                        options={regionsList.map(r => r.name)}
+                        placeholder="Search region..."
+                      />
                     </div>
-                  </div>
-                  <div className="col-md-6">
-                    <label htmlFor="region" className="login-form-label">Region <span className="text-muted fw-normal">(Optional)</span></label>
-                    <CustomAutocomplete 
-                      value={region}
-                      onChange={setRegion}
-                      options={regionsList.map(r => r.name)}
-                      placeholder="Type to search region..."
-                      icon="bi-geo-alt"
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <label htmlFor="city" className="login-form-label">City/Municipality <span className="text-muted fw-normal">(Optional)</span></label>
-                    <CustomAutocomplete 
-                      value={city}
-                      onChange={setCity}
-                      options={citiesList.map(c => c.name)}
-                      placeholder={!region ? "Select region first..." : "Type to search city..."}
-                      icon="bi-geo"
-                      disabled={!region || isFetchingCities}
-                      isLoading={isFetchingCities}
-                    />
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }}>
+                        City <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
+                      </label>
+                      <CustomAutocomplete
+                        value={city}
+                        onChange={setCity}
+                        options={citiesList.map(c => c.name)}
+                        placeholder={!region ? "Pick region first" : "Search city..."}
+                        disabled={!region || isFetchingCities}
+                        isLoading={isFetchingCities}
+                      />
+                    </div>
                   </div>
                 </>
               ) : (
-                <div className="col-12">
-                  <label htmlFor="company" className="login-form-label">Company Name <span className="text-muted fw-normal">(Optional)</span></label>
-                  <div className="login-input-group">
-                    <i className="bi bi-building input-icon"></i>
-                    <input type="text" id="company" className="login-input" placeholder="Your Company Inc." value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
-                  </div>
+                <div style={{ marginBottom: '0.85rem' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="company">
+                    Company Name <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
+                  </label>
+                  <input
+                    id="company"
+                    type="text"
+                    placeholder="Your Company Inc."
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className="auth-input"
+                  />
                 </div>
               )}
-            </div>
 
-            <div className="row g-3 mb-4">
-              <div className="col-md-6">
-                <label htmlFor="password" className="login-form-label">Password <span className="text-danger">*</span></label>
-                <div className="login-input-group">
-                  <i className="bi bi-shield-lock input-icon"></i>
-                  <input type={showPassword ? "text" : "password"} id="password" className="login-input login-input-password" placeholder="Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 symbol" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                  <button type="button" className="password-toggle-btn" aria-label="Show password" onClick={() => setShowPassword(!showPassword)}>
-                    <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-                  </button>
+              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="password">
+                    Password
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="auth-input"
+                      style={{ paddingRight: '2rem' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label="Toggle password visibility"
+                      style={{ position: 'absolute', right: '0.65rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#8D93A3', cursor: 'pointer', padding: 0 }}
+                    >
+                      <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`} style={{ fontSize: '12px' }}></i>
+                    </button>
+                  </div>
                 </div>
-                
-                {/* Dynamic Password Checklist */}
-                <ul className="list-unstyled mt-2 mb-0 px-1" style={{ fontSize: '0.75rem', color: 'var(--text-muted-green)' }}>
-                  <li className={`d-flex align-items-start mb-2 ${password.length >= 8 ? "text-success fw-medium" : "text-muted"}`}>
-                    <i className={`bi ${password.length >= 8 ? 'bi-check-circle-fill' : 'bi-circle'} me-2`} style={{ fontSize: '0.8rem', marginTop: '1px' }}></i>
-                    <span><strong>Minimum Length:</strong> At least 8 characters long (12+ recommended for maximum security).</span>
-                  </li>
-                  <li className={`d-flex align-items-start mb-2 ${/[A-Z]/.test(password) && /[a-z]/.test(password) ? "text-success fw-medium" : "text-muted"}`}>
-                    <i className={`bi ${/[A-Z]/.test(password) && /[a-z]/.test(password) ? 'bi-check-circle-fill' : 'bi-circle'} me-2`} style={{ fontSize: '0.8rem', marginTop: '1px' }}></i>
-                    <span><strong>Mixed Case:</strong> Must contain at least one uppercase letter (A-Z) and one lowercase letter (a-z).</span>
-                  </li>
-                  <li className={`d-flex align-items-start mb-2 ${/\d/.test(password) ? "text-success fw-medium" : "text-muted"}`}>
-                    <i className={`bi ${/\d/.test(password) ? 'bi-check-circle-fill' : 'bi-circle'} me-2`} style={{ fontSize: '0.8rem', marginTop: '1px' }}></i>
-                    <span><strong>Numbers:</strong> Must include at least one numeric digit (0-9).</span>
-                  </li>
-                  <li className={`d-flex align-items-start ${/[!@#$%^&*(),.?":{}|<>]/.test(password) ? "text-success fw-medium" : "text-muted"}`}>
-                    <i className={`bi ${/[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'bi-check-circle-fill' : 'bi-circle'} me-2`} style={{ fontSize: '0.8rem', marginTop: '1px' }}></i>
-                    <span><strong>Special Characters:</strong> Must include at least one symbol (e.g., !, @, #, $, %, ^, &, *).</span>
-                  </li>
-                </ul>
 
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="confirmPassword">
+                    Confirm
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      required
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="auth-input"
+                      style={{ paddingRight: '2rem' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      aria-label="Toggle confirm password visibility"
+                      style={{ position: 'absolute', right: '0.65rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#8D93A3', cursor: 'pointer', padding: 0 }}
+                    >
+                      <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`} style={{ fontSize: '12px' }}></i>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="col-md-6">
-                <label htmlFor="confirmPassword" className="login-form-label">Confirm Password <span className="text-danger">*</span></label>
-                <div className="login-input-group">
-                  <i className="bi bi-shield-check input-icon"></i>
-                  <input type={showConfirmPassword ? "text" : "password"} id="confirmPassword" className="login-input login-input-password" placeholder="Re-enter password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
-                  <button type="button" className="password-toggle-btn" aria-label="Show password" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                    <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-                  </button>
+              {confirmPassword && password !== confirmPassword && (
+                <div style={{ color: '#E5484D', fontSize: '11px', marginBottom: '0.5rem' }}>Passwords do not match.</div>
+              )}
+
+              {/* Password checklist in clean dark panel */}
+              <div className="auth-checklist" style={{ marginBottom: '1rem' }}>
+                <div style={{ color: '#8D93A3', fontWeight: 500, marginBottom: '4px' }}>Password must have:</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 8px' }}>
+                  <span style={{ color: password.length >= 8 ? '#4EBA6F' : '#6A7285' }}>
+                    <i className={`bi ${password.length >= 8 ? 'bi-check-circle-fill' : 'bi-circle'}`} style={{ marginRight: '4px' }}></i>
+                    8+ chars
+                  </span>
+                  <span style={{ color: /[A-Z]/.test(password) ? '#4EBA6F' : '#6A7285' }}>
+                    <i className={`bi ${/[A-Z]/.test(password) ? 'bi-check-circle-fill' : 'bi-circle'}`} style={{ marginRight: '4px' }}></i>
+                    1 uppercase
+                  </span>
+                  <span style={{ color: /\d/.test(password) ? '#4EBA6F' : '#6A7285' }}>
+                    <i className={`bi ${/\d/.test(password) ? 'bi-check-circle-fill' : 'bi-circle'}`} style={{ marginRight: '4px' }}></i>
+                    1 number
+                  </span>
+                  <span style={{ color: /[!@#$%^&*(),.?":{}|<>]/.test(password) ? '#4EBA6F' : '#6A7285' }}>
+                    <i className={`bi ${/[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'bi-check-circle-fill' : 'bi-circle'}`} style={{ marginRight: '4px' }}></i>
+                    1 symbol
+                  </span>
                 </div>
-                {confirmPassword && password !== confirmPassword && <div className="text-danger small mt-1">Passwords do not match.</div>}
               </div>
-            </div>
-            
-            <div className="d-flex gap-2 justify-content-center">
-              <button type="button" className="btn btn-outline-secondary register-btn" onClick={handleBack} disabled={loading}>Back</button>
-              <button type="button" className="btn btn-outline-secondary register-btn" onClick={handleClearStep2} disabled={!hasStep2Input || loading}>Clear</button>
-              <button type="submit" className="btn btn-login register-btn" style={{ backgroundColor: isStep2Complete ? '#FF5A1E' : '#6c757d', borderColor: isStep2Complete ? '#FF5A1E' : '#6c757d', cursor: isStep2Complete ? 'pointer' : 'not-allowed' }} disabled={!isStep2Complete || loading}>{loading ? 'Registering...' : 'Register'}{loading ? null : <i className="bi bi-check-lg"></i>}</button>
-            </div>
-            
-          </form>
-        )}
-        
-        <div className="login-divider">Or register with</div>
-        
-        <div className="social-login-grid" style={{ gridTemplateColumns: '1fr' }}>
-          <button className="btn-social" type="button" id="btn-google" onClick={() => alert("Google Sign-In is currently under maintenance. Please register with your email.")}>
-            <i className="bi bi-google text-danger"></i>
-            <span>Google</span>
-          </button>
+
+              {/* Legal disclaimer */}
+              <div style={{ fontSize: '11.5px', color: '#8D93A3', marginBottom: '1rem', lineHeight: 1.5, textAlign: 'center' }}>
+                By creating an account, you agree to our{' '}
+                <button
+                  type="button"
+                  onClick={() => openLegalModal('terms')}
+                  style={{ background: 'transparent', border: 'none', color: '#E7B24B', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontWeight: 500 }}
+                  className="hover:underline"
+                >
+                  Terms of Service
+                </button>{' '}
+                and acknowledge our{' '}
+                <button
+                  type="button"
+                  onClick={() => openLegalModal('privacy')}
+                  style={{ background: 'transparent', border: 'none', color: '#E7B24B', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontWeight: 500 }}
+                  className="hover:underline"
+                >
+                  Privacy Notice
+                </button>
+                .
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  disabled={loading}
+                  className="auth-btn-secondary"
+                  style={{ flex: '0 0 auto', padding: '0.75rem 1rem' }}
+                >
+                  <i className="bi bi-arrow-left"></i>
+                  <span>Back</span>
+                </button>
+                <button
+                  type="submit"
+                  disabled={!isStep2Complete || loading}
+                  className="auth-btn-primary"
+                  style={{ flex: 1 }}
+                >
+                  {loading ? 'Creating account...' : 'Create account'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div style={{ marginTop: '1.5rem', fontSize: '0.875rem', color: '#8D93A3', textAlign: 'center' }}>
+            Already have an account?{' '}
+            <Link to="/login" style={{ color: '#E7B24B', fontWeight: 500 }} className="hover:underline">
+              Log in
+            </Link>
+          </div>
         </div>
-        
-        <p className="login-footer-text">
-          Already have an account? <Link to="/login" className="login-footer-link">Sign in here</Link>
-        </p>
       </div>
+
+      <LegalModal
+        isOpen={legalModalOpen}
+        onClose={() => setLegalModalOpen(false)}
+        defaultTab={legalModalDoc}
+      />
     </div>
   );
 }

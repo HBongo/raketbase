@@ -200,7 +200,9 @@ export default function Messages() {
         if (url) {
           setAttachmentUrls((prev) => ({ ...prev, [m.message_id]: url }));
         }
-      } catch {}
+      } catch {
+        // ignore attachment url fetch error
+      }
     });
   }, [selectedId, messages, attachmentUrls]);
 

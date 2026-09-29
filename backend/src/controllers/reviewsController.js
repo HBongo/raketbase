@@ -39,12 +39,13 @@ exports.createReview = async (req, res) => {
       return res.status(403).json({ success: false, error: 'You are not a participant in this contract' });
     }
 
-    // Rating is done from the mode that matches your side of the contract.
+    // Auto-align active_role if caller is in opposite mode
     if (isClient && req.user.active_role !== 'customer') {
-      return res.status(403).json({ success: false, error: 'Switch to Client mode to rate your freelancer.' });
-    }
-    if (isFreelancer && req.user.active_role !== 'freelancer') {
-      return res.status(403).json({ success: false, error: 'Switch to Freelancer mode to rate your client.' });
+      await supabaseAdmin.from('users').update({ active_role: 'customer' }).eq('user_id', userId);
+      req.user.active_role = 'customer';
+    } else if (isFreelancer && req.user.active_role !== 'freelancer') {
+      await supabaseAdmin.from('users').update({ active_role: 'freelancer' }).eq('user_id', userId);
+      req.user.active_role = 'freelancer';
     }
 
     if (contract.status !== 'completed') {

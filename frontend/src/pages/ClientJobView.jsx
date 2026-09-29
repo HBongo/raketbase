@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getMyJobs, getJobProposals, acceptProposal, rejectProposal, switchRole } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
@@ -107,7 +107,7 @@ function MyJobsList() {
 
   return (
     <>
-      <div className="page-header d-flex justify-content-between align-items-center">
+      <div className="page-header">
         <div>
           <h1 className="page-title">My job postings</h1>
           <p className="page-subtitle">Review proposals and choose who gets the work.</p>
@@ -205,7 +205,7 @@ function ProposalsForJob({ jobId }) {
   const [actioningId, setActioningId] = useState(null);
   const [actionError, setActionError] = useState('');
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
@@ -217,12 +217,11 @@ function ProposalsForJob({ jobId }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [jobId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
     load();
-  }, [jobId]);
+  }, [load]);
 
   async function handleAccept(proposalId) {
     setActionError('');

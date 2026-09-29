@@ -16,6 +16,30 @@ const CORE_CATEGORY_NAMES = new Set([
   'digital marketing',
 ]);
 
+function ExploreSkeleton() {
+  return (
+    <div className="row g-4">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div className="col-md-6 col-xl-4" key={i}>
+          <div className="card shadow-sm border-0 h-100 p-4 bg-white">
+            <div className="d-flex justify-content-between align-items-start mb-3">
+              <div className="skeleton-box" style={{ width: "65%", height: 18 }} />
+              <div className="skeleton-box rounded-pill" style={{ width: 60, height: 20 }} />
+            </div>
+            <div className="skeleton-box mb-2" style={{ width: "100%", height: 12 }} />
+            <div className="skeleton-box mb-2" style={{ width: "90%", height: 12 }} />
+            <div className="skeleton-box mb-4" style={{ width: "70%", height: 12 }} />
+            <div className="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
+              <div className="skeleton-box" style={{ width: 80, height: 16 }} />
+              <div className="skeleton-box rounded-pill" style={{ width: 70, height: 26 }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Explore() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -167,29 +191,7 @@ export default function Explore() {
     setBudget(budgetBounds);
   }
 
-function ExploreSkeleton() {
-  return (
-    <div className="row g-4">
-      {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div className="col-md-6 col-xl-4" key={i}>
-          <div className="card shadow-sm border-0 h-100 p-4 bg-white">
-            <div className="d-flex justify-content-between align-items-start mb-3">
-              <div className="skeleton-box" style={{ width: "65%", height: 18 }} />
-              <div className="skeleton-box rounded-pill" style={{ width: 60, height: 20 }} />
-            </div>
-            <div className="skeleton-box mb-2" style={{ width: "100%", height: 12 }} />
-            <div className="skeleton-box mb-2" style={{ width: "90%", height: 12 }} />
-            <div className="skeleton-box mb-4" style={{ width: "70%", height: 12 }} />
-            <div className="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
-              <div className="skeleton-box" style={{ width: 80, height: 16 }} />
-              <div className="skeleton-box rounded-pill" style={{ width: 70, height: 26 }} />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+
 
   return (
     <>
@@ -199,7 +201,7 @@ function ExploreSkeleton() {
         </div>
       )}
 
-      <div className="page-header d-flex justify-content-between align-items-center">
+      <div className="page-header">
         <div>
           <h1 className="page-title">Explore Jobs</h1>
           <p className="page-subtitle">Find the right project or talent for your needs.</p>

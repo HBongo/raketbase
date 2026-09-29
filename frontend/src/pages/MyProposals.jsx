@@ -23,6 +23,24 @@ const STATUS_STYLES = {
   withdrawn: 'badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill',
 };
 
+function ProposalsSkeleton() {
+  return (
+    <div className="d-flex flex-column gap-3">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="card shadow-sm border-0 p-4 bg-white">
+          <div className="d-flex justify-content-between align-items-start mb-2">
+            <div className="skeleton-box" style={{ width: "45%", height: 18 }} />
+            <div className="skeleton-box rounded-pill" style={{ width: 85, height: 24 }} />
+          </div>
+          <div className="skeleton-box mb-3" style={{ width: "25%", height: 16 }} />
+          <div className="skeleton-box mb-2" style={{ width: "100%", height: 12 }} />
+          <div className="skeleton-box" style={{ width: "80%", height: 12 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function MyProposals() {
   const cachedProposals = getCached('my_proposals');
 
@@ -33,10 +51,7 @@ export default function MyProposals() {
   const [actioningId, setActioningId] = useState(null);
   const [actionError, setActionError] = useState('');
 
-  const user = (() => {
-    try { return JSON.parse(localStorage.getItem('user') || '{}'); }
-    catch { return {}; }
-  })();
+
 
   async function load(isForce = false) {
     const cached = getCached('my_proposals');
@@ -94,23 +109,7 @@ export default function MyProposals() {
 
   const visibleProposals = filter === 'all' ? proposals : proposals.filter((p) => p.status === filter);
 
-function ProposalsSkeleton() {
-  return (
-    <div className="d-flex flex-column gap-3">
-      {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="card shadow-sm border-0 p-4 bg-white">
-          <div className="d-flex justify-content-between align-items-start mb-2">
-            <div className="skeleton-box" style={{ width: "45%", height: 18 }} />
-            <div className="skeleton-box rounded-pill" style={{ width: 85, height: 24 }} />
-          </div>
-          <div className="skeleton-box mb-3" style={{ width: "25%", height: 16 }} />
-          <div className="skeleton-box mb-2" style={{ width: "100%", height: 12 }} />
-          <div className="skeleton-box" style={{ width: "80%", height: 12 }} />
-        </div>
-      ))}
-    </div>
-  );
-}
+
 
   return (
     <>
@@ -121,7 +120,7 @@ function ProposalsSkeleton() {
       )}
 
       {/* Page Content Here */}
-      <div className="page-header d-flex justify-content-between align-items-center">
+      <div className="page-header">
         <div>
           <h1 className="page-title">My Proposals</h1>
           <p className="page-subtitle">

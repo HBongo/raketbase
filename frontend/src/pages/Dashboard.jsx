@@ -17,6 +17,7 @@ import {
   completeContract,
   submitMilestoneWork,
   approveMilestoneWork,
+  switchRole,
 } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
 import { formatCurrency } from '../utils/formatters';
@@ -30,7 +31,10 @@ export default function Dashboard() {
 
   const user = (() => {
     try {
-      return JSON.parse(localStorage.getItem('user') || '{}');
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      if (u.user_id && !u.id) u.id = u.user_id;
+      if (u.id && !u.user_id) u.user_id = u.id;
+      return u;
     } catch {
       return {};
     }
@@ -187,6 +191,15 @@ export default function Dashboard() {
     setReviewError('');
     setIsApproving(true);
     try {
+      if (user.active_role !== 'customer') {
+        try {
+          await switchRole('customer');
+          const updatedUser = { ...user, active_role: 'customer' };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        } catch (e) {
+          console.warn('Auto role switch failed:', e);
+        }
+      }
       const contractCurrency = reviewModalContract?.jobs?.currency || 'PHP';
       if (reviewModalMilestone) {
         const rawAmount = reviewModalMilestone.amount || 0;
@@ -210,7 +223,6 @@ export default function Dashboard() {
 
   // Summary metrics calculation
   const activeContracts = contracts.filter((c) => c.status === 'active' || c.status === 'submitted');
-  const completedContracts = contracts.filter((c) => c.status === 'completed');
   const totalAgreedEscrow = contracts.reduce((sum, c) => sum + Number(c.agreed_amount || 0), 0);
   const pendingProposalsCount = isCustomer
     ? clientJobs.reduce((sum, j) => sum + (j.pending_count || 0), 0)
@@ -340,7 +352,8 @@ export default function Dashboard() {
                   </thead>
                   <tbody className="border-top-0">
                     {contracts.map((c) => {
-                      const isClient = user.id === c.client_id;
+                      const currentUserId = user.user_id || user.id;
+                      const isClient = currentUserId === c.client_id;
                       const partner = isClient ? c.freelancer : c.client;
                       const partnerRole = isClient ? 'Freelancer' : 'Client';
                       const partnerName = partner ? `${partner.first_name || ''} ${partner.last_name || ''}`.trim() || partner.email : 'Participant';
@@ -551,7 +564,8 @@ export default function Dashboard() {
                   (() => {
                     const expandedContract = contracts.find((c) => c.contract_id === expandedContractId);
                     if (!expandedContract) return null;
-                    const isClient = user.id === expandedContract.client_id;
+                    const currentUserId = user.user_id || user.id;
+                    const isClient = currentUserId === expandedContract.client_id;
                     return (
                       <div className="mt-3 p-3 bg-light rounded border">
                         <div className="d-flex justify-content-between align-items-center mb-2">
@@ -875,7 +889,8 @@ export default function Dashboard() {
           const submittedAt = target.submitted_at;
           const rawReleaseAmount = isMilestone ? target.amount : reviewModalContract.agreed_amount || 0;
           const releaseAmount = formatCurrency(rawReleaseAmount, reviewModalContract.jobs?.currency);
-          const isClient = user.id === reviewModalContract.client_id;
+          const currentUserId = user.user_id || user.id;
+          const isClient = currentUserId === reviewModalContract.client_id;
           const isPendingReview = isMilestone ? target.status === 'submitted' : reviewModalContract.status === 'submitted';
           const canApprove = isClient && isPendingReview;
 
@@ -929,7 +944,7 @@ export default function Dashboard() {
                             href={link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="btn btn-outline-success btn-sm rounded-pill d-inline-flex align-items-center gap-1 mb-2 fw-semibold"
+                            className="btn btn-outline-success btn-deliverable-link btn-sm rounded-pill d-inline-flex align-items-center gap-1 mb-2 fw-semibold px-3 py-1"
                           >
                             <i className="bi bi-box-arrow-up-right"></i> Open Deliverable Files
                           </a>
@@ -963,9 +978,9 @@ export default function Dashboard() {
 
                     {/* Simulated Escrow Warning Notice for Client */}
                     {canApprove && (
-                      <div className="alert alert-warning border-0 d-flex align-items-start gap-2 mb-0 mt-3 p-3 rounded-3">
-                        <i className="bi bi-shield-exclamation text-warning flex-shrink-0 fs-5 mt-1"></i>
-                        <div className="small text-dark">
+                      <div className="alert alert-warning escrow-notice-alert border-0 d-flex align-items-start gap-2 mb-0 mt-3 p-3 rounded-3">
+                        <i className="bi bi-shield-exclamation text-warning flex-shrink-0 fs-5 mt-1 notice-icon"></i>
+                        <div className="small notice-text">
                           <strong>Simulated Escrow Protection Notice:</strong> Approving this deliverable marks{' '}
                           <span className="fw-bold">{releaseAmount}</span> as officially released to the freelancer.
                           This concludes simulated escrow protection for {isMilestone ? 'this milestone' : 'this contract'}.

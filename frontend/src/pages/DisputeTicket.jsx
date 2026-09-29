@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getContractById, createDispute } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 
@@ -73,9 +73,10 @@ export default function DisputeTicket() {
     }
   }
 
+  const currentUserId = user.user_id || user.id;
   const otherParty =
-    user.user_id === contract?.client_id ? contract?.freelancer : contract?.client;
-  const otherPartyLabel = user.user_id === contract?.client_id ? 'Freelancer' : 'Client';
+    currentUserId === contract?.client_id ? contract?.freelancer : contract?.client;
+  const otherPartyLabel = currentUserId === contract?.client_id ? 'Freelancer' : 'Client';
 
   return (
     <>

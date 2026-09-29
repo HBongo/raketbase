@@ -328,28 +328,6 @@ exports.submitWork = async (req, res) => {
     const deliverable_url = (req.body.deliverable_url || '').trim();
     const deliverable_notes = (req.body.deliverable_notes || '').trim();
 
-    // Submitting work is a freelancer-mode action. Clients must switch modes first.
-    if (req.user.active_role !== 'freelancer') {
-      return res.status(403).json({
-        success: false,
-        error: 'Switch to Freelancer mode to submit work.',
-      });
-    }
-
-    if (!deliverable_url) {
-      return res.status(400).json({
-        success: false,
-        error: 'Please provide a deliverable link (Google Drive, GitHub, Figma, etc.).',
-      });
-    }
-
-    if (!/^https?:\/\//i.test(deliverable_url)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Deliverable link must start with http:// or https://',
-      });
-    }
-
     const { data: contract, error: fetchError } = await supabaseAdmin
       .from('contracts')
       .select('contract_id, client_id, freelancer_id, status')
@@ -362,6 +340,12 @@ exports.submitWork = async (req, res) => {
 
     if (contract.freelancer_id !== userId) {
       return res.status(403).json({ success: false, error: 'Only the assigned freelancer can submit work' });
+    }
+
+    // Auto-align active role if caller is in client mode
+    if (req.user.active_role !== 'freelancer') {
+      await supabaseAdmin.from('users').update({ active_role: 'freelancer' }).eq('user_id', userId);
+      req.user.active_role = 'freelancer';
     }
 
     if (contract.status !== 'active') {
@@ -380,6 +364,20 @@ exports.submitWork = async (req, res) => {
       return res.status(409).json({
         success: false,
         error: 'This contract uses milestones — submit each stage individually instead.',
+      });
+    }
+
+    if (!deliverable_url) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide a deliverable link (Google Drive, GitHub, Figma, etc.).',
+      });
+    }
+
+    if (!/^https?:\/\//i.test(deliverable_url)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Deliverable link must start with http:// or https://',
       });
     }
 
@@ -434,14 +432,6 @@ exports.completeContract = async (req, res) => {
     const { id: contract_id } = req.params;
     const userId = req.user.id;
 
-    // Approving work & releasing escrow is a client-mode action. Freelancers must switch modes first.
-    if (req.user.active_role !== 'customer') {
-      return res.status(403).json({
-        success: false,
-        error: 'Switch to Client mode to approve work and release escrow funds.',
-      });
-    }
-
     const { data: contract, error: fetchError } = await supabaseAdmin
       .from('contracts')
       .select('contract_id, job_id, client_id, freelancer_id, agreed_amount, status')
@@ -454,6 +444,11 @@ exports.completeContract = async (req, res) => {
 
     if (contract.client_id !== userId) {
       return res.status(403).json({ success: false, error: 'Only the client can approve deliverables and release funds' });
+    }
+
+    // Ensure user's active role is customer
+    if (req.user.active_role !== 'customer') {
+      await supabaseAdmin.from('users').update({ active_role: 'customer' }).eq('user_id', userId);
     }
 
     if (contract.status !== 'submitted') {

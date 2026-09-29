@@ -66,7 +66,9 @@ export default function JobDetail() {
           const hasApplied = body.data.some((p) => String(p.job_id) === String(id));
           if (hasApplied) setAlreadyApplied(true);
         }
-      } catch {}
+      } catch {
+        // ignore error checking existing proposal
+      }
     }
     checkExistingProposal();
     return () => { cancelled = true; };
@@ -122,7 +124,7 @@ export default function JobDetail() {
       }
     }
 
-    const htmlRegex = /<\s*[^>]*[a-zA-Z\/][^>]*>|javascript\s*:/i;
+    const htmlRegex = /<\s*[^>]*[a-zA-Z/][^>]*>|javascript\s*:/i;
     const hasContacts = /(?:[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|\+?\d{10,}|\bt\.me\/|\btelegram\b|\bwhatsapp\b)/i.test(coverLetter);
 
     if (!coverLetter.trim()) {
@@ -202,7 +204,7 @@ export default function JobDetail() {
     <>
 
 
-        <div className="page-header d-flex justify-content-between align-items-center">
+        <div className="page-header">
           <div>
             <h1 className="page-title">Job Details</h1>
             <p className="page-subtitle">Review the requirements and submit your proposal.</p>

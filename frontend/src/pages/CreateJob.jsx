@@ -39,7 +39,11 @@ export default function CreateJob() {
     deadline: false,
   });
 
-  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const tomorrowStr = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  })();
 
   useEffect(() => {
     let cancelled = false;
@@ -76,11 +80,10 @@ export default function CreateJob() {
   );
 
   // Inline validation checks
-  const htmlRegex = /<\s*[^>]*[a-zA-Z\/][^>]*>|javascript\s*:/i;
+  const htmlRegex = /<\s*[^>]*[a-zA-Z/][^>]*>|javascript\s*:/i;
   const alphaTitle = title.replace(/[^a-zA-Z]/g, '');
   const isTitleShouting = alphaTitle.length >= 5 && ((alphaTitle.match(/[A-Z]/g) || []).length / alphaTitle.length) > 0.70;
   const isTitleHasHtml = htmlRegex.test(title);
-  const isTitleTooShort = title.trim().length > 0 && title.trim().length < 10;
   const isTitleValid = title.trim().length >= 10 && !isTitleHasHtml && !isTitleShouting;
 
   const isDescHasHtml = htmlRegex.test(description);
@@ -93,7 +96,7 @@ export default function CreateJob() {
   const numBudget = Number(budget);
   const isBudgetValid = !isNaN(numBudget) && numBudget >= minBudget;
 
-  const isDeadlineValid = !deadline || new Date(deadline).getTime() > Date.now();
+  const isDeadlineValid = !deadline || deadline >= tomorrowStr;
 
   async function handleSubmit(e) {
     e.preventDefault();

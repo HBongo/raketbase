@@ -6,16 +6,67 @@
 // 4. Add/remove experience & education entries
 // 5. Spark Admin layout (sidebar + navbar)
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { getFreelancerProfile, updateProfile } from '../services/api';
-import { supabase } from '../config/supabaseClient';
 import { getCached, setCached } from '../utils/cache';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&auto=format&fit=crop';
 
+function buildFormFromProfile(p) {
+  if (!p) return {};
+  return {
+    first_name: p.first_name || '',
+    last_name: p.last_name || '',
+    title: p.title || '',
+    phone: p.phone || '',
+    location: p.location || '',
+    hourly_rate: p.hourly_rate || '',
+    bio: p.bio || '',
+    skills: Array.isArray(p.skills) ? p.skills.join(', ') : (p.skills || ''),
+    linkedin_url: p.linkedin_url || '',
+    github_url: p.github_url || '',
+    website_url: p.website_url || '',
+    experience: Array.isArray(p.experience) ? p.experience : [],
+    education: Array.isArray(p.education) ? p.education : [],
+  };
+}
+
+function ProfileSkeleton() {
+  return (
+    <div className="row g-4 px-3 mb-4">
+      {/* Left Column Skeleton */}
+      <div className="col-12 col-md-4">
+        <div className="card shadow-sm border-0 mb-4 p-4 text-center bg-white">
+          <div className="skeleton-box rounded-circle mx-auto mb-3" style={{ width: 140, height: 140 }} />
+          <div className="skeleton-box mx-auto mb-2" style={{ width: "60%", height: 22 }} />
+          <div className="skeleton-box mx-auto mb-3" style={{ width: "40%", height: 14 }} />
+          <div className="skeleton-box mx-auto mb-4" style={{ width: "80%", height: 12 }} />
+          <div className="d-flex justify-content-center gap-2">
+            <div className="skeleton-box rounded-pill" style={{ width: 100, height: 36 }} />
+          </div>
+        </div>
+      </div>
+      {/* Right Column Skeleton */}
+      <div className="col-12 col-md-8">
+        <div className="card shadow-sm border-0 mb-4 p-4 bg-white">
+          <div className="skeleton-box mb-4" style={{ width: "30%", height: 20 }} />
+          <div className="skeleton-box mb-2" style={{ width: "100%", height: 14 }} />
+          <div className="skeleton-box mb-2" style={{ width: "95%", height: 14 }} />
+          <div className="skeleton-box mb-4" style={{ width: "70%", height: 14 }} />
+          <div className="skeleton-box mb-3" style={{ width: "25%", height: 18 }} />
+          <div className="d-flex flex-wrap gap-2 mb-4">
+            <div className="skeleton-box rounded-pill" style={{ width: 80, height: 28 }} />
+            <div className="skeleton-box rounded-pill" style={{ width: 100, height: 28 }} />
+            <div className="skeleton-box rounded-pill" style={{ width: 70, height: 28 }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Profile() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
   const cachedProfile = getCached(`profile_${id}`);
@@ -37,7 +88,7 @@ export default function Profile() {
     catch { return {}; }
   })();
 
-  const isOwnProfile = user.user_id === id;
+  const isOwnProfile = (user.user_id || user.id) === id;
 
   // Load profile data
   useEffect(() => {
@@ -65,23 +116,7 @@ export default function Profile() {
     return () => { cancelled = true; };
   }, [id]);
 
-  function buildFormFromProfile(p) {
-    return {
-      first_name: p.first_name || '',
-      last_name: p.last_name || '',
-      title: p.title || '',
-      phone: p.phone || '',
-      location: p.location || '',
-      hourly_rate: p.hourly_rate || '',
-      bio: p.bio || '',
-      skills: Array.isArray(p.skills) ? p.skills.join(', ') : (p.skills || ''),
-      linkedin_url: p.linkedin_url || '',
-      github_url: p.github_url || '',
-      website_url: p.website_url || '',
-      experience: Array.isArray(p.experience) ? p.experience : [],
-      education: Array.isArray(p.education) ? p.education : [],
-    };
-  }
+
 
   function handleChange(field, value) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -152,7 +187,7 @@ export default function Profile() {
           const base64String = reader.result;
           
           // Send to backend
-          const res = await updateProfile({
+          await updateProfile({
             avatar_base64: base64String,
             avatar_ext: ext
           });
@@ -208,7 +243,7 @@ export default function Profile() {
         education: form.education,
       };
 
-      const res = await updateProfile(payload);
+      await updateProfile(payload);
       // Refresh profile data
       const refreshed = await getFreelancerProfile(id);
       if (refreshed.success) {
@@ -246,39 +281,7 @@ export default function Profile() {
   const experienceArr = Array.isArray(f.experience) ? f.experience : [];
   const educationArr = Array.isArray(f.education) ? f.education : [];
 
-function ProfileSkeleton() {
-  return (
-    <div className="row g-4 px-3 mb-4">
-      {/* Left Column Skeleton */}
-      <div className="col-12 col-md-4">
-        <div className="card shadow-sm border-0 mb-4 p-4 text-center bg-white">
-          <div className="skeleton-box rounded-circle mx-auto mb-3" style={{ width: 140, height: 140 }} />
-          <div className="skeleton-box mx-auto mb-2" style={{ width: "60%", height: 22 }} />
-          <div className="skeleton-box mx-auto mb-3" style={{ width: "40%", height: 14 }} />
-          <div className="skeleton-box mx-auto mb-4" style={{ width: "80%", height: 12 }} />
-          <div className="d-flex justify-content-center gap-2">
-            <div className="skeleton-box rounded-pill" style={{ width: 100, height: 36 }} />
-          </div>
-        </div>
-      </div>
-      {/* Right Column Skeleton */}
-      <div className="col-12 col-md-8">
-        <div className="card shadow-sm border-0 mb-4 p-4 bg-white">
-          <div className="skeleton-box mb-4" style={{ width: "30%", height: 20 }} />
-          <div className="skeleton-box mb-2" style={{ width: "100%", height: 14 }} />
-          <div className="skeleton-box mb-2" style={{ width: "95%", height: 14 }} />
-          <div className="skeleton-box mb-4" style={{ width: "70%", height: 14 }} />
-          <div className="skeleton-box mb-3" style={{ width: "25%", height: 18 }} />
-          <div className="d-flex flex-wrap gap-2 mb-4">
-            <div className="skeleton-box rounded-pill" style={{ width: 80, height: 28 }} />
-            <div className="skeleton-box rounded-pill" style={{ width: 100, height: 28 }} />
-            <div className="skeleton-box rounded-pill" style={{ width: 70, height: 28 }} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
   return (
     <>
@@ -288,7 +291,7 @@ function ProfileSkeleton() {
         </div>
       )}
 
-      <div className="page-header d-flex justify-content-between align-items-center">
+      <div className="page-header">
         <div>
           <h1 className="page-title">Freelancer Profile</h1>
           <p className="page-subtitle">View skills, experience, and portfolio details.</p>

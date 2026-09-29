@@ -49,7 +49,7 @@ CREATE TABLE public.jobs (
         REFERENCES public.users (user_id) ON DELETE CASCADE,
     CONSTRAINT jobs_category_id_fkey FOREIGN KEY (category_id)
         REFERENCES public.categories (category_id) ON DELETE SET NULL,
-    CONSTRAINT jobs_status_check CHECK (status = ANY (ARRAY['open'::text, 'assigned'::text, 'completed'::text])),
+    CONSTRAINT jobs_status_check CHECK (status = ANY (ARRAY['open'::text, 'paused'::text, 'assigned'::text, 'completed'::text, 'cancelled'::text])),
     CONSTRAINT jobs_budget_type_check CHECK (budget_type = ANY (ARRAY['fixed'::text, 'milestone'::text])),
     CONSTRAINT jobs_budget_check CHECK (budget >= (0)::numeric)
 );
@@ -87,6 +87,9 @@ CREATE TABLE public.contracts (
     agreed_amount  numeric NOT NULL,
     status         text DEFAULT 'active'::text,
     created_at     timestamp with time zone DEFAULT now(),
+    deliverable_url text,
+    deliverable_notes text,
+    submitted_at   timestamp with time zone,
     CONSTRAINT contracts_pkey PRIMARY KEY (contract_id),
     CONSTRAINT contracts_job_id_fkey FOREIGN KEY (job_id)
         REFERENCES public.jobs (job_id) ON DELETE CASCADE,
@@ -296,6 +299,8 @@ CREATE TABLE public.milestones (
     created_at    timestamp with time zone NOT NULL DEFAULT now(),
     submitted_at  timestamp with time zone,
     completed_at  timestamp with time zone,
+    deliverable_url text,
+    deliverable_notes text,
     CONSTRAINT milestones_pkey PRIMARY KEY (milestone_id),
     CONSTRAINT milestones_contract_id_fkey FOREIGN KEY (contract_id)
         REFERENCES public.contracts (contract_id) ON DELETE CASCADE,

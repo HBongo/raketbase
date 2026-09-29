@@ -8,11 +8,14 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [navSearch, setNavSearch] = useState(searchParams.get('q') || '');
+  const qParam = searchParams.get('q') || '';
+  const [navSearch, setNavSearch] = useState(qParam);
+  const [prevQ, setPrevQ] = useState(qParam);
 
-  useEffect(() => {
-    setNavSearch(searchParams.get('q') || '');
-  }, [searchParams]);
+  if (prevQ !== qParam) {
+    setPrevQ(qParam);
+    setNavSearch(qParam);
+  }
 
   function handleSearchSubmit(e) {
     e.preventDefault();
@@ -130,10 +133,9 @@ export default function Layout() {
     <>
       <div className={`sidebar-wrapper ${isMobileSidebarOpen ? 'show' : ''}`} id="sidebar">
         <Link to="/dashboard" className="sidebar-brand text-decoration-none d-flex align-items-center gap-1" style={{ padding: '10px 0' }}>
-          <img src="/racketbaseSVG.svg" alt="RaketBase Logo" style={{ height: '50px', objectFit: 'contain', marginTop: '-8px' }} />
-          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '24px', color: '#fff', letterSpacing: '0.5px', display: 'flex', alignItems: 'center' }}>
-            <span style={{ fontWeight: 800 }}>RAKET</span>
-            <span style={{ fontWeight: 400 }}>BASE</span>
+          <img src="/racketbaseSVG.svg" alt="RaketBase Logo" className="logo-shake" style={{ height: '48px', objectFit: 'contain', marginTop: '-8px' }} />
+          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '23px', color: '#fff', letterSpacing: '0.5px', display: 'flex', alignItems: 'center' }}>
+            <span style={{ fontWeight: 800 }}>RAKET</span><span style={{ fontWeight: 400 }}>BASE</span>
           </div>
         </Link>
         <div className="flex-grow-1 overflow-y-auto mt-4">
