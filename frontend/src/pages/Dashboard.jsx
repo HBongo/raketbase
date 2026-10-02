@@ -551,6 +551,18 @@ export default function Dashboard() {
                                 <i className="bi bi-chat-text"></i>
                                 <span className="small d-none d-sm-inline">Message</span>
                               </Link>
+
+                              {/* Either participant can escalate an in-flight contract */}
+                              {(c.status === 'active' || c.status === 'submitted') && (
+                                <Link
+                                  to={`/contracts/${c.contract_id}/dispute`}
+                                  className="btn btn-sm btn-outline-danger rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 text-decoration-none"
+                                  title="File a dispute with RaketBase staff"
+                                >
+                                  <i className="bi bi-flag"></i>
+                                  <span className="small d-none d-sm-inline">Dispute</span>
+                                </Link>
+                              )}
                             </div>
                           </td>
                         </tr>
