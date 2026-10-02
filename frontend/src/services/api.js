@@ -145,6 +145,26 @@ export function getJobProposals(jobId) {
   return request(`/jobs/${jobId}/proposals`);
 }
 
+// Job lifecycle (client-owned postings)
+export function updateJob(jobId, payload) {
+  return request(`/jobs/${jobId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function pauseJob(jobId) {
+  return request(`/jobs/${jobId}/pause`, { method: 'PATCH' });
+}
+
+export function resumeJob(jobId) {
+  return request(`/jobs/${jobId}/resume`, { method: 'PATCH' });
+}
+
+export function cancelJob(jobId) {
+  return request(`/jobs/${jobId}/cancel`, { method: 'PATCH' });
+}
+
 // Proposal API
 export function submitProposal(payload) {
   return request('/proposals', {
@@ -211,6 +231,17 @@ export function updateUserStatus(userId, status) {
   return request(`/admin/users/${userId}`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
+  });
+}
+
+export function getAdminJobs() {
+  return request('/admin/jobs');
+}
+
+export function takedownJob(jobId, reason) {
+  return request(`/admin/jobs/${jobId}/takedown`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
   });
 }
  

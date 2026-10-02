@@ -46,6 +46,7 @@ async function postSystemMessage(contract_id, sender_id, content) {
     console.error('Failed to post system message for contract', contract_id, err);
   }
 }
+exports.postSystemMessage = postSystemMessage;
 
 // GET /api/v1/contracts - Get all contracts for the authenticated user (as client or freelancer)
 exports.getContracts = async (req, res) => {

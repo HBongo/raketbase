@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getCategories, createJob, switchRole } from '../services/api';
+import { useNavigate, useParams } from 'react-router-dom';
+import { getCategories, createJob, switchRole, getMyJobs, updateJob } from '../services/api';
 import { getCached, setCached, clearCached } from '../utils/cache';
 import { showToast } from '../utils/toast';
 
 export default function CreateJob() {
   const navigate = useNavigate();
+  // Reached via /my-jobs/:id/edit when editing an existing posting
+  const { id: editJobId } = useParams();
+  const isEditMode = Boolean(editJobId);
 
   const user = (() => {
     try {
@@ -38,6 +41,12 @@ export default function CreateJob() {
     budget: false,
     deadline: false,
   });
+
+  // Edit mode state
+  const [editLoading, setEditLoading] = useState(isEditMode);
+  const [editBlocked, setEditBlocked] = useState('');
+  const [termsLocked, setTermsLocked] = useState(false);
+  const [originalDeadline, setOriginalDeadline] = useState('');
 
   const tomorrowStr = (() => {
     const d = new Date();
@@ -73,6 +82,46 @@ export default function CreateJob() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isEditMode || !isCustomer) return;
+    let cancelled = false;
+    async function loadJobForEdit() {
+      setEditLoading(true);
+      setEditBlocked('');
+      try {
+        const res = await getMyJobs();
+        if (cancelled) return;
+        const job = (res.data || []).find((j) => j.job_id === editJobId);
+        if (!job) {
+          setEditBlocked("This job posting doesn't exist or isn't yours.");
+          return;
+        }
+        if (job.status !== 'open') {
+          setEditBlocked(`This job is ${job.status}. Only open job postings can be edited.`);
+          return;
+        }
+        const jobDeadline = job.deadline ? String(job.deadline).slice(0, 10) : '';
+        setTitle(job.title || '');
+        setDescription(job.description || '');
+        setCategoryId(job.category_id || '');
+        setBudgetType(job.budget_type || 'fixed');
+        setCurrency(job.currency || 'PHP');
+        setBudget(job.budget != null ? String(job.budget) : '');
+        setDeadline(jobDeadline);
+        setOriginalDeadline(jobDeadline);
+        setTermsLocked((job.pending_count || 0) > 0);
+      } catch (err) {
+        if (!cancelled) setEditBlocked(err.message || 'Could not load this job posting.');
+      } finally {
+        if (!cancelled) setEditLoading(false);
+      }
+    }
+    loadJobForEdit();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditMode, isCustomer, editJobId]);
+
   const selectedCategoryObj = categories.find((c) => c.category_id === categoryId);
   const isOtherCategory = selectedCategoryObj && (
     selectedCategoryObj.category_name.toLowerCase() === 'others' || 
@@ -96,7 +145,8 @@ export default function CreateJob() {
   const numBudget = Number(budget);
   const isBudgetValid = !isNaN(numBudget) && numBudget >= minBudget;
 
-  const isDeadlineValid = !deadline || deadline >= tomorrowStr;
+  // An existing deadline being kept as-is is fine even if it has since passed
+  const isDeadlineValid = !deadline || deadline >= tomorrowStr || (isEditMode && deadline === originalDeadline);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -140,7 +190,7 @@ export default function CreateJob() {
 
     setLoading(true);
     try {
-      await createJob({
+      const payload = {
         title: title.trim(),
         description: description.trim(),
         category_id: categoryId,
@@ -149,7 +199,15 @@ export default function CreateJob() {
         currency,
         budget: Number(budget),
         deadline: deadline || null,
-      });
+      };
+      if (isEditMode) {
+        await updateJob(editJobId, payload);
+        clearCached('explore_jobs');
+        showToast('Job posting updated.', 3000);
+        navigate(`/my-jobs/${editJobId}`);
+        return;
+      }
+      await createJob(payload);
       clearCached('explore_jobs');
       navigate('/explore');
     } catch (err) {
@@ -221,14 +279,43 @@ export default function CreateJob() {
     );
   }
 
+  if (isEditMode && (editLoading || editBlocked)) {
+    return (
+      <div className="row justify-content-center">
+        <div className="col-12 col-md-10 col-lg-8 col-xl-6">
+          <div className="card shadow-sm border-0 text-center py-5">
+            <div className="card-body">
+              <h5 className="fw-bold mb-2">{editLoading ? 'Loading job posting...' : "Can't edit this job"}</h5>
+              {!editLoading && <p className="text-muted small mb-4">{editBlocked}</p>}
+              {!editLoading && (
+                <button onClick={() => navigate('/my-jobs')} className="btn btn-outline-dark">
+                  Back to My Jobs
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="row justify-content-center">
         <div className="col-12 col-md-10 col-lg-8 col-xl-6">
+          {isEditMode && (
+            <div className="mb-3">
+              <button className="btn btn-outline-secondary btn-sm" onClick={() => navigate(`/my-jobs/${editJobId}`)}>
+                <i className="bi bi-arrow-left me-1"></i> Back to Job
+              </button>
+            </div>
+          )}
           <div className="card shadow-sm border-0">
             <div className="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
-              <h2 className="card-title fw-bold mb-1">Post a New Job</h2>
-              <p className="text-muted small mb-0">Reach verified freelancers across RaketBase.</p>
+              <h2 className="card-title fw-bold mb-1">{isEditMode ? 'Edit Job Posting' : 'Post a New Job'}</h2>
+              <p className="text-muted small mb-0">
+                {isEditMode ? 'Update the details freelancers see on this posting.' : 'Reach verified freelancers across RaketBase.'}
+              </p>
             </div>
             <div className="card-body p-4">
               {error && (
@@ -355,6 +442,13 @@ export default function CreateJob() {
                   )}
                 </div>
 
+                {termsLocked && (
+                  <div className="alert alert-secondary py-2 px-3 small d-flex align-items-center gap-2" role="alert">
+                    <i className="bi bi-lock-fill flex-shrink-0"></i>
+                    <span>Budget, budget type and currency are locked because freelancers have already sent proposals.</span>
+                  </div>
+                )}
+
                 <div className="row g-3 mb-3">
                   <div className="col-12 col-md-4">
                     <label className="form-label small fw-medium text-dark" htmlFor="budgetType">
@@ -364,6 +458,7 @@ export default function CreateJob() {
                       id="budgetType"
                       value={budgetType}
                       onChange={(e) => setBudgetType(e.target.value)}
+                      disabled={termsLocked}
                       className="form-select"
                     >
                       <option value="fixed">Fixed Price</option>
@@ -384,6 +479,7 @@ export default function CreateJob() {
                       id="currency"
                       value={currency}
                       onChange={(e) => setCurrency(e.target.value)}
+                      disabled={termsLocked}
                       className="form-select"
                     >
                       <option value="PHP">PHP (₱)</option>
@@ -405,6 +501,7 @@ export default function CreateJob() {
                       value={budget}
                       onChange={(e) => setBudget(e.target.value)}
                       onBlur={() => setTouched((prev) => ({ ...prev, budget: true }))}
+                      disabled={termsLocked}
                       className={`form-control ${touched.budget && !isBudgetValid ? 'is-invalid border-danger' : ''}`}
                     />
                     {touched.budget && !isBudgetValid && (
@@ -442,7 +539,9 @@ export default function CreateJob() {
                   className="btn w-100 py-2 fw-semibold"
                   style={{ backgroundColor: '#FF5A1E', borderColor: '#FF5A1E', color: '#fff' }}
                 >
-                  {loading ? 'Publishing Job...' : 'Publish Job'}
+                  {isEditMode
+                    ? (loading ? 'Saving Changes...' : 'Save Changes')
+                    : (loading ? 'Publishing Job...' : 'Publish Job')}
                 </button>
               </form>
             </div>

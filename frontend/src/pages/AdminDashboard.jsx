@@ -6,6 +6,8 @@ import {
   updateUserStatus,
   listDisputes,
   resolveDispute,
+  getAdminJobs,
+  takedownJob,
 } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 
@@ -45,6 +47,15 @@ const STATUS_STYLES = {
   resolved: 'bg-success text-white',
 };
 
+const JOB_STATUS_STYLES = {
+  open: 'bg-success-subtle text-success-emphasis border border-success',
+  paused: 'bg-warning-subtle text-warning-emphasis border border-warning',
+  assigned: 'bg-primary-subtle text-primary-emphasis border border-primary',
+  completed: 'bg-light text-dark border',
+  cancelled: 'bg-light text-muted border',
+  removed: 'bg-danger-subtle text-danger-emphasis border border-danger',
+};
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
 
@@ -59,6 +70,12 @@ export default function AdminDashboard() {
   const [actioningId, setActioningId] = useState(null);
   const [resolvingDispute, setResolvingDispute] = useState(null); // dispute object mid-resolution
   const [resolutionNotes, setResolutionNotes] = useState('');
+
+  const [jobs, setJobs] = useState([]);
+  const [jobSearch, setJobSearch] = useState('');
+  const [jobStatusFilter, setJobStatusFilter] = useState('all');
+  const [takingDownJob, setTakingDownJob] = useState(null); // job object mid-takedown
+  const [takedownReason, setTakedownReason] = useState('');
 
   const user = (() => {
     try {
@@ -76,21 +93,24 @@ export default function AdminDashboard() {
     }
 
     try {
-      const [analyticsRes, disputesRes, usersRes] = await Promise.all([
+      const [analyticsRes, disputesRes, usersRes, jobsRes] = await Promise.all([
         getAdminAnalytics(),
         listDisputes(),
         getAdminUsers(),
+        getAdminJobs(),
       ]);
 
       setAnalytics(analyticsRes.data);
       setDisputes(disputesRes.data || []);
       setUsers(usersRes.data || []);
+      setJobs(jobsRes.data || []);
       setUsingMockData(false);
     } catch (err) {
       console.warn('Admin data fetch failed, showing mock data:', err.message);
       setAnalytics(MOCK_ANALYTICS);
       setDisputes(MOCK_DISPUTES);
       setUsers(MOCK_USERS);
+      setJobs([]);
       setUsingMockData(true);
     } finally {
       setLoading(false);
@@ -159,6 +179,30 @@ export default function AdminDashboard() {
     }
   }
 
+  function closeTakedownModal() {
+    setTakingDownJob(null);
+    setTakedownReason('');
+  }
+
+  async function handleTakedown() {
+    if (!takingDownJob) return;
+    setActionError('');
+    setActionSuccess('');
+    setActioningId(takingDownJob.job_id);
+
+    try {
+      await takedownJob(takingDownJob.job_id, takedownReason.trim());
+      setActionSuccess(`"${takingDownJob.title}" was taken down.`);
+      closeTakedownModal();
+      await loadData();
+    } catch (err) {
+      setActionError(err.message || 'Failed to take down this job.');
+      closeTakedownModal();
+    } finally {
+      setActioningId(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="d-flex min-vh-100 align-items-center justify-content-center">
@@ -170,107 +214,20 @@ export default function AdminDashboard() {
   const openDisputes = disputes.filter((d) => d.status !== 'resolved');
   const resolvedDisputes = disputes.filter((d) => d.status === 'resolved');
 
+  const jobQuery = jobSearch.trim().toLowerCase();
+  const filteredJobs = jobs.filter((j) => {
+    if (jobStatusFilter !== 'all' && j.status !== jobStatusFilter) return false;
+    if (!jobQuery) return true;
+    const clientName = [j.users?.first_name, j.users?.last_name].filter(Boolean).join(' ');
+    return [j.title, clientName, j.users?.email, j.categories?.category_name]
+      .some((field) => field && field.toLowerCase().includes(jobQuery));
+  });
+
+  // Every contract gets a chat when its proposal is accepted; older contracts may not have one.
+  const resolvingConversationId = resolvingDispute?.contracts?.conversations?.conversation_id;
+
   return (
     <>
-      {/* Sidebar */}
-      <div className="sidebar-wrapper" id="sidebar">
-        <Link to="/" className="sidebar-brand text-decoration-none d-flex align-items-center gap-1" style={{ padding: "10px 0" }}>
-          <img src="/racketbaseSVG.svg" alt="RaketBase Logo" className="logo-shake" style={{ height: "48px", objectFit: "contain", marginTop: "-8px" }} />
-          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "23px", color: "#fff", letterSpacing: "0.5px", display: "flex", alignItems: "center" }}>
-            <span style={{ fontWeight: 800 }}>RAKET</span><span style={{ fontWeight: 400 }}>BASE</span>
-          </div>
-        </Link>
-        <div className="flex-grow-1 overflow-y-auto mt-4">
-          {/* Menu Section */}
-          <div className="sidebar-menu-section">
-            <div className="sidebar-menu-title">Menu</div>
-            <ul className="sidebar-menu-list">
-              <li className="sidebar-menu-item">
-                <Link to="/dashboard" className="sidebar-menu-link active">
-                  <i className="bi bi-grid-fill"></i><span>Dashboard</span>
-                </Link>
-              </li>
-              <li className="sidebar-menu-item">
-                <Link to="/messages" className="sidebar-menu-link">
-                  <i className="bi bi-chat-dots"></i><span>Messages</span>
-                </Link>
-              </li>
-              <li className="sidebar-menu-item">
-                <Link to="/top-users" className="sidebar-menu-link">
-                  <i className="bi bi-star"></i><span>Top Freelancers</span>
-                </Link>
-              </li>
-              <li className="sidebar-menu-item">
-                <Link to={`/freelancer/${user?.user_id || user?.id}`} className="sidebar-menu-link">
-                  <i className="bi bi-person"></i><span>My Account</span>
-                </Link>
-              </li>
-            </ul>
-          </div>
-          {/* Jobs Section */}
-          <div className="sidebar-menu-section">
-            <div className="sidebar-menu-title">Jobs</div>
-            <ul className="sidebar-menu-list">
-              <li className="sidebar-menu-item">
-                <Link to="/explore" className="sidebar-menu-link">
-                  <i className="bi bi-search"></i><span>Explore Jobs</span>
-                </Link>
-              </li>
-              {user?.active_role === "freelancer" && (
-                <li className="sidebar-menu-item">
-                  <Link to="/my-proposals" className="sidebar-menu-link">
-                    <i className="bi bi-file-earmark-text"></i><span>My Proposals</span>
-                  </Link>
-                </li>
-              )}
-              {user?.active_role === "customer" && (
-                <>
-                  <li className="sidebar-menu-item">
-                    <Link to="/my-jobs" className="sidebar-menu-link">
-                      <i className="bi bi-briefcase"></i><span>My Postings</span>
-                    </Link>
-                  </li>
-                  <li className="sidebar-menu-item">
-                    <Link to="/jobs/create" className="sidebar-menu-link">
-                      <i className="bi bi-plus-circle"></i><span>Post a Job</span>
-                    </Link>
-                  </li>
-                </>
-              )}
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="main-wrapper">
-        <div className="header-container fixed-top" style={{ position: "sticky" }}>
-          <header className="header navbar navbar-expand-sm expand-header">
-            <div className="navbar-left">
-              <button className="sidebar-toggle-btn me-2" id="sidebar-toggle">
-                <i className="bi bi-list"></i>
-              </button>
-            </div>
-            <div className="navbar-search-wrapper">
-              <input type="text" className="navbar-search-input" placeholder="Search..." />
-              <i className="bi bi-search search-icon"></i>
-            </div>
-            <ul className="navbar-nav ms-auto align-items-center">
-              <li className="nav-item">
-                <div className="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded-pill border">
-                  <span className="small text-muted fw-medium text-capitalize">{user?.active_role || 'Admin'} Mode</span>
-                </div>
-              </li>
-              <li className="nav-item">
-                <Link to={`/freelancer/${user?.user_id}`} className="nav-link d-flex align-items-center">
-                  <img src={user?.avatar_url || "https://ui-avatars.com/api/?name=Admin&background=random"} alt="Profile" className="rounded-circle border" style={{ width: "36px", height: "36px", objectFit: "cover" }} />
-                </Link>
-              </li>
-            </ul>
-          </header>
-        </div>
-
-        {/* Page Content Here */}
         <div className="row g-4 mb-4">
           <div className="col-12">
             
@@ -279,7 +236,7 @@ export default function AdminDashboard() {
               <div>
                 <h2 className="fw-bold mb-1">Admin Dashboard</h2>
                 <p className="text-muted small mb-0">
-                  Platform metrics, dispute resolution, and user management.
+                  Platform metrics, dispute resolution, job moderation, and user management.
                 </p>
               </div>
               <span className="badge bg-light border text-dark rounded-pill py-2 px-3 text-uppercase tracking-wider">
@@ -410,6 +367,100 @@ export default function AdminDashboard() {
               )}
             </div>
 
+            {/* Job Moderation Table */}
+            <div className="card shadow-sm mb-5">
+              <div className="card-header bg-light d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
+                <h5 className="mb-0 fw-bold fs-6">Job Moderation</h5>
+                <div className="d-flex flex-wrap gap-2">
+                  <input
+                    type="text"
+                    value={jobSearch}
+                    onChange={(e) => setJobSearch(e.target.value)}
+                    className="form-control form-control-sm"
+                    style={{ width: '220px' }}
+                    placeholder="Search title, client, category..."
+                    aria-label="Search jobs"
+                  />
+                  <select
+                    value={jobStatusFilter}
+                    onChange={(e) => setJobStatusFilter(e.target.value)}
+                    className="form-select form-select-sm text-capitalize"
+                    style={{ width: '140px' }}
+                    aria-label="Filter jobs by status"
+                  >
+                    <option value="all">All statuses</option>
+                    {Object.keys(JOB_STATUS_STYLES).map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {filteredJobs.length === 0 ? (
+                <div className="card-body text-center py-5">
+                  <h6 className="fw-bold mb-1">{jobs.length === 0 ? 'No job postings yet' : 'No jobs match these filters'}</h6>
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Job</th>
+                        <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Client</th>
+                        <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Status</th>
+                        <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Pending</th>
+                        <th className="text-muted text-uppercase fw-medium text-end" style={{ fontSize: '12px', padding: '12px 16px' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredJobs.map((j) => (
+                        <tr key={j.job_id}>
+                          <td style={{ padding: '12px 16px', fontSize: '14px', maxWidth: '320px' }}>
+                            <Link to={`/jobs/${j.job_id}`} className="fw-medium text-decoration-none d-block text-truncate">
+                              {j.title}
+                            </Link>
+                            <small className="text-muted" style={{ fontSize: '12px' }}>
+                              {j.categories?.category_name || 'Uncategorized'} · {formatCurrency(j.budget, j.currency)} ·{' '}
+                              {new Date(j.created_at).toLocaleDateString()}
+                            </small>
+                            {j.status === 'removed' && j.removal_reason && (
+                              <small className="d-block text-danger" style={{ fontSize: '12px' }}>
+                                Removed: {j.removal_reason}
+                              </small>
+                            )}
+                          </td>
+                          <td className="text-muted" style={{ padding: '12px 16px', fontSize: '14px' }}>
+                            {[j.users?.first_name, j.users?.last_name].filter(Boolean).join(' ') || j.users?.email || '—'}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <span
+                              className={`badge rounded-pill fw-medium text-uppercase ${JOB_STATUS_STYLES[j.status] || 'bg-light text-dark border'}`}
+                              style={{ fontSize: '11px' }}
+                            >
+                              {j.status}
+                            </span>
+                          </td>
+                          <td className="text-muted" style={{ padding: '12px 16px', fontSize: '14px' }}>{j.pending_count}</td>
+                          <td className="text-end" style={{ padding: '12px 16px' }}>
+                            {(j.status === 'open' || j.status === 'paused') && (
+                              <button
+                                onClick={() => setTakingDownJob(j)}
+                                disabled={actioningId === j.job_id}
+                                className="btn btn-sm btn-outline-danger fw-medium"
+                                style={{ fontSize: '12px' }}
+                              >
+                                Take down
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
             {/* User Management Table */}
             <div className="card shadow-sm">
               <div className="card-header bg-light d-flex justify-content-between align-items-center py-3">
@@ -483,9 +534,24 @@ export default function AdminDashboard() {
                   <button type="button" className="btn-close" onClick={() => { setResolvingDispute(null); setResolutionNotes(''); }}></button>
                 </div>
                 <div className="modal-body">
-                  <p className="text-muted small mb-4">
+                  <p className="text-muted small mb-3">
                     {resolvingDispute.contracts?.jobs?.title} — {formatCurrency(resolvingDispute.contracts?.agreed_amount, resolvingDispute.contracts?.jobs?.currency)} in escrow
                   </p>
+
+                  <p className="small mb-2">{resolvingDispute.reason}</p>
+                  {resolvingConversationId ? (
+                    <Link
+                      to={`/messages/${resolvingConversationId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm btn-outline-secondary fw-medium mb-4"
+                    >
+                      <i className="bi bi-chat-dots me-1"></i> Open contract chat
+                      <i className="bi bi-box-arrow-up-right ms-1" style={{ fontSize: '11px' }}></i>
+                    </Link>
+                  ) : (
+                    <p className="text-muted small mb-4">This contract has no chat history.</p>
+                  )}
 
                   <div className="mb-4">
                     <label className="form-label small fw-medium text-muted mb-2">
@@ -495,9 +561,13 @@ export default function AdminDashboard() {
                       value={resolutionNotes}
                       onChange={(e) => setResolutionNotes(e.target.value)}
                       rows={3}
+                      maxLength={500}
                       className="form-control"
-                      placeholder="Add context for the resolution log..."
+                      placeholder="Explain the decision..."
                     />
+                    <div className="form-text" style={{ fontSize: '11px' }}>
+                      The outcome and these notes are posted to the contract chat, so both parties will see them.
+                    </div>
                   </div>
 
                   <div className="d-grid gap-2">
@@ -537,7 +607,58 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
-      </div>
+
+        {/* Take Down Job Modal */}
+        {takingDownJob && (
+          <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content shadow">
+                <div className="modal-header border-bottom-0 pb-0">
+                  <h5 className="modal-title fw-bold">Take Down Job</h5>
+                  <button type="button" className="btn-close" onClick={closeTakedownModal}></button>
+                </div>
+                <div className="modal-body">
+                  <p className="fw-medium mb-1">{takingDownJob.title}</p>
+                  <p className="text-muted small mb-4">
+                    The job will be hidden from Explore
+                    {takingDownJob.pending_count > 0
+                      ? ` and ${takingDownJob.pending_count} pending ${takingDownJob.pending_count === 1 ? 'proposal' : 'proposals'} will be rejected`
+                      : ''}
+                    . This can't be undone.
+                  </p>
+
+                  <label className="form-label small fw-medium text-muted mb-2" htmlFor="takedownReason">
+                    Reason <span className="text-danger">*</span>
+                  </label>
+                  <textarea
+                    id="takedownReason"
+                    value={takedownReason}
+                    onChange={(e) => setTakedownReason(e.target.value)}
+                    rows={3}
+                    maxLength={500}
+                    className="form-control"
+                    placeholder="e.g. Asks freelancers to pay a registration fee before starting."
+                  />
+                  <div className="form-text" style={{ fontSize: '11px' }}>
+                    The client will see this reason on their posting. Minimum 10 characters.
+                  </div>
+                </div>
+                <div className="modal-footer border-top-0 pt-0">
+                  <button onClick={closeTakedownModal} className="btn btn-link text-muted text-decoration-none small">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleTakedown}
+                    disabled={takedownReason.trim().length < 10 || actioningId === takingDownJob.job_id}
+                    className="btn btn-danger fw-medium"
+                  >
+                    {actioningId === takingDownJob.job_id ? 'Taking down...' : 'Take down job'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
     </>
   );
 }

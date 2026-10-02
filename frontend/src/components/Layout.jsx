@@ -195,6 +195,18 @@ export default function Layout() {
               )}
             </ul>
           </div>
+          {user.role === 'admin' && (
+            <div className="sidebar-menu-section">
+              <div className="sidebar-menu-title">Admin</div>
+              <ul className="sidebar-menu-list">
+                <li className="sidebar-menu-item">
+                  <Link to="/admin" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isActive('/admin')}`}>
+                    <i className="bi bi-shield-lock"></i><span>Admin Panel</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 

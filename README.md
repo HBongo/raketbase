@@ -106,9 +106,33 @@ Changes 5
 - Integrated ngrok tunnel automation for instant background deployment and public verification
 
 
+Changes 6
+
+[Job Changes]
+- Clients can now edit, pause, resume, and cancel their own job postings from the job's proposals page, as long as no freelancer has been accepted yet
+- Editing reuses the Post a Job form; budget, budget type, and currency are locked once the job has pending proposals so nobody's bid ends up on changed terms
+- Paused jobs are hidden from Explore and don't take new proposals, but the client can still accept or reject the proposals already sent
+- Cancelling a job hides it from Explore for good and automatically rejects all its pending proposals
+- Paused, cancelled, and removed jobs no longer show up on Explore
+- Freelancers who open a paused, cancelled, taken, or removed job now see a "Not accepting proposals" notice instead of the proposal form
+- Fixed a bug where any failed proposal submission would wrongly show "Already Applied"
+
+[Admin Changes]
+- Added an Admin Panel link to the sidebar for admin accounts, and moved the admin dashboard into the same layout as the rest of the site
+- Added a Job Moderation table to the admin dashboard with search and a status filter
+- Admins can now take down open or paused jobs with a reason; the client sees the reason on their posting and its pending proposals are rejected
+- The Resolve Dispute window now has an Open contract chat button so admins can read the conversation before deciding
+- Resolving a dispute now posts the outcome and the admin's notes into the contract chat so both parties see it
+- Fixed a bug where resolution notes never showed on resolved disputes
+
+[Database changes]
+- Accepting a proposal now also works on paused jobs (004_allow_accept_on_paused_jobs.sql)
+- Added a removed status and a removal_reason column to the jobs table (005_add_job_removal.sql)
+
+
 Roadmap
 - Make it so that people who choose the freelancer option also need to put in their bank details and phone number - Complete
 - Make it so that people who choose the client option choose whether or not they are a small business or a major contractor and need to put in their business name. - Complete
 - Have the toast that appears when changing from client to freelancer slide in and have a mini loading bar to show how much time is left before it disappears - Complete
 - Develop a messaging system - Complete
-- Have clients be able to delete their posting as long as they have not accepted a freelancer for it yet
+- Have clients be able to delete their posting as long as they have not accepted a freelancer for it yet - Complete

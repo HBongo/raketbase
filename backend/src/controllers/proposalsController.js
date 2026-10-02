@@ -45,9 +45,14 @@ exports.createProposal = async (req, res) => {
     }
     // Assigned/completed jobs are taken and no longer accept proposals.
     if (job.status !== 'open') {
+      const closedReasons = {
+        paused: 'The client has paused this job, so it is not accepting proposals right now.',
+        cancelled: 'The client has cancelled this job.',
+        removed: 'This job was removed by an admin.',
+      };
       return res.status(409).json({
         success: false,
-        error: 'This job has been taken and is no longer accepting proposals.'
+        error: closedReasons[job.status] || 'This job has been taken and is no longer accepting proposals.'
       });
     }
 
@@ -187,7 +192,7 @@ exports.getProposalsForJob = async (req, res) => {
 
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
-      .select('job_id, client_id, title, budget, status')
+      .select('*')
       .eq('job_id', job_id)
       .single();
 

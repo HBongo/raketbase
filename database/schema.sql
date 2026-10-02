@@ -44,12 +44,13 @@ CREATE TABLE public.jobs (
     created_at  timestamp with time zone NOT NULL DEFAULT now(),
     budget_type text DEFAULT 'fixed'::text,
     deadline    timestamp with time zone,
+    removal_reason text,
     CONSTRAINT jobs_pkey PRIMARY KEY (job_id),
     CONSTRAINT jobs_client_id_fkey FOREIGN KEY (client_id)
         REFERENCES public.users (user_id) ON DELETE CASCADE,
     CONSTRAINT jobs_category_id_fkey FOREIGN KEY (category_id)
         REFERENCES public.categories (category_id) ON DELETE SET NULL,
-    CONSTRAINT jobs_status_check CHECK (status = ANY (ARRAY['open'::text, 'paused'::text, 'assigned'::text, 'completed'::text, 'cancelled'::text])),
+    CONSTRAINT jobs_status_check CHECK (status = ANY (ARRAY['open'::text, 'paused'::text, 'assigned'::text, 'completed'::text, 'cancelled'::text, 'removed'::text])),
     CONSTRAINT jobs_budget_type_check CHECK (budget_type = ANY (ARRAY['fixed'::text, 'milestone'::text])),
     CONSTRAINT jobs_budget_check CHECK (budget >= (0)::numeric)
 );
