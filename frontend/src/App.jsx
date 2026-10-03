@@ -50,6 +50,7 @@ function App() {
           <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/my-jobs" element={<ClientJobView />} />
           <Route path="/my-jobs/:id" element={<ClientJobView />} />
+          <Route path="/my-jobs/:id/edit" element={<CreateJob />} />
           <Route path="/contracts/:id/dispute" element={<DisputeTicket />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:id" element={<Messages />} />
@@ -58,12 +59,12 @@ function App() {
           <Route path="/profile/:id" element={<Profile />} />
           {/* If they just hit /profile, redirect to dashboard or read user from localstorage */}
           <Route path="/profile" element={<Profile />} />
-        </Route>
-      </Route>
 
-      {/* Admin-only routes */}
-      <Route element={<AdminRoute />}>
-        <Route path="/admin" element={<AdminDashboard />} />
+          {/* Admin-only routes */}
+          <Route element={<AdminRoute />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+          </Route>
+        </Route>
       </Route>
 
       <Route

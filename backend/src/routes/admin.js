@@ -10,5 +10,7 @@ router.use(requireAuth, requireAdmin);
 router.get('/analytics', adminController.getAnalytics);
 router.get('/users', adminController.getAllUsers);
 router.patch('/users/:id', adminController.updateUserStatus);
+router.get('/jobs', adminController.getAllJobs);
+router.patch('/jobs/:id/takedown', adminController.takedownJob);
 
 module.exports = router;

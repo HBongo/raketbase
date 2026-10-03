@@ -95,3 +95,78 @@ exports.updateUserStatus = async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// GET /api/v1/admin/jobs - Every job posting regardless of status, for moderation
+exports.getAllJobs = async (req, res) => {
+  try {
+    const { data: jobs, error } = await supabaseAdmin
+      .from('jobs')
+      .select('*, categories(category_name), users!jobs_client_id_fkey(user_id, first_name, last_name, email), proposals(status)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const withCounts = (jobs || []).map(({ proposals, ...job }) => ({
+      ...job,
+      pending_count: (proposals || []).filter((p) => p.status === 'pending').length,
+    }));
+
+    return res.status(200).json({ success: true, data: withCounts });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// PATCH /api/v1/admin/jobs/:id/takedown - Remove a job posting that breaks the rules.
+// Only open/paused jobs: once a contract exists, money is in escrow and problems
+// go through disputes instead. Pending proposals are rejected, same as a cancel.
+exports.takedownJob = async (req, res) => {
+  try {
+    const { id: job_id } = req.params;
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+
+    if (reason.length < 10) {
+      return res.status(400).json({ success: false, error: 'Please give a reason of at least 10 characters.' });
+    }
+    if (reason.length > 500) {
+      return res.status(400).json({ success: false, error: 'Reason must be 500 characters or less.' });
+    }
+
+    const { data: job, error: fetchError } = await supabaseAdmin
+      .from('jobs')
+      .select('job_id, status')
+      .eq('job_id', job_id)
+      .single();
+
+    if (fetchError || !job) {
+      return res.status(404).json({ success: false, error: 'Job not found' });
+    }
+    if (!['open', 'paused'].includes(job.status)) {
+      return res.status(409).json({
+        success: false,
+        error: `Only open or paused jobs can be taken down (this one is '${job.status}').`,
+      });
+    }
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('jobs')
+      .update({ status: 'removed', removal_reason: reason })
+      .eq('job_id', job_id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const { error: rejectError } = await supabaseAdmin
+      .from('proposals')
+      .update({ status: 'rejected' })
+      .eq('job_id', job_id)
+      .eq('status', 'pending');
+
+    if (rejectError) throw rejectError;
+
+    return res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};

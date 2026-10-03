@@ -181,7 +181,7 @@ export default function JobDetail() {
         body: JSON.stringify(payload),
       });
       const body = await res.json();
-      if (res.status === 409 || body.error?.includes('already submitted')) {
+      if (body.error?.includes('already submitted')) {
         setAlreadyApplied(true);
         setSubmitResult({ type: 'error', message: body.error || 'You have already submitted a proposal for this job.' });
         return;
@@ -396,6 +396,30 @@ export default function JobDetail() {
                             Manage All Postings
                           </button>
                         </div>
+                      </div>
+                    ) : job.status !== 'open' && !alreadyApplied ? (
+                      <div className="text-center py-2">
+                        <div className="mb-3">
+                          <div className="d-inline-flex p-3 rounded-circle bg-light border text-secondary">
+                            <i className={`bi ${job.status === 'paused' ? 'bi-pause-circle' : 'bi-lock'} fs-3`}></i>
+                          </div>
+                        </div>
+                        <h5 className="fw-bold text-dark mb-1">Not accepting proposals</h5>
+                        <p className="text-muted small mb-4">
+                          {job.status === 'paused'
+                            ? 'The client has paused this job. Check back later.'
+                            : job.status === 'cancelled'
+                              ? 'The client has cancelled this job.'
+                              : job.status === 'removed'
+                              ? 'This job was removed by an admin.'
+                              : 'This job has been taken and is no longer accepting proposals.'}
+                        </p>
+                        <button
+                          onClick={() => navigate('/explore')}
+                          className="btn btn-outline-dark rounded-pill fw-medium px-4"
+                        >
+                          Browse other jobs
+                        </button>
                       </div>
                     ) : (
                       <>

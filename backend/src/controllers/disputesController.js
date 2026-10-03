@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { postSystemMessage } = require('./contractsController');
 
 // POST /api/v1/disputes - File a dispute against a contract (must be a participant)
 exports.createDispute = async (req, res) => {
@@ -133,8 +134,9 @@ exports.listDisputes = async (req, res) => {
         raised_by_id,
         status,
         reason,
+        resolution_notes,
         created_at,
-        contracts ( job_id, client_id, freelancer_id, agreed_amount, jobs ( title ) )
+        contracts ( job_id, client_id, freelancer_id, agreed_amount, jobs ( title ), conversations ( conversation_id ) )
       `)
       .order('created_at', { ascending: false });
 
@@ -186,7 +188,11 @@ exports.resolveDispute = async (req, res) => {
       release_freelancer: 'Released to freelancer',
       split: 'Funds split between client and freelancer',
     };
-    const resolutionNotes = `${resolutionLabels[resolution]}${notes ? ` — ${notes}` : ''}`;
+    const trimmedNotes = typeof notes === 'string' ? notes.trim() : '';
+    if (trimmedNotes.length > 500) {
+      return res.status(400).json({ success: false, error: 'Resolution notes must be 500 characters or less.' });
+    }
+    const resolutionNotes = `${resolutionLabels[resolution]}${trimmedNotes ? ` — ${trimmedNotes}` : ''}`;
 
     const { data: updatedDispute, error: updateError } = await supabaseAdmin
       .from('disputes')
@@ -207,6 +213,9 @@ exports.resolveDispute = async (req, res) => {
         .from('contracts')
         .update({ status: 'completed' })
         .eq('contract_id', dispute.contract_id);
+
+      // Let both parties know the outcome in their contract chat.
+      await postSystemMessage(dispute.contract_id, staffId, `Dispute resolved by admin: ${resolutionNotes}`);
     }
 
     return res.status(200).json({ success: true, data: updatedDispute });

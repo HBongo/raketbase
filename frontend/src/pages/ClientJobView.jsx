@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getMyJobs, getJobProposals, acceptProposal, rejectProposal, switchRole } from '../services/api';
+import { getMyJobs, getJobProposals, acceptProposal, rejectProposal, switchRole, pauseJob, resumeJob, cancelJob } from '../services/api';
+import { clearCached } from '../utils/cache';
 import { formatCurrency } from '../utils/formatters';
 import { showToast } from '../utils/toast';
 
@@ -163,12 +164,7 @@ function MyJobsList() {
               <div className="card-body d-flex align-items-center justify-content-between gap-4">
                 <div className="text-truncate">
                   <div className="d-flex align-items-center gap-2 mb-2">
-                    <span
-                      className={`badge rounded-pill ${job.status === 'open' ? 'border' : 'bg-light text-dark border'}`}
-                      style={job.status === 'open' ? { backgroundColor: 'rgba(255,90,30,0.1)', color: '#FF5A1E', borderColor: 'rgba(255,90,30,0.3)' } : {}}
-                    >
-                      {job.status}
-                    </span>
+                    <JobStatusBadge status={job.status} />
                     <span className="small text-muted">
                       Created {formatDate(job.created_at)}
                     </span>
@@ -177,6 +173,11 @@ function MyJobsList() {
                   <p className="small text-secondary text-truncate mb-0" style={{ maxWidth: '600px' }}>
                     {job.description}
                   </p>
+                  {job.status === 'removed' && job.removal_reason && (
+                    <p className="small text-danger text-truncate mb-0 mt-1" style={{ maxWidth: '600px' }}>
+                      <i className="bi bi-shield-exclamation me-1"></i>Removed by admin: {job.removal_reason}
+                    </p>
+                  )}
                 </div>
 
                 <div className="text-end flex-shrink-0">
@@ -249,7 +250,30 @@ function ProposalsForJob({ jobId }) {
     }
   }
 
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+
+  async function runLifecycleAction(action, successMessage) {
+    setActionError('');
+    setLifecycleBusy(true);
+    try {
+      await action(jobId);
+      clearCached('explore_jobs');
+      showToast(successMessage, 3000);
+      setConfirmingCancel(false);
+      await load();
+    } catch (err) {
+      setActionError(err.message || 'Could not update this job.');
+    } finally {
+      setLifecycleBusy(false);
+    }
+  }
+
   const jobIsOpen = job?.status === 'open';
+  const jobIsPaused = job?.status === 'paused';
+  // Pausing only stops new proposals; existing ones can still be accepted or rejected.
+  const canManageProposals = jobIsOpen || jobIsPaused;
+  const pendingCount = proposals.filter((p) => p.status === 'pending').length;
 
   return (
     <>
@@ -287,12 +311,7 @@ function ProposalsForJob({ jobId }) {
             <div className="card shadow-sm border-0 mb-4">
               <div className="card-body p-4 d-flex flex-wrap align-items-start justify-content-between gap-3">
                 <div>
-                  <span
-                    className={`badge rounded-pill mb-2 ${job.status === 'open' ? 'border' : 'bg-light text-dark border'}`}
-                    style={job.status === 'open' ? { backgroundColor: 'rgba(255,90,30,0.1)', color: '#FF5A1E', borderColor: 'rgba(255,90,30,0.3)' } : {}}
-                  >
-                    {job.status}
-                  </span>
+                  <JobStatusBadge status={job.status} className="mb-2" />
                   <h2 className="h4 fw-bold mb-0">{job.title}</h2>
                 </div>
                 <div className="text-end">
@@ -301,10 +320,96 @@ function ProposalsForJob({ jobId }) {
                     {job.budget ? formatCurrency(job.budget, job.currency) : '—'}
                   </p>
                 </div>
+
+                {canManageProposals && !confirmingCancel && (
+                  <div className="w-100 d-flex flex-wrap gap-2 pt-3 border-top">
+                    {jobIsOpen && (
+                      <button
+                        onClick={() => navigate(`/my-jobs/${jobId}/edit`)}
+                        disabled={lifecycleBusy}
+                        className="btn btn-outline-dark btn-sm fw-medium px-3"
+                      >
+                        <i className="bi bi-pencil me-1"></i> Edit
+                      </button>
+                    )}
+                    {jobIsOpen && (
+                      <button
+                        onClick={() => runLifecycleAction(pauseJob, 'Job paused. It is now hidden from Explore.')}
+                        disabled={lifecycleBusy}
+                        className="btn btn-outline-secondary btn-sm fw-medium px-3"
+                      >
+                        <i className="bi bi-pause-circle me-1"></i> Pause
+                      </button>
+                    )}
+                    {jobIsPaused && (
+                      <button
+                        onClick={() => runLifecycleAction(resumeJob, 'Job resumed. It is visible on Explore again.')}
+                        disabled={lifecycleBusy}
+                        className="btn btn-dark btn-sm fw-medium px-3"
+                        style={{ backgroundColor: '#FF5A1E', borderColor: '#FF5A1E' }}
+                      >
+                        <i className="bi bi-play-circle me-1"></i> Resume
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setConfirmingCancel(true)}
+                      disabled={lifecycleBusy}
+                      className="btn btn-outline-danger btn-sm fw-medium px-3 ms-auto"
+                    >
+                      <i className="bi bi-x-circle me-1"></i> Cancel Job
+                    </button>
+                  </div>
+                )}
+
+                {canManageProposals && confirmingCancel && (
+                  <div className="w-100 pt-3 border-top">
+                    <p className="small fw-semibold mb-1">Cancel this job posting?</p>
+                    <p className="small text-muted mb-3">
+                      It will be removed from Explore for good
+                      {pendingCount > 0
+                        ? `, and ${pendingCount} pending ${pendingCount === 1 ? 'proposal' : 'proposals'} will be rejected`
+                        : ''}
+                      . This can't be undone.
+                    </p>
+                    <div className="d-flex gap-2">
+                      <button
+                        onClick={() => runLifecycleAction(cancelJob, 'Job cancelled.')}
+                        disabled={lifecycleBusy}
+                        className="btn btn-danger btn-sm fw-medium px-3"
+                      >
+                        {lifecycleBusy ? 'Cancelling...' : 'Yes, cancel job'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmingCancel(false)}
+                        disabled={lifecycleBusy}
+                        className="btn btn-outline-secondary btn-sm fw-medium px-3"
+                      >
+                        Keep job
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {!jobIsOpen && (
+            {jobIsPaused && (
+              <div className="alert alert-info py-2 small d-flex align-items-center" role="alert">
+                <i className="bi bi-pause-circle-fill me-2"></i>
+                This job is paused. It's hidden from Explore and isn't taking new proposals, but you can still accept or reject the ones below.
+              </div>
+            )}
+
+            {job.status === 'removed' && (
+              <div className="alert alert-danger py-2 small d-flex align-items-start" role="alert">
+                <i className="bi bi-shield-exclamation me-2 mt-1"></i>
+                <div>
+                  <strong>This job was removed by an admin.</strong> It's hidden from Explore and any pending proposals were rejected.
+                  {job.removal_reason && <div className="mt-1">Reason: {job.removal_reason}</div>}
+                </div>
+              </div>
+            )}
+
+            {!canManageProposals && job.status !== 'removed' && (
               <div className="alert alert-warning py-2 small d-flex align-items-center" role="alert">
                 <i className="bi bi-exclamation-triangle-fill me-2"></i>
                 This job is {job.status}. Proposals can no longer be accepted or rejected.
@@ -326,7 +431,7 @@ function ProposalsForJob({ jobId }) {
                   <ProposalCard
                     key={p.proposal_id}
                     proposal={p}
-                    jobIsOpen={jobIsOpen}
+                    jobIsOpen={canManageProposals}
                     currency={job.currency}
                     busy={actioningId === p.proposal_id}
                     onAccept={() => handleAccept(p.proposal_id)}
@@ -419,6 +524,28 @@ function StatusPill({ status }) {
 
   return (
     <span className={`badge rounded-pill ${badgeClass}`} style={badgeStyle}>
+      {status}
+    </span>
+  );
+}
+
+function JobStatusBadge({ status, className = '' }) {
+  let badgeClass = 'bg-light text-dark border';
+  let badgeStyle = {};
+
+  if (status === 'open') {
+    badgeClass = 'border';
+    badgeStyle = { backgroundColor: 'rgba(255,90,30,0.1)', color: '#FF5A1E', borderColor: 'rgba(255,90,30,0.3)' };
+  } else if (status === 'paused') {
+    badgeClass = 'bg-warning-subtle text-warning-emphasis border border-warning';
+  } else if (status === 'cancelled') {
+    badgeClass = 'bg-light text-muted border';
+  } else if (status === 'removed') {
+    badgeClass = 'bg-danger-subtle text-danger-emphasis border border-danger';
+  }
+
+  return (
+    <span className={`badge rounded-pill ${badgeClass} ${className}`} style={badgeStyle}>
       {status}
     </span>
   );
