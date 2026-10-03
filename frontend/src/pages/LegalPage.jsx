@@ -6,6 +6,10 @@ export default function LegalPage({ defaultDoc = 'terms' }) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const isLoggedIn = !!localStorage.getItem('token');
+  const backLink = isLoggedIn ? '/dashboard' : '/register';
+  const backText = isLoggedIn ? 'Back to Dashboard' : 'Back to Register';
+
   const isPrivacyPath = location.pathname.includes('privacy');
   const [docType, setDocType] = useState(isPrivacyPath ? 'privacy' : defaultDoc);
 

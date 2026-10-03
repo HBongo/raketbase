@@ -341,6 +341,22 @@ export default function Layout() {
         {/* Page Content Rendered Here */}
         <Outlet />
 
+        {/* Global Footer */}
+        {!location.pathname.startsWith('/messages') && (
+          <footer className="footer mt-auto py-3 border-top" style={{ backgroundColor: 'var(--bs-body-bg)' }}>
+            <div className="container-fluid px-4 d-flex flex-column flex-md-row justify-content-between align-items-center small text-muted">
+              <div className="mb-2 mb-md-0 fw-medium">
+                &copy; {new Date().getFullYear()} RaketBase. All rights reserved.
+              </div>
+              <div className="d-flex gap-3 gap-md-4">
+                <Link to="/terms" className="text-decoration-none text-muted">Terms</Link>
+                <Link to="/privacy" className="text-decoration-none text-muted">Privacy</Link>
+                <Link to="/contact" className="text-decoration-none text-muted">Help & Support</Link>
+              </div>
+            </div>
+          </footer>
+        )}
+
       </div>
     </>
   );
