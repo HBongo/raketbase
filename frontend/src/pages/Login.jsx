@@ -16,6 +16,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
 
   const [legalModalOpen, setLegalModalOpen] = useState(false);
@@ -25,6 +27,20 @@ export default function Login() {
     setLegalModalDoc(docType);
     setLegalModalOpen(true);
   };
+
+    useEffect(() => {
+    let interval = null;
+    if (lockoutSeconds > 0) {
+      interval = setInterval(() => {
+        setLockoutSeconds((prev) => prev - 1);
+      }, 1000);
+    } else if (lockoutSeconds === 0 && failedAttempts >= 3) {
+      setFailedAttempts(0);
+      setError('');
+    }
+    const isFormValid = email.trim() !== '' && password.length >= 8;
+  return () => clearInterval(interval);
+  }, [lockoutSeconds, failedAttempts]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -40,9 +56,16 @@ export default function Login() {
         localStorage.setItem('user', JSON.stringify(res.user));
       }
       window.location.href = '/dashboard';
-    } catch (err) {
-      setError(err.message);
+        } catch (err) {
       setLoading(false);
+      const newFails = failedAttempts + 1;
+      setFailedAttempts(newFails);
+      if (newFails >= 3) {
+        setLockoutSeconds(30);
+        setError('Too many failed attempts. Please try again in 30 seconds.');
+      } else {
+        setError(err.message);
+      }
     }
   }
 
@@ -63,12 +86,20 @@ export default function Login() {
         localStorage.setItem('user', JSON.stringify(res.user));
       }
       window.location.href = '/dashboard';
-    } catch (err) {
-      setError(err.message);
+        } catch (err) {
       setLoading(false);
+      const newFails = failedAttempts + 1;
+      setFailedAttempts(newFails);
+      if (newFails >= 3) {
+        setLockoutSeconds(30);
+        setError('Too many failed attempts. Please try again in 30 seconds.');
+      } else {
+        setError(err.message);
+      }
     }
   }
 
+  const isFormValid = email.trim() !== '' && password.length >= 8;
   return (
     <div className="auth-split-wrapper">
       {/* Left branding banner (GitHub main split layout) */}
@@ -203,13 +234,15 @@ export default function Login() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="auth-btn-primary"
-            >
-              {loading ? 'Logging in...' : 'Log in'}
-            </button>
+                          <button
+                type="submit"
+                disabled={!isFormValid || loading || lockoutSeconds > 0}
+                className="auth-btn-primary"
+                style={{ opacity: (!isFormValid || loading || lockoutSeconds > 0) ? 0.6 : 1, cursor: (!isFormValid || loading || lockoutSeconds > 0) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                {loading && <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>}
+                {lockoutSeconds > 0 ? `Locked out (${lockoutSeconds}s)` : loading ? 'Logging in...' : 'Log in'}
+              </button>
           </form>
 
           {/* Quick Demo Access Buttons */}
@@ -280,4 +313,6 @@ export default function Login() {
     </div>
   );
 }
+
+
 

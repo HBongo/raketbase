@@ -114,6 +114,7 @@ export default function Register() {
   // Step 2 fields
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [over18, setOver18] = useState(false);
   
   // Step 2 freelancer fields
   const [professionalTitle, setProfessionalTitle] = useState('');
@@ -210,7 +211,7 @@ export default function Register() {
   const isPasswordValid = (p) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/.test(p);
 
   const isStep1Complete = isNameValid(firstName) && isNameValid(lastName) && isEmailFormatValid(email) && isLegitEmailDomain(email) && Boolean(role);
-  const isStep2Complete = isPasswordValid(password) && password === confirmPassword;
+  const isStep2Complete = isPasswordValid(password) && password === confirmPassword && over18;
 
   function handleNext(e) {
     e.preventDefault();
@@ -414,11 +415,12 @@ export default function Register() {
                 </select>
               </div>
 
-              <button
-                type="submit"
-                disabled={!isStep1Complete}
-                className="auth-btn-primary"
-              >
+                              <button
+                  type="submit"
+                  disabled={!isStep1Complete}
+                  className="auth-btn-primary"
+                  style={{ opacity: !isStep1Complete ? 0.6 : 1, cursor: !isStep1Complete ? 'not-allowed' : 'pointer' }}
+                >
                 <span>Continue to Step 2</span>
                 <i className="bi bi-arrow-right"></i>
               </button>
@@ -605,7 +607,20 @@ export default function Register() {
                 .
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
+              <input 
+                type="checkbox" 
+                id="over18" 
+                checked={over18} 
+                onChange={(e) => setOver18(e.target.checked)} 
+                style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#FF5A1E' }}
+              />
+              <label htmlFor="over18" style={{ fontSize: '13px', color: '#EDEEF2', cursor: 'pointer', margin: 0, userSelect: 'none' }}>
+                I confirm that I am at least 18 years of age.
+              </label>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button
                   type="button"
                   onClick={handleBack}
@@ -616,12 +631,13 @@ export default function Register() {
                   <i className="bi bi-arrow-left"></i>
                   <span>Back</span>
                 </button>
-                <button
+                                <button
                   type="submit"
                   disabled={!isStep2Complete || loading}
                   className="auth-btn-primary"
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, opacity: (!isStep2Complete || loading) ? 0.6 : 1, cursor: (!isStep2Complete || loading) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                 >
+                  {loading && <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>}
                   {loading ? 'Creating account...' : 'Create account'}
                 </button>
               </div>
@@ -645,6 +661,7 @@ export default function Register() {
     </div>
   );
 }
+
 
 
 

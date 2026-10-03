@@ -62,6 +62,7 @@ export default function Explore() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [budget, setBudget] = useState(null);
+  const [minRating, setMinRating] = useState(0);
 
   const user = (() => {
     try {
@@ -159,36 +160,40 @@ export default function Explore() {
   const isOthersActive = activeCategory === 'others-all' || !!selectedOtherCategory;
 
   const visibleJobs = useMemo(() => {
-    return jobs.filter((j) => {
+        return jobs.filter((j) => {
       if (activeCategory !== 'all') {
         const catName = (j.categories?.category_name || 'Others').toLowerCase().replace(/\s+/g, '-');
         if (activeCategory === 'others-all') {
-          if (!otherCategoryIds.has(catName) && catName !== 'others') return false;
-        } else if (catName !== activeCategory) {
-          return false;
+          if (coreCategories.some(c => c.id === catName)) return false;
+        } else if (otherCategoryIds.has(activeCategory)) {
+          if (catName !== activeCategory) return false;
+        } else {
+          if (catName !== activeCategory) return false;
         }
       }
-      if (query.trim()) {
+      if (query) {
         const q = query.toLowerCase();
-        const inTitle = j.title?.toLowerCase().includes(q);
-        const inDesc = j.description?.toLowerCase().includes(q);
-        const inCategory = (j.categories?.category_name || '').toLowerCase().includes(q);
-        const clientName = `${j.users?.first_name || ''} ${j.users?.last_name || ''}`.toLowerCase();
-        const inClient = clientName.includes(q);
-        if (!inTitle && !inDesc && !inCategory && !inClient) return false;
+        const t = (j.title || '').toLowerCase();
+        const d = (j.description || '').toLowerCase();
+        const cn = (j.categories?.category_name || '').toLowerCase();
+        if (!t.includes(q) && !d.includes(q) && !cn.includes(q)) return false;
       }
       if (budget) {
-        const amount = Number(j.budget) || 0;
-        if (amount < budget.min || amount > budget.max) return false;
+        if (j.budget < budget[0] || j.budget > budget[1]) return false;
+      }
+      if (minRating > 0) {
+        const rating = j.users?.client_rating || j.users?.rating || 0;
+        if (rating < minRating) return false;
       }
       return true;
     });
-  }, [jobs, activeCategory, query, budget, otherCategoryIds]);
+  }, [jobs, activeCategory, query, budget, otherCategoryIds, minRating]);
 
-  function resetFilters() {
+    function resetFilters() {
     setActiveCategory('all');
     setQuery('');
     setBudget(budgetBounds);
+    setMinRating(0);
   }
 
 
@@ -216,8 +221,8 @@ export default function Explore() {
       <div className="row g-4 px-3 mb-4">
         <div className="col-xl-9 col-lg-8 order-2 order-lg-1">
           {/* Synchronized Search Bar */}
-          <div className="mb-3">
-            <div className="input-group shadow-sm rounded-pill overflow-hidden border bg-white">
+                    <div className="mb-3 d-flex gap-2">
+            <div className="input-group shadow-sm rounded-pill overflow-hidden border bg-white flex-grow-1">
               <input
                 type="text"
                 className="form-control border-0 py-2 ps-4 text-dark bg-white shadow-none" style={{ outline: "none" }}
@@ -230,15 +235,18 @@ export default function Explore() {
                   type="button"
                   onClick={() => setQuery('')}
                   className="btn btn-white border-0 text-muted shadow-none"
-                  title="Clear search"
+                  title="Clear search" aria-label="Clear search"
                 >
                   <i className="bi bi-x-lg"></i>
                 </button>
               )}
-              <span className="input-group-text bg-white border-0 pe-4">
+                            <span className="input-group-text bg-white border-0 pe-4">
                 <i className="bi bi-search text-muted"></i>
               </span>
             </div>
+            <button className="btn btn-outline-dark rounded-pill px-4 d-lg-none flex-shrink-0" onClick={() => setFiltersOpen(!filtersOpen)} aria-label="Toggle Filters">
+              <i className="bi bi-sliders me-1"></i> Filters
+            </button>
             {query && (
               <div className="small text-muted mb-2 ps-2">
                 Showing results for &ldquo;<strong>{query}</strong>&rdquo; ({visibleJobs.length} found)
@@ -339,17 +347,19 @@ export default function Explore() {
             )}
           </div>
 
-          <div className={`col-xl-3 col-lg-4 order-1 sticky-filter ${!filtersOpen ? 'd-none' : ''}`}>
-            {budget && (
-              <FiltersSidebar
-                budget={budget}
-                setBudget={setBudget}
-                budgetBounds={budgetBounds}
-                resetFilters={resetFilters}
-                resultCount={visibleJobs.length}
-                onClose={() => setFiltersOpen(false)}
-              />
-            )}
+                      <div className={"col-xl-3 col-lg-4 order-1 sticky-filter ${!filtersOpen ? 'd-none d-lg-block' : 'd-block'}"}>
+              {budget && (
+                <FiltersSidebar
+                  budget={budget}
+                  setBudget={setBudget}
+                  budgetBounds={budgetBounds}
+                  minRating={minRating}
+                  setMinRating={setMinRating}
+                  resetFilters={resetFilters}
+                  resultCount={visibleJobs.length}
+                  onClose={() => setFiltersOpen(false)}
+                />
+              )}
                   </div>
       </div>
       <BackToTop />
@@ -357,14 +367,23 @@ export default function Explore() {
   );
 }
 
-function FiltersSidebar({ budget, setBudget, budgetBounds, resetFilters, resultCount, onClose }) {
+function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRating, resetFilters, resultCount, onClose }) {
   return (
     <div className="card h-100">
       <div className="card-header d-flex justify-content-between align-items-center">
         <h5 className="card-title mb-0">Filters</h5>
-        <button onClick={onClose} className="btn-close d-lg-none" aria-label="Close"></button>
+        <button onClick={onClose} className="btn-close d-lg-none" aria-label="Close filters"></button>
       </div>
       <div className="card-body">
+        <div className="mb-4">
+          <label className="form-label fw-medium text-dark small mb-2">Client Rating</label>
+          <select className="form-select form-select-sm" value={minRating} onChange={(e) => setMinRating(Number(e.target.value))}>
+            <option value={0}>All Ratings</option>
+            <option value={4.5}>4.5 Stars & Up</option>
+            <option value={4}>4 Stars & Up</option>
+            <option value={3}>3 Stars & Up</option>
+          </select>
+        </div>
         <RangeField
           label="Budget"
           unit="₱"
@@ -514,6 +533,10 @@ function formatDate(value) {
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+
+
+
+
 
 
 

@@ -50,6 +50,7 @@ export default function Dashboard() {
   const [contracts, setContracts] = useState(cachedContracts || []);
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
+  const [proposalTab, setProposalTab] = useState('active');
 
   // Phase 1 Submission Modal state
   const [submitModalContract, setSubmitModalContract] = useState(null);
@@ -678,10 +679,15 @@ export default function Dashboard() {
           <div className="card h-100 mb-0 flex-grow-1">
             <div className="card-header d-flex justify-content-between align-items-center">
               <h2 className="card-title mb-0">{isCustomer ? 'Incoming Proposals' : 'My Proposals'}</h2>
-              {isCustomer && (
+              {isCustomer ? (
                 <Link to="/my-jobs" className="small text-success text-decoration-none fw-semibold">
                   View All Postings
                 </Link>
+              ) : (
+                <div className="nav nav-pills nav-sm">
+                  <button className={`nav-link px-3 py-1 fw-medium ${proposalTab === 'active' ? 'active bg-dark text-white' : 'text-muted'}`} onClick={() => setProposalTab('active')} style={{ fontSize: '13px', borderRadius: '50px' }}>Active</button>
+                  <button className={`nav-link px-3 py-1 fw-medium ${proposalTab === 'past' ? 'active bg-dark text-white' : 'text-muted'}`} onClick={() => setProposalTab('past')} style={{ fontSize: '13px', borderRadius: '50px' }}>Past</button>
+                </div>
               )}
             </div>
             {loading ? (
@@ -732,11 +738,15 @@ export default function Dashboard() {
                     ))}
                 </div>
               )
-            ) : proposals.length === 0 ? (
-                <div className="text-center p-5 text-muted">No proposals yet.</div>
-              ) : (
+            ) : (() => {
+              const isPast = (status) => ['completed', 'rejected', 'withdrawn', 'cancelled'].includes((status || '').toLowerCase());
+              const filteredProposals = proposals.filter(p => proposalTab === 'past' ? isPast(p.status) : !isPast(p.status));
+              if (filteredProposals.length === 0) {
+                return <div className="text-center p-5 text-muted">No {proposalTab} proposals.</div>;
+              }
+              return (
                 <div className="transaction-list mt-2">
-                  {[...proposals].sort((a, b) => {
+                  {[...filteredProposals].sort((a, b) => {
                     const statusA = (a.status || 'pending').toLowerCase();
                     const statusB = (b.status || 'pending').toLowerCase();
                     const rank = { 'accepted': 1, 'pending': 2, 'rejected': 3 };
@@ -771,7 +781,8 @@ export default function Dashboard() {
                     );
                   })}
                 </div>
-              )}
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -1050,5 +1061,7 @@ export default function Dashboard() {
     </>
   );
 }
+
+
 
 

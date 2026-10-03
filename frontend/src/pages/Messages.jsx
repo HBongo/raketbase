@@ -150,7 +150,19 @@ export default function Messages() {
         if (!cancelled) setLoadingMessages(false);
       }
     })();
-    return () => { cancelled = true; };
+      const renderMessageContent = (content, mine) => {
+    if (!content) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  return () => { cancelled = true; };
   }, [selectedId]);
 
   useEffect(() => {
@@ -182,7 +194,19 @@ export default function Messages() {
         setConversations((prev) => prev.map((c) => (c.conversation_id === selectedId ? { ...c, ...payload.new } : c)));
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+      const renderMessageContent = (content, mine) => {
+    if (!content) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  return () => { supabase.removeChannel(channel); };
   }, [selectedId, user, loadConversations]);
 
   // Preload signed URLs for attachments if not returned as direct public file_url
@@ -308,7 +332,19 @@ export default function Messages() {
     const amClient = c.client_id === (user?.user_id || user?.id);
     const them = amClient ? c.freelancer : c.client;
     const label = [them?.first_name, them?.last_name].filter(Boolean).join(" ") || them?.email || "";
-    return (c.title || "").toLowerCase().includes(q) || label.toLowerCase().includes(q);
+      const renderMessageContent = (content, mine) => {
+    if (!content) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  return (c.title || "").toLowerCase().includes(q) || label.toLowerCase().includes(q);
   });
 
   const statusBadge = (status) => {
@@ -319,11 +355,35 @@ export default function Messages() {
       submitted: { bg: "#DBEAFE", color: "#1E40AF", label: "Submitted" },
     };
     const s = map[status] || { bg: "#F3F4F6", color: "#374151", label: status };
-    return (
+      const renderMessageContent = (content, mine) => {
+    if (!content) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  return (
       <span style={{ background: s.bg, color: s.color, fontSize: "11px", fontWeight: 700, padding: "3px 10px", borderRadius: "999px", letterSpacing: "0.03em" }}>
         {s.label}
       </span>
     );
+  };
+
+    const renderMessageContent = (content, mine) => {
+    if (!content) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
+      }
+      return <span key={i}>{part}</span>;
+    });
   };
 
   return (
@@ -451,7 +511,19 @@ export default function Messages() {
                   const amClient = c.client_id === (user?.user_id || user?.id);
                   const them = amClient ? c.freelancer : c.client;
                   const label = [them?.first_name, them?.last_name].filter(Boolean).join(" ") || them?.email || "User";
-                  return (
+                    const renderMessageContent = (content, mine) => {
+    if (!content) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  return (
                     <div
                       key={c.conversation_id}
                       onClick={() => navigate(`/messages/${c.conversation_id}`)}
@@ -568,7 +640,19 @@ export default function Messages() {
                   ) : (
                     messages.map((m) => {
                       if (m.message_type === "system") {
-                        return (
+                          const renderMessageContent = (content, mine) => {
+    if (!content) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  return (
                           <div key={m.message_id} className="system-msg">
                             <span className="system-msg-text">{m.content}</span>
                           </div>
@@ -578,14 +662,26 @@ export default function Messages() {
                       const imageUrl = m.file_url || attachmentUrls[m.message_id];
                       const isImg = isImageAttachment(m);
 
-                      return (
+                        const renderMessageContent = (content, mine) => {
+    if (!content) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  return (
                         <div key={m.message_id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start", alignItems: "flex-end", gap: "8px" }}>
                           {!mine && (
                             <Avatar src={other?.avatar_url} name={personName(other)} size={30} />
                           )}
                           <div className={mine ? "bubble-mine" : "bubble-theirs"}>
                             {m.content && (
-                              <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.55", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.content}</p>
+                              <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.55", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{renderMessageContent(m.content, mine)}</p>
                             )}
 
                             {m.file_path && (
@@ -769,3 +865,4 @@ export default function Messages() {
     </>
   );
 }
+

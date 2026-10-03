@@ -9,12 +9,11 @@ import { formatCurrency, getCurrencySymbol } from '../utils/formatters';
 import BackToTop from '../components/BackToTop';
 
 const FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'accepted', label: 'Accepted' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'withdrawn', label: 'Withdrawn' },
+  { value: 'active', label: 'Active Proposals' },
+  { value: 'past', label: 'Past Proposals' }
 ];
+
+const isPast = (status) => ['completed', 'rejected', 'withdrawn', 'cancelled'].includes((status || '').toLowerCase());
 
 const STATUS_STYLES = {
   pending: 'badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill',
@@ -47,7 +46,7 @@ export default function MyProposals() {
   const [proposals, setProposals] = useState(cachedProposals || []);
   const [loading, setLoading] = useState(!cachedProposals);
   const [loadError, setLoadError] = useState(null);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('active');
   const [actioningId, setActioningId] = useState(null);
   const [actionError, setActionError] = useState('');
 
@@ -102,12 +101,12 @@ export default function MyProposals() {
     }
   }
 
-  const counts = FILTERS.reduce((acc, f) => {
-    acc[f.value] = f.value === 'all' ? proposals.length : proposals.filter((p) => p.status === f.value).length;
-    return acc;
-  }, {});
+    const counts = {
+    active: proposals.filter(p => !isPast(p.status)).length,
+    past: proposals.filter(p => isPast(p.status)).length
+  };
 
-  const visibleProposals = filter === 'all' ? proposals : proposals.filter((p) => p.status === filter);
+  const visibleProposals = proposals.filter((p) => filter === 'past' ? isPast(p.status) : !isPast(p.status));
 
 
 
@@ -391,3 +390,4 @@ function formatDate(value) {
   if (Number.isNaN(date.getTime())) return 'recently';
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
+

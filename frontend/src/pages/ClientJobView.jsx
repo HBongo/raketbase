@@ -224,11 +224,12 @@ function ProposalsForJob({ jobId }) {
     load();
   }, [load]);
 
-  async function handleAccept(proposalId) {
-    setActionError('');
+    async function handleAccept(proposalId) {
+    setActionError(null);
     setActioningId(proposalId);
     try {
       await acceptProposal(proposalId);
+      showToast('Proposal accepted successfully!', { type: 'success' });
       await load();
     } catch (err) {
       setActionError(err.message || 'Could not accept this proposal.');
@@ -238,10 +239,11 @@ function ProposalsForJob({ jobId }) {
   }
 
   async function handleReject(proposalId) {
-    setActionError('');
+    setActionError(null);
     setActioningId(proposalId);
     try {
       await rejectProposal(proposalId);
+      showToast('Proposal rejected.', { type: 'success' });
       await load();
     } catch (err) {
       setActionError(err.message || 'Could not reject this proposal.');
@@ -253,14 +255,13 @@ function ProposalsForJob({ jobId }) {
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
-  async function runLifecycleAction(action, successMessage) {
-    setActionError('');
+    async function runLifecycleAction(action, successMessage) {
+    setActionError(null);
     setLifecycleBusy(true);
     try {
       await action(jobId);
-      clearCached('explore_jobs');
-      showToast(successMessage, 3000);
       setConfirmingCancel(false);
+      showToast(successMessage, { type: 'success' });
       await load();
     } catch (err) {
       setActionError(err.message || 'Could not update this job.');
@@ -576,5 +577,6 @@ function formatDate(value) {
   if (Number.isNaN(date.getTime())) return 'recently';
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
 
 

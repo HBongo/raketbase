@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { formatCurrency, getCurrencySymbol } from '../utils/formatters';
+import { showToast } from '../utils/toast';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -23,6 +24,7 @@ export default function JobDetail() {
 
   const [bidAmount, setBidAmount] = useState('');
   const [coverLetter, setCoverLetter] = useState('');
+  const [attachment, setAttachment] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
   const [alreadyApplied, setAlreadyApplied] = useState(false);
@@ -74,9 +76,7 @@ export default function JobDetail() {
     return () => { cancelled = true; };
   }, [id]);
 
-  const [milestones, setMilestones] = useState([
-    { title: 'Stage 1 Deliverables', amount: '' },
-  ]);
+  const [milestones, setMilestones] = useState([ { title: 'Stage 1 Deliverables', description: '', amount: '' } ]);
 
   const isMilestoneJob = job?.budget_type === 'milestone';
   const milestoneTotal = milestones.reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
@@ -145,6 +145,19 @@ export default function JobDetail() {
   const showMilestoneError = (touched.bidAmount || submitted) && errors.milestones;
   const showCoverLetterError = (touched.coverLetter || submitted) && errors.coverLetter;
 
+    const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setSubmitResult({ type: 'error', message: 'File size must be 5MB or less.' });
+        e.target.value = null;
+        return;
+      }
+      setAttachment(file);
+      setSubmitResult(null);
+    }
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitResult(null);
@@ -163,10 +176,7 @@ export default function JobDetail() {
       };
 
       if (isMilestoneJob) {
-        payload.milestones = milestones.map((m) => ({
-          title: m.title.trim(),
-          amount: Number(m.amount),
-        }));
+        payload.milestones = milestones.map((m) => ({ title: m.title.trim(), description: (m.description || '').trim(), amount: Number(m.amount) }));
         payload.bid_amount = milestoneTotal;
       } else {
         payload.bid_amount = Number(bidAmount);
@@ -189,10 +199,11 @@ export default function JobDetail() {
       if (!res.ok || !body.success) {
         throw new Error(body.error || body.message || 'Could not submit your proposal.');
       }
-      setAlreadyApplied(true);
-      setSubmitResult({ type: 'success', message: 'Proposal sent! The client will review it soon.' });
+            setAlreadyApplied(true);
+      showToast('Proposal sent! The client will review it soon.', { type: 'success' });
       setBidAmount('');
       setCoverLetter('');
+      setAttachment(null);
     } catch (err) {
       setSubmitResult({ type: 'error', message: err.message || 'Something went wrong while submitting.' });
     } finally {
@@ -435,46 +446,67 @@ export default function JobDetail() {
 
                               <div className="d-flex flex-column gap-2">
                                 {milestones.map((m, idx) => (
-                                  <div key={idx} className="p-2.5 bg-light rounded border">
-                                    <div className="d-flex justify-content-between align-items-center mb-1">
-                                      <span className="small fw-semibold text-secondary">Stage {idx + 1}</span>
-                                      {milestones.length > 1 && (
-                                        <button
-                                          type="button"
-                                          className="btn btn-link btn-sm text-danger p-0 text-decoration-none"
-                                          onClick={() => handleRemoveMilestone(idx)}
-                                          title="Remove stage"
-                                        >
-                                          <i className="bi bi-x-circle"></i>
-                                        </button>
-                                      )}
-                                    </div>
-                                    <div className="row g-2">
-                                      <div className="col-7">
-                                        <input
-                                          type="text"
-                                          placeholder="Stage deliverable description"
-                                          value={m.title}
-                                          onChange={(e) => handleMilestoneChange(idx, 'title', e.target.value)}
-                                          className="form-control form-control-sm bg-white"
-                                        />
+                                                                      <div key={idx} className="p-2.5 bg-light rounded border">
+                                      <div className="d-flex justify-content-between align-items-center mb-1">
+                                        <span className="small fw-semibold text-secondary">Stage {idx + 1}</span>
+                                        {milestones.length > 1 && (
+                                          <button
+                                            type="button"
+                                            className="btn btn-link btn-sm text-danger p-0 text-decoration-none"
+                                            onClick={() => handleRemoveMilestone(idx)}
+                                            title="Remove stage" aria-label="Remove stage"
+                                          >
+                                            <i className="bi bi-x-circle"></i>
+                                          </button>
+                                        )}
                                       </div>
-                                      <div className="col-5">
-                                        <div className="input-group input-group-sm">
-                                          <span className="input-group-text bg-white">{getCurrencySymbol(job?.currency)}</span>
+                                      <div className="row g-2 mb-2">
+                                        <div className="col-7">
                                           <input
-                                            type="number"
-                                            min="0.01"
-                                            step="0.01"
-                                            placeholder="Amount"
-                                            value={m.amount}
-                                            onChange={(e) => handleMilestoneChange(idx, 'amount', e.target.value)}
-                                            className="form-control bg-white"
+                                            type="text"
+                                            placeholder="Stage title"
+                                            value={m.title}
+                                            onChange={(e) => {
+                                              const newM = [...milestones];
+                                              newM[idx].title = e.target.value;
+                                              setMilestones(newM);
+                                            }}
+                                            className="form-control form-control-sm"
+                                            disabled={submitting || alreadyApplied}
                                           />
                                         </div>
+                                        <div className="col-5">
+                                          <div className="input-group input-group-sm">
+                                            <span className="input-group-text">{getCurrencySymbol(job.currency)}</span>
+                                            <input
+                                              type="number"
+                                              placeholder="Amount"
+                                              min="1"
+                                              value={m.amount}
+                                              onChange={(e) => {
+                                                const newM = [...milestones];
+                                                newM[idx].amount = e.target.value;
+                                                setMilestones(newM);
+                                              }}
+                                              className="form-control form-control-sm"
+                                              disabled={submitting || alreadyApplied}
+                                            />
+                                          </div>
+                                        </div>
                                       </div>
+                                      <textarea
+                                        placeholder="Milestone description and deliverables..."
+                                        rows="2"
+                                        value={m.description || ''}
+                                        onChange={(e) => {
+                                          const newM = [...milestones];
+                                          newM[idx].description = e.target.value;
+                                          setMilestones(newM);
+                                        }}
+                                        className="form-control form-control-sm mt-2"
+                                        disabled={submitting || alreadyApplied}
+                                      ></textarea>
                                     </div>
-                                  </div>
                                 ))}
                               </div>
 
@@ -581,5 +613,8 @@ function formatDate(value) {
   if (Number.isNaN(date.getTime())) return 'recently';
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+
+
 
 
