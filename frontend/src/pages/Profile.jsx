@@ -10,7 +10,7 @@ import { useParams, Link } from 'react-router-dom';
 import { getFreelancerProfile, updateProfile } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
 
-const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%232CC56F' /%3E%3Ccircle cx='50' cy='38' r='18' fill='%23FFFFFF' /%3E%3Cpath d='M 15 95 C 15 65 85 65 85 95 Z' fill='%23FFFFFF' /%3E%3C/svg%3E";
+const DEFAULT_AVATAR = "/default-avatar.png";
 
 function buildFormFromProfile(p) {
   if (!p) return {};
@@ -789,6 +789,7 @@ export default function Profile() {
     </>
   );
 }
+
 
 
 

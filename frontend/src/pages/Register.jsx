@@ -409,8 +409,8 @@ export default function Register() {
                   className="auth-input"
                   style={{ cursor: 'pointer' }}
                 >
-                  <option value="freelancer">I want to work as a freelancer</option>
-                  <option value="customer">I want to hire talent</option>
+                  <option value="freelancer">Freelancer — I want to find work</option>
+                  <option value="customer">Client — I want to hire someone</option>
                 </select>
               </div>
 

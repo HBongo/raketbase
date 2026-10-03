@@ -331,7 +331,7 @@ export default function Explore() {
             {!loading && !loadError && visibleJobs.length > 0 && (
               <div className="row g-4">
                 {visibleJobs.map((job) => (
-                  <div className="col-md-6 col-xl-4" key={job.job_id}>
+                  <div className="col-12 col-sm-6 col-xl-6" key={job.job_id}>
                     <JobCard job={job} onOpen={() => navigate(`/jobs/${job.job_id}`)} />
                   </div>
                 ))}
@@ -429,16 +429,20 @@ function JobCard({ job, onOpen }) {
 
   return (
     <div className="card h-100 border transition-all" style={{ cursor: 'pointer' }} onClick={onOpen}>
-      <div className="card-body d-flex flex-column p-0">
+      <div className="card-body d-flex flex-column p-3">
         <div className="mb-3">
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <span className="badge bg-light border text-dark fw-semibold px-3 py-2 rounded-pill" style={{ fontSize: '0.85rem' }}>
+          <div className="d-flex justify-content-between align-items-start mb-2 gap-2">
+            <span 
+              className="badge bg-light border text-dark fw-semibold px-3 py-2 rounded-pill text-truncate" 
+              style={{ fontSize: '0.85rem', maxWidth: '65%' }}
+              title={categoryName}
+            >
               {categoryName}
             </span>
             {posted && (
-              <div className="small text-muted d-flex align-items-center">
+              <div className="small text-muted d-flex align-items-center flex-shrink-0 text-nowrap mt-1">
                 <i className="bi bi-clock me-1"></i>
-                <span>Posted {posted}</span>
+                <span>{posted}</span>
               </div>
             )}
           </div>
@@ -472,14 +476,14 @@ function JobCard({ job, onOpen }) {
             </Link>
           </div>
         </div>
-        <h5 className="card-title text-dark fw-bold mb-3 fs-5">
+        <h5 className="card-title text-dark fw-bold mb-3" style={{ fontSize: "1.15rem", lineHeight: "1.4" }}>
           {job.title || 'Untitled job'}
         </h5>
         <div className="mb-3">
           <span className="small text-muted">Budget: </span>
           <span className="fw-bold text-success fs-6">{job.budget ? formatCurrency(job.budget, job.currency) : '—'}</span>
         </div>
-        <p className="card-text small text-muted flex-grow-1" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <p className="card-text small text-muted flex-grow-1" style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {job.description || 'No description provided.'}
         </p>
         <button onClick={(e) => { e.stopPropagation(); onOpen(); }} className="btn btn-outline-dark w-100 mt-3 rounded-pill fw-medium">View & Apply</button>
@@ -510,6 +514,9 @@ function formatDate(value) {
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+
+
+
 
 
 

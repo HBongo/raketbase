@@ -292,7 +292,7 @@ export default function Layout() {
             <div className="d-none d-md-block vr mx-1 text-secondary opacity-25" style={{ height: '24px' }}></div>
             <div className="dropdown">
               <button className="navbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <img src={user?.avatar_url || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%232CC56F' /%3E%3Ccircle cx='50' cy='38' r='18' fill='%23FFFFFF' /%3E%3Cpath d='M 15 95 C 15 65 85 65 85 95 Z' fill='%23FFFFFF' /%3E%3C/svg%3E"} alt="Profile" className="navbar-profile-img" />
+                <img src={user?.avatar_url || "/default-avatar.png"} alt="Profile" className="navbar-profile-img" />
                 <span className="navbar-profile-name d-none d-md-inline">{user?.first_name || 'User'}</span>
                 <i className="bi bi-chevron-down navbar-profile-caret"></i>
               </button>
@@ -311,7 +311,7 @@ export default function Layout() {
                 <li><Link className="dropdown-item" to={`/profile/${user?.user_id || user?.id}`}><i className="bi bi-person"></i> My Profile</Link></li>
                 <li><Link className="dropdown-item" to="#"><i className="bi bi-gear"></i> Settings</Link></li>
                 <li><hr className="dropdown-divider" /></li>
-                <li><Link className="dropdown-item text-danger" to="/login" onClick={() => { clearCached(); localStorage.removeItem('token'); localStorage.removeItem('user'); }}><i className="bi bi-box-arrow-right"></i> Logout</Link></li>
+                <li><Link className="dropdown-item text-danger" to="/login" onClick={() => { clearCached(); localStorage.removeItem('token'); localStorage.removeItem('refreshToken'); localStorage.removeItem('user'); /* keep darkMode so theme persists after re-login */ }}><i className="bi bi-box-arrow-right"></i> Logout</Link></li>
               </ul>
             </div>
           </div>
@@ -324,6 +324,8 @@ export default function Layout() {
     </>
   );
 }
+
+
 
 
 

@@ -235,9 +235,9 @@ export default function JobDetail() {
 
           {!loading && !loadError && job && (
             <div className="row g-4">
-              <div className="col-xl-8 col-lg-7">
+              <div className="col-xl-8 col-lg-8">
                 <div className="card h-100 border">
-                  <div className="card-body p-4 p-md-5">
+                  <div className="card-body p-4 p-md-5" style={{ minHeight: "400px" }}>
                     <div className="d-flex flex-wrap items-center gap-2 mb-3">
                       <span className="badge bg-light border text-dark fw-semibold px-3 py-2 rounded-pill" style={{ fontSize: '0.85rem' }}>
                         {job.categories?.category_name || 'Uncategorized'}
@@ -351,8 +351,8 @@ export default function JobDetail() {
                 </div>
               </div>
 
-              <div className="col-xl-4 col-lg-5">
-                <div className="card border sticky-top" style={{ top: '90px' }}>
+              <div className="col-xl-4 col-lg-4">
+                <div className="card border sticky-top" style={{ top: "90px" }}>
                   <div className="card-body p-4">
                     <p className="text-muted small fw-medium text-uppercase mb-1">Budget</p>
                     <h3 className="fw-bold text-success mb-4">
@@ -581,3 +581,5 @@ function formatDate(value) {
   if (Number.isNaN(date.getTime())) return 'recently';
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+
