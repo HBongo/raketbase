@@ -263,7 +263,17 @@ export default function Register() {
   }
 
   return (
-    <div className="auth-split-wrapper">
+    <div className="auth-split-wrapper position-relative">
+      <button
+        type="button"
+        className="btn btn-outline-secondary position-absolute top-0 end-0 m-4 rounded-circle d-flex align-items-center justify-content-center border-0 shadow-sm "
+        style={{ width: '40px', height: '40px', zIndex: 1000, transition: 'all 0.2s', backgroundColor: isDarkMode ? '#1D2129' : '#FFFFFF', borderColor: isDarkMode ? '#262B36' : '#E2E8F0', border: '1px solid' }}
+        onClick={() => setIsDarkMode(!isDarkMode)}
+        aria-label="Toggle Dark Mode"
+        title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+      >
+        <i className={isDarkMode ? "bi bi-sun-fill text-warning" : "bi bi-moon-fill text-secondary"} style={{ fontSize: '1.2rem' }}></i>
+      </button>
       {/* Left branding banner (GitHub main split layout) */}
       <div className="hidden md:flex auth-split-sidebar">
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
