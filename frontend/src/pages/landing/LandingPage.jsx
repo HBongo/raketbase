@@ -93,47 +93,6 @@ const IconGitHub = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" heig
 const IconYouTube = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33 2.78 2.78 0 0 0 1.94 2c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>;
 
 // --- HELPER COMPONENTS ---
-const Modal = ({ isOpen, onClose, title, children }) => {
-  const modalRef = useRef(null);
-
-  useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    if (isOpen) {
-      document.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden';
-      // Focus trap
-      const focusableElements = modalRef.current?.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-      if (focusableElements && focusableElements.length) {
-        focusableElements[0].focus();
-      }
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.removeEventListener('keydown', handleEsc);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="lp-modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div className="lp-modal-content" onClick={e => e.stopPropagation()} ref={modalRef}>
-        <div className="lp-modal-header">
-          <h2 id="modal-title">{title}</h2>
-          <button onClick={onClose} className="lp-modal-close" aria-label="Close modal"><IconClose /></button>
-        </div>
-        <div className="lp-modal-body">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const AnimatedNumber = ({ target, duration = 2000, prefix = "", suffix = "" }) => {
   const [count, setCount] = useState(0);
   const ref = useRef(null);
@@ -209,16 +168,10 @@ export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState(null);
 
   // Modal State
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [signupOpen, setSignupOpen] = useState(false);
-
   // Auth Forms
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authName, setAuthName] = useState('');
-  const [authError, setAuthError] = useState('');
-  const [authSuccess, setAuthSuccess] = useState('');
-
   // Final CTA Email
   const [finalEmail, setFinalEmail] = useState('');
   const [finalEmailSuccess, setFinalEmailSuccess] = useState(false);
@@ -300,40 +253,14 @@ export default function LandingPage() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    document.getElementById('featured')?.scrollIntoView({ behavior: 'smooth' });
+    navigate('/explore');
   };
 
   const handlePopularSearch = (term) => {
     setSearchKeyword(term);
-    document.getElementById('featured')?.scrollIntoView({ behavior: 'smooth' });
+    navigate('/explore');
   };
 
-  const handleAuthSubmit = (e, type) => {
-    e.preventDefault();
-    setAuthError('');
-    if (!authEmail.includes('@')) {
-      setAuthError('Invalid email format');
-      return;
-    }
-    if (authPassword.length < 8) {
-      setAuthError('Password must be at least 8 characters');
-      return;
-    }
-    if (type === 'signup' && !authName.trim()) {
-      setAuthError('Name is required');
-      return;
-    }
-    
-    setAuthSuccess(`${type === 'login' ? 'Login' : 'Signup'} successful! Redirecting...`);
-    setTimeout(() => {
-      if (type === 'login') setLoginOpen(false);
-      else setSignupOpen(false);
-      setAuthSuccess('');
-      setAuthEmail('');
-      setAuthPassword('');
-      setAuthName('');
-    }, 1500);
-  };
 
   const handleFinalSubmit = (e) => {
     e.preventDefault();
@@ -406,8 +333,8 @@ export default function LandingPage() {
               {isDark ? <IconSun /> : <IconMoon />}
             </button>
             <div className="lp-nav__auth">
-              <button className="lp-btn-ghost" onClick={() => setLoginOpen(true)}>Log In</button>
-              <button className="lp-btn-primary" onClick={() => setSignupOpen(true)}>Sign Up</button>
+              <button className="lp-btn-ghost" onClick={() => navigate('/login')}>Log In</button>
+              <button className="lp-btn-primary" onClick={() => navigate('/register')}>Sign Up</button>
             </div>
             <button className="lp-nav__mobile-toggle lp-btn-icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label="Toggle menu" aria-expanded={isMobileMenuOpen}>
               <IconMenu />
@@ -423,8 +350,8 @@ export default function LandingPage() {
             <a href="#how-it-works" onClick={(e) => scrollToSection(e, 'how-it-works')}>How It Works</a>
                         <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')}>FAQ</a>
             <hr />
-            <button className="lp-btn-ghost" onClick={() => { setIsMobileMenuOpen(false); setLoginOpen(true); }}>Log In</button>
-            <button className="lp-btn-primary" onClick={() => { setIsMobileMenuOpen(false); setSignupOpen(true); }}>Sign Up</button>
+            <button className="lp-btn-ghost" onClick={() => navigate('/login')}>Log In</button>
+            <button className="lp-btn-primary" onClick={() => navigate('/register')}>Sign Up</button>
           </div>
         )}      </nav>
 
@@ -523,7 +450,7 @@ export default function LandingPage() {
               ))}
             </div>
             <div className="lp-center-link lp-reveal">
-              <a href="#featured" onClick={(e) => scrollToSection(e, 'featured')}>View all categories <IconArrowRight /></a>
+              <a href="/explore" onClick={(e) => { e.preventDefault(); navigate('/explore'); }}>View all categories <IconArrowRight /></a>
             </div>
           </div>
         </section>
@@ -601,7 +528,7 @@ export default function LandingPage() {
                   </div>
                   <div className="lp-freelancer-footer">
                     {f.badge && <span className={`lp-badge lp-badge--${f.badge.toLowerCase().replace(' ','-')}`}>{f.badge}</span>}
-                    <button className="lp-btn-outline lp-btn-sm" style={{marginLeft: 'auto'}}>View Profile</button>
+                    <button className="lp-btn-outline lp-btn-sm" style={{marginLeft: 'auto'}} onClick={() => navigate('/explore')}>View Profile</button>
                   </div>
                 </article>
               ))}            </div>
@@ -703,12 +630,12 @@ export default function LandingPage() {
         <section className="lp-split-cta"><div className="lp-split-cta__inner lp-container"><div className="lp-split-pane lp-split-left lp-reveal">
             <h2>Looking to hire?</h2>
             <p>Connect with top talent from around the world and build your dream team.</p>
-            <button className="lp-btn-primary lp-btn-large">Post a Job</button>
+            <button className="lp-btn-primary lp-btn-large" onClick={() => navigate('/register')}>Post a Job</button>
           </div>
           <div className="lp-split-pane lp-split-right lp-reveal">
             <h2>Ready to earn?</h2>
             <p>Find freelance opportunities that match your skills and grow your career.</p>
-            <button className="lp-btn-outline lp-btn-large">Join as Freelancer</button></div></div></section>
+            <button className="lp-btn-outline lp-btn-large" onClick={() => navigate('/register')}>Join as Freelancer</button></div></div></section>
 
         {/* 14. FAQ Accordion */}
         <section className="lp-faq lp-section" id="faq">
@@ -785,89 +712,52 @@ export default function LandingPage() {
             
             <div className="lp-footer-col">
               <h4>For Clients</h4>
-              <a href="#">Find Talent</a>
-              <a href="#">Post a Job</a>
-              <a href="#">How to Hire</a>
-              <a href="#">Payment Protection</a>
+              <a href="/explore">Find Talent</a>
+              <a href="/register">Post a Job</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>How to Hire</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Payment Protection</a>
             </div>
             
             <div className="lp-footer-col">
               <h4>For Freelancers</h4>
-              <a href="#">Find Work</a>
-              <a href="#">Create Profile</a>
-              <a href="#">How It Works</a>
-              <a href="#">Pro Membership</a>
+              <a href="/explore">Find Work</a>
+              <a href="/register">Create Profile</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>How It Works</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Pro Membership</a>
             </div>
             
             <div className="lp-footer-col">
               <h4>Company</h4>
-              <a href="#">About Us</a>
-              <a href="#">Careers</a>
-              <a href="#">Press</a>
-              <a href="#">Blog</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>About Us</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Careers</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Press</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Blog</a>
             </div>
             
             <div className="lp-footer-col">
               <h4>Support</h4>
-              <a href="#">Help Center</a>
-              <a href="#">Contact Us</a>
-              <a href="#">Trust & Safety</a>
-              <a href="#">Accessibility</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Help Center</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Contact Us</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Trust & Safety</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Accessibility</a>
             </div>
           </div>
           
           <div className="lp-footer-bottom">
             <p>&copy; 2026 RaketBase. All rights reserved.</p>
             <div className="lp-footer-legal">
-              <a href="#">Privacy</a>
-              <a href="#">Terms</a>
-              <a href="#">Cookies</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Privacy</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Terms</a>
+              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Cookies</a>
             </div>
           </div>
         </div>
       </footer>
 
       {/* 17. Modals */}
-      <Modal isOpen={loginOpen} onClose={() => { setLoginOpen(false); setAuthError(''); setAuthSuccess(''); }} title="Welcome Back">
-        {authSuccess ? (
-          <div className="lp-auth-success">{authSuccess}</div>
-        ) : (
-          <form className="lp-auth-form" onSubmit={(e) => handleAuthSubmit(e, 'login')}>
-            <div className="lp-form-group">
-              <label htmlFor="login-email">Email</label>
-              <input id="login-email" type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} required />
-            </div>
-            <div className="lp-form-group">
-              <label htmlFor="login-password">Password</label>
-              <input id="login-password" type="password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} required minLength="8" />
-            </div>
-            {authError && <div className="lp-auth-error">{authError}</div>}
-            <button type="submit" className="lp-btn-primary lp-btn-full">Log In</button>
-          </form>
-        )}      </Modal>
+      
 
-      <Modal isOpen={signupOpen} onClose={() => { setSignupOpen(false); setAuthError(''); setAuthSuccess(''); }} title="Create an Account">
-        {authSuccess ? (
-          <div className="lp-auth-success">{authSuccess}</div>
-        ) : (
-          <form className="lp-auth-form" onSubmit={(e) => handleAuthSubmit(e, 'signup')}>
-            <div className="lp-form-group">
-              <label htmlFor="signup-name">Full Name</label>
-              <input id="signup-name" type="text" value={authName} onChange={e => setAuthName(e.target.value)} required />
-            </div>
-            <div className="lp-form-group">
-              <label htmlFor="signup-email">Email</label>
-              <input id="signup-email" type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} required />
-            </div>
-            <div className="lp-form-group">
-              <label htmlFor="signup-password">Password</label>
-              <input id="signup-password" type="password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} required minLength="8" />
-              <small>Must be at least 8 characters.</small>
-            </div>
-            {authError && <div className="lp-auth-error">{authError}</div>}
-            <button type="submit" className="lp-btn-primary lp-btn-full">Create Account</button>
-          </form>
-        )}      </Modal>
+      
 
       {/* 18. Cookie Consent */}
       {showCookies && (
@@ -895,6 +785,20 @@ export default function LandingPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

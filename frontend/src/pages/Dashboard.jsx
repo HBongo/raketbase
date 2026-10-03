@@ -355,7 +355,7 @@ export default function Dashboard() {
                       const currentUserId = user.user_id || user.id;
                       const isClient = currentUserId === c.client_id;
                       const partner = isClient ? c.freelancer : c.client;
-                      const partnerRole = isClient ? 'Freelancer' : 'Client';
+                      const partnerRole = isClient ? 'Freelancer' : 'customer';
                       const partnerName = partner ? `${partner.first_name || ''} ${partner.last_name || ''}`.trim() || partner.email : 'Participant';
                       const isMilestoneContract = Array.isArray(c.milestones) && c.milestones.length > 0;
                       const isExpanded = expandedContractId === c.contract_id;
@@ -1050,3 +1050,5 @@ export default function Dashboard() {
     </>
   );
 }
+
+

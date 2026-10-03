@@ -218,12 +218,9 @@ export default function Explore() {
           {/* Synchronized Search Bar */}
           <div className="mb-3">
             <div className="input-group shadow-sm rounded-pill overflow-hidden border bg-white">
-              <span className="input-group-text bg-white border-0 ps-3">
-                <i className="bi bi-search text-muted"></i>
-              </span>
               <input
                 type="text"
-                className="form-control border-0 py-2 ps-2 text-dark bg-white"
+                className="form-control border-0 py-2 ps-4 text-dark bg-white shadow-none" style={{ outline: "none" }}
                 placeholder="Search jobs by title, description, or category keywords..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -232,12 +229,15 @@ export default function Explore() {
                 <button
                   type="button"
                   onClick={() => setQuery('')}
-                  className="btn btn-white border-0 pe-3 text-muted"
+                  className="btn btn-white border-0 text-muted shadow-none"
                   title="Clear search"
                 >
                   <i className="bi bi-x-lg"></i>
                 </button>
               )}
+              <span className="input-group-text bg-white border-0 pe-4">
+                <i className="bi bi-search text-muted"></i>
+              </span>
             </div>
             {query && (
               <div className="small text-muted mb-2 ps-2">
@@ -423,7 +423,7 @@ function RangeField({ label, unit, value, onChange, bounds, onReset }) {
 function JobCard({ job, onOpen }) {
   const categoryName = job.categories?.category_name || 'Uncategorized';
   const posted = formatDate(job.created_at);
-  const clientName = [job.users?.first_name, job.users?.last_name].filter(Boolean).join(' ') || 'Client';
+  const clientName = [job.users?.first_name, job.users?.last_name].filter(Boolean).join(' ') || 'customer';
   const clientInitial = (job.users?.first_name?.[0] || 'C').toUpperCase();
   const avatarUrl = job.users?.client_avatar_url || job.users?.avatar_url;
 
@@ -510,3 +510,7 @@ function formatDate(value) {
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+
+
+
+

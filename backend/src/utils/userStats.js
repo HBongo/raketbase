@@ -85,3 +85,5 @@ async function getAverageAmountForUser(userId, role) {
 }
 
 module.exports = { fetchAllRows, getAverageAmountsByUser, getAverageAmountForUser };
+
+

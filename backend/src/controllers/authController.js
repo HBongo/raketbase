@@ -463,3 +463,5 @@ async function logout(req, res) {
   // For stateless JWTs, we just return a success to confirm the client should proceed with local cleanup.
   res.status(200).json({ message: 'Successfully logged out.' });
 };
+
+

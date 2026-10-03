@@ -106,7 +106,7 @@ export default function Layout() {
   const handleToggleRole = async () => {
     const currentRole = user?.active_role || 'freelancer';
     const newRole = currentRole === 'customer' ? 'freelancer' : 'customer';
-    const targetLabel = newRole === 'customer' ? 'Customer' : 'Freelancer';
+    const targetLabel = newRole === 'customer' ? 'customer' : 'Freelancer';
     try {
       setIsSwitchingRole(true);
       showToast(`Switching to ${targetLabel} Mode...`, { loading: true, duration: 0 });
@@ -292,7 +292,7 @@ export default function Layout() {
             <div className="d-none d-md-block vr mx-1 text-secondary opacity-25" style={{ height: '24px' }}></div>
             <div className="dropdown">
               <button className="navbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <img src={user?.avatar_url || "https://ui-avatars.com/api/?name=User&background=random"} alt="Profile" className="navbar-profile-img" />
+                <img src={user?.avatar_url || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%232CC56F' /%3E%3Ccircle cx='50' cy='38' r='18' fill='%23FFFFFF' /%3E%3Cpath d='M 15 95 C 15 65 85 65 85 95 Z' fill='%23FFFFFF' /%3E%3C/svg%3E"} alt="Profile" className="navbar-profile-img" />
                 <span className="navbar-profile-name d-none d-md-inline">{user?.first_name || 'User'}</span>
                 <i className="bi bi-chevron-down navbar-profile-caret"></i>
               </button>
@@ -304,7 +304,7 @@ export default function Layout() {
                 <li className="d-md-none">
                   <button type="button" className="dropdown-item d-flex align-items-center gap-2 py-2" onClick={handleToggleRole} disabled={isSwitchingRole}>
                     <i className="bi bi-arrow-left-right text-primary"></i>
-                    <span>Switch to {user?.active_role === 'customer' ? 'Freelancer' : 'Customer'} Mode</span>
+                    <span>Switch to {user?.active_role === 'customer' ? 'Freelancer' : 'customer'} Mode</span>
                   </button>
                 </li>
                 <li className="d-md-none"><hr className="dropdown-divider" /></li>
@@ -324,3 +324,8 @@ export default function Layout() {
     </>
   );
 }
+
+
+
+
+

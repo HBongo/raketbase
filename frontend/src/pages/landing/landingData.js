@@ -66,14 +66,14 @@ export const PRICING_DATA = [
 ];
 
 export const TESTIMONIALS = [
-  { quote: 'RaketBase completely transformed how we hire developers. We found an incredible React engineer within 48 hours, and the escrow system gave us total peace of mind.', name: 'David Park', role: 'CTO', company: 'Nimbus Labs', rating: 5, type: 'client' },
+  { quote: 'RaketBase completely transformed how we hire developers. We found an incredible React engineer within 48 hours, and the escrow system gave us total peace of mind.', name: 'David Park', role: 'CTO', company: 'Nimbus Labs', rating: 5, type: 'customer' },
   { quote: 'I\'ve been freelancing for 6 years across multiple platforms. RaketBase has the best client quality and fastest payment processing I\'ve ever experienced.', name: 'Maria Santos', role: 'Brand Designer', company: 'Philippines', rating: 5, type: 'freelancer' },
-  { quote: 'The milestone system keeps both sides accountable. We\'ve completed 15 projects on RaketBase with zero disputes. It just works.', name: 'Alex Thompson', role: 'Product Manager', company: 'ScaleUp Inc.', rating: 5, type: 'client' },
+  { quote: 'The milestone system keeps both sides accountable. We\'ve completed 15 projects on RaketBase with zero disputes. It just works.', name: 'Alex Thompson', role: 'Product Manager', company: 'ScaleUp Inc.', rating: 5, type: 'customer' },
   { quote: 'Switching to Pro was a game-changer. The reduced fees and featured profile doubled my monthly income within the first quarter.', name: 'Kenji Watanabe', role: 'Full-Stack Developer', company: 'Japan', rating: 5, type: 'freelancer' },
-  { quote: 'Finding specialized AI researchers used to take us months. On RaketBase, we got 10 qualified proposals in two days. Outstanding talent pool.', name: 'Sarah Jenkins', role: 'Head of Engineering', company: 'DataFlow', rating: 5, type: 'client' },
+  { quote: 'Finding specialized AI researchers used to take us months. On RaketBase, we got 10 qualified proposals in two days. Outstanding talent pool.', name: 'Sarah Jenkins', role: 'Head of Engineering', company: 'DataFlow', rating: 5, type: 'customer' },
   { quote: 'The built-in contract and messaging tools save me hours of admin work every week. I can just focus on designing, and RaketBase handles the rest.', name: 'Oliver Smith', role: 'UI/UX Freelancer', company: 'UK', rating: 4.9, type: 'freelancer' },
   { quote: 'I was hesitant at first, but the escrow protection makes working with new clients completely risk-free. Highly recommend for any serious freelancer.', name: 'Elena Rostova', role: 'Data Scientist', company: 'Germany', rating: 5, type: 'freelancer' },
-  { quote: 'We scaled our content team from 2 to 15 writers entirely through RaketBase. The talent quality is consistent and top-tier.', name: 'Marcus Chen', role: 'Content Director', company: 'GrowthMedia', rating: 5, type: 'client' },
+  { quote: 'We scaled our content team from 2 to 15 writers entirely through RaketBase. The talent quality is consistent and top-tier.', name: 'Marcus Chen', role: 'Content Director', company: 'GrowthMedia', rating: 5, type: 'customer' },
   { quote: 'After trying every major freelance site, RaketBase is the only one I use now. Their 24/7 support team actually cares about resolving issues quickly.', name: 'Aisha Patel', role: 'Digital Marketer', company: 'India', rating: 4.8, type: 'freelancer' },
 ];
 
@@ -89,5 +89,6 @@ export const FAQS = [
 ];
 
 export const TRUSTED_BY = ['Acme Corp', 'TechFlow', 'StartupX', 'CloudBase', 'InnovateCo', 'DataPrime'];
+
 
 
