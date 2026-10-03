@@ -4,6 +4,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyProposals, withdrawProposal, unwithdrawProposal } from '../services/api';
+import { getCached, setCached } from '../utils/cache';
+import { formatCurrency, getCurrencySymbol } from '../utils/formatters';
 import BackToTop from '../components/BackToTop';
 
 const FILTERS = [
@@ -21,25 +23,47 @@ const STATUS_STYLES = {
   withdrawn: 'badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill',
 };
 
+function ProposalsSkeleton() {
+  return (
+    <div className="d-flex flex-column gap-3">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="card shadow-sm border-0 p-4 bg-white">
+          <div className="d-flex justify-content-between align-items-start mb-2">
+            <div className="skeleton-box" style={{ width: "45%", height: 18 }} />
+            <div className="skeleton-box rounded-pill" style={{ width: 85, height: 24 }} />
+          </div>
+          <div className="skeleton-box mb-3" style={{ width: "25%", height: 16 }} />
+          <div className="skeleton-box mb-2" style={{ width: "100%", height: 12 }} />
+          <div className="skeleton-box" style={{ width: "80%", height: 12 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function MyProposals() {
-  const [proposals, setProposals] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cachedProposals = getCached('my_proposals');
+
+  const [proposals, setProposals] = useState(cachedProposals || []);
+  const [loading, setLoading] = useState(!cachedProposals);
   const [loadError, setLoadError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [actioningId, setActioningId] = useState(null);
   const [actionError, setActionError] = useState('');
 
-  const user = (() => {
-    try { return JSON.parse(localStorage.getItem('user') || '{}'); }
-    catch { return {}; }
-  })();
 
-  async function load() {
-    setLoading(true);
+
+  async function load(isForce = false) {
+    const cached = getCached('my_proposals');
+    if (!cached || isForce) {
+      setLoading(true);
+    }
     setLoadError(null);
     try {
       const res = await getMyProposals();
-      setProposals(res.data || []);
+      const list = res.data || [];
+      setProposals(list);
+      setCached('my_proposals', list);
     } catch (err) {
       setLoadError(err.message || 'Could not load your proposals.');
     } finally {
@@ -85,53 +109,74 @@ export default function MyProposals() {
 
   const visibleProposals = filter === 'all' ? proposals : proposals.filter((p) => p.status === filter);
 
+
+
   return (
     <>
-
-
-        {/* Page Content Here */}
-        <div className="page-header d-flex justify-content-between align-items-center">
-          <div>
-            <h1 className="page-title">My Proposals</h1>
-            <p className="page-subtitle">
-              Track every bid you've sent, and manage the ones still in play.
-            </p>
-          </div>
+      {loading && (
+        <div className="loading-bar-container" style={{ position: "sticky", top: 0, zIndex: 100, margin: "-1rem -1rem 1rem -1rem" }}>
+          <div className="loading-bar-indeterminate" />
         </div>
+      )}
 
-        <div className="row g-4 mb-4">
-          <div className="col-12">
+      {/* Page Content Here */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">My Proposals</h1>
+          <p className="page-subtitle">
+            Track every bid you've sent, and manage the ones still in play.
+          </p>
+        </div>
+      </div>
 
-            {/* Status filter tabs */}
-            <div className="d-flex flex-wrap gap-2 mb-4">
-              {FILTERS.map((f) => {
-                const isActive = filter === f.value;
-                return (
-                  <button
-                    key={f.value}
-                    onClick={() => setFilter(f.value)}
-                    className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium ${
-                      isActive ? 'text-white border-0' : 'btn-outline-secondary'
-                    }`}
-                    style={isActive ? { backgroundColor: '#FF5A1E' } : {}}
-                  >
-                    {f.label}
-                    <span className="ms-2 small opacity-75">{counts[f.value]}</span>
-                  </button>
-                );
-              })}
+      <div className="row g-4 mb-4">
+        <div className="col-12">
+          {/* Status filter tabs */}
+          <div className="d-flex flex-wrap gap-2 mb-4">
+            {FILTERS.map((f) => {
+              const isActive = filter === f.value;
+              return (
+                <button
+                  key={f.value}
+                  onClick={() => setFilter(f.value)}
+                  className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium ${
+                    isActive ? 'text-white border-0' : 'btn-outline-secondary'
+                  }`}
+                  style={isActive ? { backgroundColor: '#FF5A1E' } : {}}
+                >
+                  {f.label}
+                  <span className="ms-2 small opacity-75">{counts[f.value]}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {actionError && (
+            <div className="alert alert-danger py-2 px-3 small rounded-3 mb-4">
+              {actionError}
             </div>
+          )}
 
-            {actionError && (
-              <div className="alert alert-danger py-2 px-3 small rounded-3 mb-4">
-                {actionError}
-              </div>
-            )}
-
-            {loading && <StateCard title="Loading your proposals..." />}
+          {loading && <ProposalsSkeleton />}
 
             {!loading && loadError && (
-              <StateCard title="Couldn't load your proposals" body={loadError} action={{ label: 'Try again', onClick: load }} />
+              <StateCard
+                title={/expired|token/i.test(loadError) ? 'Session Expired' : "Couldn't load your proposals"}
+                body={loadError}
+                action={{
+                  label: /expired|token/i.test(loadError) ? 'Log In Again' : 'Try again',
+                  onClick: () => {
+                    if (/expired|token/i.test(loadError)) {
+                      localStorage.removeItem('token');
+                      localStorage.removeItem('refreshToken');
+                      localStorage.removeItem('user');
+                      window.location.href = '/login?expired=1';
+                    } else {
+                      load();
+                    }
+                  },
+                }}
+              />
             )}
 
             {!loading && !loadError && visibleProposals.length === 0 && (
@@ -212,7 +257,7 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
             </p>
           </div>
           <p className="fs-5 fw-bold text-success mb-0">
-            ₱{Number(proposal.bid_amount || 0).toLocaleString()}
+            {formatCurrency(proposal.bid_amount, proposal.jobs?.currency)}
           </p>
         </div>
 
@@ -265,7 +310,7 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
           <div className="mt-4 pt-3 border-top">
             <div className="mb-3">
               <label className="form-label small fw-medium text-muted mb-1">
-                Your bid (₱)
+                Your bid ({getCurrencySymbol(proposal.jobs?.currency)})
               </label>
               <input
                 type="number"

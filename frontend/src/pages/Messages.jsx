@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   getConversations,
+  getConversation,
   getConversationMessages,
   sendMessage,
   getAttachmentDownloadUrl,
@@ -11,6 +12,7 @@ import {
 import { useCurrentUser } from "../utils/currentUser";
 import { showToast } from "../utils/toast";
 import { supabase } from "../config/supabaseClient";
+import { getCached, setCached } from "../utils/cache";
 
 function formatFileSize(bytes) {
   if (!bytes && bytes !== 0) return "";
@@ -35,6 +37,13 @@ function formatSidebarTime(dateStr) {
 function personName(person) {
   if (!person) return "Participant";
   return [person.first_name, person.last_name].filter(Boolean).join(" ") || person.email || "Participant";
+}
+
+function isImageAttachment(m) {
+  if (!m) return false;
+  if (m.file_mime_type && m.file_mime_type.startsWith("image/")) return true;
+  const name = m.file_name || m.file_path || "";
+  return /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(name);
 }
 
 function getInitials(name) {
@@ -78,8 +87,9 @@ export default function Messages() {
   const { id: selectedId } = useParams();
   const user = useCurrentUser();
 
-  const [conversations, setConversations] = useState([]);
-  const [loadingList, setLoadingList] = useState(true);
+  const cachedConvs = getCached("messages_conversations");
+  const [conversations, setConversations] = useState(cachedConvs || []);
+  const [loadingList, setLoadingList] = useState(!cachedConvs);
   const [active, setActive] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -89,6 +99,8 @@ export default function Messages() {
   const [error, setError] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [previewImage, setPreviewImage] = useState(null);
+  const [attachmentUrls, setAttachmentUrls] = useState({});
 
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
@@ -97,7 +109,9 @@ export default function Messages() {
   const loadConversations = useCallback(async () => {
     try {
       const res = await getConversations();
-      setConversations(res.data || []);
+      const list = res.data || [];
+      setConversations(list);
+      setCached("messages_conversations", list);
     } catch (err) {
       showToast(err.message || "Failed to load conversations");
     } finally {
@@ -114,12 +128,22 @@ export default function Messages() {
   useEffect(() => {
     if (!selectedId) { setActive(null); setMessages([]); return; }
     let cancelled = false;
-    setLoadingMessages(true);
+    const cachedThread = getCached(`thread_${selectedId}`);
+    if (cachedThread) {
+      setMessages(cachedThread);
+      setLoadingMessages(false);
+    } else {
+      setLoadingMessages(true);
+    }
     setError("");
     (async () => {
       try {
         const res = await getConversationMessages(selectedId);
-        if (!cancelled) setMessages(res.data || []);
+        const data = res.data || [];
+        if (!cancelled) {
+          setMessages(data);
+          setCached(`thread_${selectedId}`, data);
+        }
       } catch (err) {
         if (!cancelled) setError(err.message || "Failed to load messages");
       } finally {
@@ -132,7 +156,15 @@ export default function Messages() {
   useEffect(() => {
     if (!selectedId) return;
     const found = conversations.find((c) => c.conversation_id === selectedId);
-    if (found) setActive(found);
+    if (found) {
+      setActive(found);
+    } else {
+      getConversation(selectedId)
+        .then((res) => {
+          if (res?.data) setActive(res.data);
+        })
+        .catch(() => {});
+    }
   }, [selectedId, conversations]);
 
   useEffect(() => {
@@ -153,6 +185,27 @@ export default function Messages() {
     return () => { supabase.removeChannel(channel); };
   }, [selectedId, user, loadConversations]);
 
+  // Preload signed URLs for attachments if not returned as direct public file_url
+  useEffect(() => {
+    if (!selectedId || messages.length === 0) return;
+    const needUrls = messages.filter(
+      (m) => m.file_path && !m.file_url && !attachmentUrls[m.message_id]
+    );
+    if (needUrls.length === 0) return;
+
+    needUrls.forEach(async (m) => {
+      try {
+        const res = await getAttachmentDownloadUrl(selectedId, m.message_id);
+        const url = res.data?.url || res.data?.downloadUrl;
+        if (url) {
+          setAttachmentUrls((prev) => ({ ...prev, [m.message_id]: url }));
+        }
+      } catch {
+        // ignore attachment url fetch error
+      }
+    });
+  }, [selectedId, messages, attachmentUrls]);
+
   useEffect(() => {
     if (bottomRef.current && !loadingMessages) {
       bottomRef.current.scrollIntoView({ behavior: "smooth" });
@@ -166,7 +219,11 @@ export default function Messages() {
     setError("");
     try {
       const res = await sendMessage(selectedId, { content: text.trim(), file: pendingFile });
-      setMessages((prev) => (prev.some((m) => m.message_id === res.data.message_id) ? prev : [...prev, res.data]));
+      setMessages((prev) => {
+        const next = prev.some((m) => m.message_id === res.data.message_id) ? prev : [...prev, res.data];
+        setCached(`thread_${selectedId}`, next);
+        return next;
+      });
       setText("");
       setPendingFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -182,10 +239,15 @@ export default function Messages() {
   const handleDownload = async (msg) => {
     if (!msg.file_path) return;
     try {
-      const res = await getAttachmentDownloadUrl(selectedId, msg.message_id);
+      let downloadUrl = msg.file_url || attachmentUrls[msg.message_id];
+      if (!downloadUrl) {
+        const res = await getAttachmentDownloadUrl(selectedId, msg.message_id);
+        downloadUrl = res.data?.downloadUrl || res.data?.url;
+      }
+      if (!downloadUrl) throw new Error("Could not retrieve download link");
       const link = document.createElement("a");
-      link.href = res.data.downloadUrl;
-      link.download = msg.file_name;
+      link.href = downloadUrl;
+      link.download = msg.file_name || "download";
       link.target = "_blank";
       document.body.appendChild(link);
       link.click();
@@ -230,8 +292,8 @@ export default function Messages() {
     e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
   };
 
-  const isClient = active?.client_id === user?.user_id;
-  const isFreelancer = active?.freelancer_id === user?.user_id;
+  const isClient = active?.client_id === (user?.user_id || user?.id);
+  const isFreelancer = active?.freelancer_id === (user?.user_id || user?.id);
   const isParticipant = isClient || isFreelancer;
   const other = isClient ? active?.freelancer : active?.client;
   const contractStatus = active?.contracts?.status;
@@ -243,7 +305,7 @@ export default function Messages() {
   const filteredConversations = conversations.filter((c) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    const amClient = c.client_id === user?.user_id;
+    const amClient = c.client_id === (user?.user_id || user?.id);
     const them = amClient ? c.freelancer : c.client;
     const label = [them?.first_name, them?.last_name].filter(Boolean).join(" ") || them?.email || "";
     return (c.title || "").toLowerCase().includes(q) || label.toLowerCase().includes(q);
@@ -305,16 +367,8 @@ export default function Messages() {
         .file-bubble-btn-theirs { background: #F4F6F5; color: #0B130F; }
         .file-bubble-btn-theirs:hover { background: #E9EFEF; }
         .deletion-banner { background: #FFF8F0; border-bottom: 1px solid #FDD9B0; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-        .msg-sidebar-header { }
-        .msg-sidebar-title { color: #0B130F; }
-        .msg-sidebar-sub { color: #6C7E75; }
-        .chat-header-name { color: #0B130F; }
-        .chat-header-sub { color: #6C7E75; }
-        .empty-state-circle { background: #fff; }
-        .empty-state-title { color: #0B130F; }
-        .empty-state-sub { color: #6C7E75; }
 
-        /* Messages Dark Mode */
+        /* Dark Mode overrides for Messages */
         body.dark-mode .msg-sidebar { background: #1A2420 !important; border-right-color: #2A3832 !important; }
         body.dark-mode .msg-sidebar-header { border-bottom-color: #2A3832 !important; }
         body.dark-mode .msg-sidebar-title { color: #E8EDEB !important; }
@@ -394,7 +448,7 @@ export default function Messages() {
               ) : (
                 filteredConversations.map((c) => {
                   const isActiveConv = c.conversation_id === selectedId;
-                  const amClient = c.client_id === user?.user_id;
+                  const amClient = c.client_id === (user?.user_id || user?.id);
                   const them = amClient ? c.freelancer : c.client;
                   const label = [them?.first_name, them?.last_name].filter(Boolean).join(" ") || them?.email || "User";
                   return (
@@ -520,7 +574,10 @@ export default function Messages() {
                           </div>
                         );
                       }
-                      const mine = m.sender_id === user?.user_id;
+                      const mine = m.sender_id === (user?.user_id || user?.id);
+                      const imageUrl = m.file_url || attachmentUrls[m.message_id];
+                      const isImg = isImageAttachment(m);
+
                       return (
                         <div key={m.message_id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start", alignItems: "flex-end", gap: "8px" }}>
                           {!mine && (
@@ -530,16 +587,72 @@ export default function Messages() {
                             {m.content && (
                               <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.55", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.content}</p>
                             )}
+
                             {m.file_path && (
-                              <button
-                                onClick={() => handleDownload(m)}
-                                className={`file-bubble-btn ${mine ? "file-bubble-btn-mine" : "file-bubble-btn-theirs"}`}
-                              >
-                                <i className="bi bi-file-earmark-arrow-down" style={{ fontSize: "16px" }}></i>
-                                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.file_name}</span>
-                                <span style={{ opacity: 0.6, fontSize: "11px" }}>{formatFileSize(m.file_size)}</span>
-                              </button>
+                              isImg ? (
+                                <div style={{ marginTop: "8px" }}>
+                                  <div
+                                    style={{
+                                      maxWidth: "320px",
+                                      borderRadius: "10px",
+                                      overflow: "hidden",
+                                      cursor: "pointer",
+                                      backgroundColor: mine ? "rgba(255,255,255,0.08)" : "#f0f2f2",
+                                      border: mine ? "1px solid rgba(255,255,255,0.15)" : "1px solid #E9EFEF"
+                                    }}
+                                    onClick={() => {
+                                      if (imageUrl) setPreviewImage({ url: imageUrl, name: m.file_name });
+                                    }}
+                                    title="Click to view full image"
+                                  >
+                                    {imageUrl ? (
+                                      <img
+                                        src={imageUrl}
+                                        alt={m.file_name || "Screenshot"}
+                                        style={{
+                                          width: "100%",
+                                          maxHeight: "240px",
+                                          objectFit: "contain",
+                                          display: "block",
+                                        }}
+                                        loading="lazy"
+                                      />
+                                    ) : (
+                                      <div style={{ padding: "20px", textAlign: "center", color: mine ? "#fff" : "#6C7E75", fontSize: "12px" }}>
+                                        <div className="spinner-border spinner-border-sm me-1" role="status"></div>
+                                        <span>Loading screenshot...</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px", fontSize: "11px", opacity: 0.75 }}>
+                                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "200px" }}>
+                                      {m.file_name} {m.file_size ? `· ${formatFileSize(m.file_size)}` : ""}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDownload(m);
+                                      }}
+                                      style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 4px" }}
+                                      title="Download image"
+                                    >
+                                      <i className="bi bi-download"></i>
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleDownload(m)}
+                                  className={`file-bubble-btn ${mine ? "file-bubble-btn-mine" : "file-bubble-btn-theirs"}`}
+                                >
+                                  <i className="bi bi-file-earmark-arrow-down" style={{ fontSize: "16px" }}></i>
+                                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.file_name}</span>
+                                  <span style={{ opacity: 0.6, fontSize: "11px" }}>{formatFileSize(m.file_size)}</span>
+                                </button>
+                              )
                             )}
+
                             <div className="bubble-time">{formatClock(m.created_at)}</div>
                           </div>
                           {mine && (
@@ -582,6 +695,9 @@ export default function Messages() {
                           if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(e); }
                         }}
                         placeholder="Type a message... (Shift+Enter for new line)"
+                        style={{ flexGrow: 1, background: "#F4F6F5", border: "1.5px solid #E9EFEF", borderRadius: "14px", padding: "10px 16px", fontSize: "14px", resize: "none", outline: "none", minHeight: "44px", maxHeight: "140px", overflowY: "auto", transition: "all 0.2s", fontFamily: "inherit" }}
+                        onFocus={(e) => { e.target.style.background = "#fff"; e.target.style.borderColor = "#B4F105"; e.target.style.boxShadow = "0 0 0 3px rgba(180,241,5,0.12)"; }}
+                        onBlur={(e) => { e.target.style.background = "#F4F6F5"; e.target.style.borderColor = "#E9EFEF"; e.target.style.boxShadow = "none"; }}
                       />
                       <button type="submit" disabled={sending || (!text.trim() && !pendingFile)} className="send-btn" title="Send message">
                         {sending ? <span className="spinner-border spinner-border-sm" style={{ color: "#B4F105" }} role="status"></span> : <i className="bi bi-send-fill"></i>}
@@ -594,6 +710,62 @@ export default function Messages() {
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Image Preview Lightbox */}
+      {previewImage && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.88)",
+            zIndex: 2000,
+            backdropFilter: "blur(6px)",
+          }}
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="position-absolute top-0 end-0 p-3 d-flex gap-2" onClick={(e) => e.stopPropagation()}>
+            <a
+              href={previewImage.url}
+              download={previewImage.name || "image"}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-outline-light rounded-pill btn-sm px-3 d-flex align-items-center gap-1.5"
+            >
+              <i className="bi bi-download"></i> Download
+            </a>
+            <button
+              type="button"
+              className="btn btn-light rounded-circle btn-sm d-flex align-items-center justify-content-center"
+              style={{ width: 34, height: 34 }}
+              onClick={() => setPreviewImage(null)}
+              title="Close preview"
+            >
+              <i className="bi bi-x-lg"></i>
+            </button>
+          </div>
+
+          <div
+            className="d-flex flex-column align-items-center"
+            style={{ maxWidth: "92vw", maxHeight: "88vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={previewImage.url}
+              alt={previewImage.name || "Preview"}
+              className="rounded shadow-lg"
+              style={{
+                maxWidth: "100%",
+                maxHeight: "82vh",
+                objectFit: "contain",
+              }}
+            />
+            {previewImage.name && (
+              <span className="text-white-50 small mt-2 text-truncate" style={{ maxWidth: "80vw" }}>
+                {previewImage.name}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

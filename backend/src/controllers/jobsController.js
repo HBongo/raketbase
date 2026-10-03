@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../config/supabase');
 const { getRatingSummaries, emptySummary } = require('../utils/ratings');
+const { validateJobInput } = require('../utils/slopFilter');
 
 // GET /api/v1/jobs - Fetch all jobs (with optional category filtering).
 // Open jobs come first (newest first); assigned/completed jobs follow so the
@@ -10,7 +11,7 @@ exports.getAllJobs = async (req, res) => {
 
     let query = supabaseAdmin
       .from('jobs')
-      .select('*, categories(category_name), users!jobs_client_id_fkey(first_name, last_name)')
+      .select('*, categories(category_name), users!jobs_client_id_fkey(user_id, first_name, last_name, client_avatar_url, avatar_url)')
       .order('created_at', { ascending: false });
 
     if (category_id) {
@@ -54,7 +55,7 @@ exports.getJobById = async (req, res) => {
 
     const { data: job, error } = await supabaseAdmin
       .from('jobs')
-      .select('*, categories(category_name), users!jobs_client_id_fkey(first_name, last_name, email, client_avatar_url)')
+      .select('*, categories(category_name), users!jobs_client_id_fkey(user_id, first_name, last_name, email, client_avatar_url, avatar_url)')
       .eq('job_id', id)
       .single();
 
@@ -111,43 +112,98 @@ exports.createJob = async (req, res) => {
       });
     }
 
-    const { title, description, category_id, budget_type, budget, deadline } = req.body;
+    const { title, description, category_id, custom_category, budget_type, budget, deadline, currency } = req.body;
     const client_id = req.user.id;
 
-    if (!title || title.length < 10) {
-      return res.status(400).json({ success: false, error: 'Title is required and must be at least 10 characters.' });
+    // Phase 0 Anti-Slop & Input Sanitization
+    const validation = validateJobInput({
+      title,
+      description,
+      budget,
+      currency: currency || 'PHP',
+    });
+
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: validation.errors[0],
+        errors: validation.errors,
+      });
     }
 
     if (!category_id) {
       return res.status(400).json({ success: false, error: 'Category selection is required.' });
     }
 
-    if (!budget || Number(budget) <= 0) {
-      return res.status(400).json({ success: false, error: 'Budget must be a positive number greater than 0.' });
+    let finalCategoryId = category_id;
+    if (custom_category && typeof custom_category === 'string' && custom_category.trim()) {
+      const trimmedCat = custom_category.trim();
+      if (/<[^>]*>/.test(trimmedCat)) {
+        return res.status(400).json({ success: false, error: 'Category name cannot contain HTML tags.' });
+      }
+
+      // Check if this category name already exists (case-insensitive)
+      const { data: existingCat } = await supabaseAdmin
+        .from('categories')
+        .select('category_id, category_name')
+        .ilike('category_name', trimmedCat)
+        .maybeSingle();
+
+      if (existingCat) {
+        finalCategoryId = existingCat.category_id;
+      } else {
+        const { data: newCat, error: newCatErr } = await supabaseAdmin
+          .from('categories')
+          .insert([{
+            category_name: trimmedCat,
+            description: `Others: ${trimmedCat}`,
+          }])
+          .select()
+          .single();
+
+        if (newCatErr) throw newCatErr;
+        finalCategoryId = newCat.category_id;
+      }
     }
 
     if (deadline && new Date(deadline).getTime() <= Date.now()) {
       return res.status(400).json({ success: false, error: 'Deadline must be a future date.' });
     }
 
-    const { data: job, error } = await supabaseAdmin
+    const insertPayload = {
+      client_id,
+      title: title.trim(),
+      description: description.trim(),
+      category_id: finalCategoryId,
+      budget_type: budget_type || 'fixed',
+      budget: Number(budget),
+      deadline: deadline || null,
+      status: 'open',
+    };
+
+    if (currency) {
+      insertPayload.currency = currency;
+    }
+
+    let job;
+    let insertRes = await supabaseAdmin
       .from('jobs')
-      .insert([
-        {
-          client_id,
-          title,
-          description,
-          category_id,
-          budget_type: budget_type || 'fixed',
-          budget,
-          deadline,
-          status: 'open'
-        }
-      ])
+      .insert([insertPayload])
       .select()
       .single();
 
-    if (error) throw error;
+    if (insertRes.error && insertRes.error.message && insertRes.error.message.includes('currency')) {
+      // Fallback if jobs.currency migration has not run yet in live DB
+      delete insertPayload.currency;
+      insertRes = await supabaseAdmin
+        .from('jobs')
+        .insert([insertPayload])
+        .select()
+        .single();
+    }
+
+    if (insertRes.error) throw insertRes.error;
+    job = insertRes.data;
 
     return res.status(201).json({ success: true, data: job });
   } catch (error) {

@@ -111,6 +111,33 @@ exports.listMessages = async (req, res) => {
 
     if (error) throw error;
 
+    // Attach signed preview URLs for all messages with attachments
+    const filesToSign = (messages || []).filter((m) => m.file_path);
+    if (filesToSign.length > 0) {
+      try {
+        const paths = filesToSign.map((m) => m.file_path);
+        const { data: signedList } = await supabaseAdmin.storage
+          .from(CHAT_BUCKET)
+          .createSignedUrls(paths, 86400);
+
+        const urlMap = {};
+        (signedList || []).forEach((item) => {
+          if (item && item.path && item.signedUrl) {
+            urlMap[item.path] = item.signedUrl;
+          }
+        });
+
+        const enriched = (messages || []).map((m) => ({
+          ...m,
+          file_url: m.file_path ? (urlMap[m.file_path] || null) : null,
+        }));
+
+        return res.status(200).json({ success: true, data: enriched });
+      } catch (signErr) {
+        console.error('Failed to batch sign URLs:', signErr);
+      }
+    }
+
     return res.status(200).json({ success: true, data: messages || [] });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -174,6 +201,15 @@ exports.sendMessage = async (req, res) => {
       throw error;
     }
 
+    if (message.file_path) {
+      try {
+        const { data: signed } = await supabaseAdmin.storage
+          .from(CHAT_BUCKET)
+          .createSignedUrl(message.file_path, 86400);
+        message.file_url = signed?.signedUrl || null;
+      } catch {}
+    }
+
     return res.status(201).json({ success: true, data: message });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -205,11 +241,14 @@ exports.getAttachmentUrl = async (req, res) => {
 
     const { data: signed, error: signError } = await supabaseAdmin.storage
       .from(CHAT_BUCKET)
-      .createSignedUrl(message.file_path, 60);
+      .createSignedUrl(message.file_path, 3600);
 
     if (signError) throw signError;
 
-    return res.status(200).json({ success: true, data: { url: signed.signedUrl } });
+    return res.status(200).json({
+      success: true,
+      data: { url: signed.signedUrl, downloadUrl: signed.signedUrl },
+    });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }

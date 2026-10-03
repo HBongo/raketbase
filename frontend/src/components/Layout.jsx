@@ -1,9 +1,41 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams, Outlet } from 'react-router-dom';
+import { clearCached } from '../utils/cache';
+import { switchRole } from '../services/api';
+import { showToast } from '../utils/toast';
 
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const qParam = searchParams.get('q') || '';
+  const [navSearch, setNavSearch] = useState(qParam);
+  const [prevQ, setPrevQ] = useState(qParam);
+
+  if (prevQ !== qParam) {
+    setPrevQ(qParam);
+    setNavSearch(qParam);
+  }
+
+  function handleSearchSubmit(e) {
+    e.preventDefault();
+    const q = navSearch.trim();
+    if (location.pathname.startsWith('/top-users')) {
+      navigate(q ? `/top-users?q=${encodeURIComponent(q)}` : '/top-users');
+    } else {
+      navigate(q ? `/explore?q=${encodeURIComponent(q)}` : '/explore');
+    }
+  }
+
+  function handleSearchChange(e) {
+    const val = e.target.value;
+    setNavSearch(val);
+    if (location.pathname.startsWith('/explore')) {
+      navigate(val.trim() ? `/explore?q=${encodeURIComponent(val)}` : '/explore', { replace: true });
+    } else if (location.pathname.startsWith('/top-users')) {
+      navigate(val.trim() ? `/top-users?q=${encodeURIComponent(val)}` : '/top-users', { replace: true });
+    }
+  }
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false);
@@ -34,6 +66,7 @@ export default function Layout() {
   };
 
   const isProfileActive = location.pathname.startsWith('/freelancer') || location.pathname.startsWith('/profile');
+  const isExploreActive = location.pathname.startsWith('/explore') || (location.pathname.startsWith('/jobs') && !location.pathname.startsWith('/jobs/create'));
 
   useEffect(() => {
     if (isSidebarMinimized) {
@@ -68,14 +101,41 @@ export default function Layout() {
     }
   };
 
+  const [isSwitchingRole, setIsSwitchingRole] = useState(false);
+
+  const handleToggleRole = async () => {
+    const currentRole = user?.active_role || 'freelancer';
+    const newRole = currentRole === 'customer' ? 'freelancer' : 'customer';
+    const targetLabel = newRole === 'customer' ? 'Customer' : 'Freelancer';
+    try {
+      setIsSwitchingRole(true);
+      showToast(`Switching to ${targetLabel} Mode...`, { loading: true, duration: 0 });
+      await switchRole(newRole);
+      const updatedUser = { ...user, active_role: newRole };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+
+      // Redirect if the current page is role-restricted
+      if (newRole === 'freelancer' && (location.pathname.startsWith('/jobs/create') || location.pathname.startsWith('/my-jobs'))) {
+        window.location.href = '/explore';
+      } else if (newRole === 'customer' && location.pathname.startsWith('/my-proposals')) {
+        window.location.href = '/dashboard';
+      } else {
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Failed to switch role:', err);
+      showToast(err.message || 'Failed to switch role', 4000);
+      setIsSwitchingRole(false);
+    }
+  };
+
   return (
     <>
       <div className={`sidebar-wrapper ${isMobileSidebarOpen ? 'show' : ''}`} id="sidebar">
-        <Link to="/" className="sidebar-brand text-decoration-none d-flex align-items-center gap-2" style={{ padding: '10px 0' }}>
-          <img src="/racketbaseSVG.svg" alt="RaketBase Logo" style={{ height: '36px', objectFit: 'contain', marginTop: '-4px' }} />
-          <div className="sidebar-brand-text" style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '20px', color: '#fff', letterSpacing: '0.5px', display: 'flex', alignItems: 'center' }}>
-            <span style={{ fontWeight: 800 }}>RAKET</span>
-            <span style={{ fontWeight: 400 }}>BASE</span>
+        <Link to="/dashboard" className="sidebar-brand text-decoration-none d-flex align-items-center gap-1" style={{ padding: '10px 0' }}>
+          <img src="/racketbaseSVG.svg" alt="RaketBase Logo" className="logo-shake" style={{ height: '48px', objectFit: 'contain', marginTop: '-8px' }} />
+          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '23px', color: '#fff', letterSpacing: '0.5px', display: 'flex', alignItems: 'center' }}>
+            <span style={{ fontWeight: 800 }}>RAKET</span><span style={{ fontWeight: 400 }}>BASE</span>
           </div>
         </Link>
         <div className="flex-grow-1 overflow-y-auto mt-4">
@@ -108,7 +168,7 @@ export default function Layout() {
             <div className="sidebar-menu-title">Jobs</div>
             <ul className="sidebar-menu-list">
               <li className="sidebar-menu-item">
-                <Link to="/explore" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isActive('/explore') || isActive('/jobs') ? 'active' : ''}`}>
+                <Link to="/explore" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isExploreActive ? 'active' : ''}`}>
                   <i className="bi bi-search"></i><span>Explore Jobs</span>
                 </Link>
               </li>
@@ -122,7 +182,7 @@ export default function Layout() {
               {user.active_role === 'customer' && (
                 <>
                   <li className="sidebar-menu-item">
-                    <Link to="/my-jobs" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isActive('/my-jobs') && !isActive('/jobs/create') ? 'active' : ''}`}>
+                    <Link to="/my-jobs" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isActive('/my-jobs')}`}>
                       <i className="bi bi-briefcase"></i><span>My Postings</span>
                     </Link>
                   </li>
@@ -156,27 +216,68 @@ export default function Layout() {
             <button className="sidebar-toggle-btn me-2 d-xl-none" id="sidebar-toggle" onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}>
               <i className="bi bi-list"></i>
             </button>
+            {(location.pathname.includes('/messages') || location.pathname.includes('/explore/') || location.pathname.includes('/jobs/') || location.pathname.includes('/profile/') || location.pathname.includes('/my-jobs/')) && (
+              <button className="btn btn-light rounded-pill px-3 ms-2 d-none d-md-flex align-items-center" onClick={() => navigate(-1)}>
+                <i className="bi bi-arrow-left me-1"></i> Back
+              </button>
+            )}
           </div>
 
           <div className="navbar-search-wrapper mx-3">
-            {(location.pathname.includes('/explore') || location.pathname.includes('/top-users') || location.pathname.includes('/messages') || location.pathname.includes('/my-proposals')) && (
-              <>
-                <input type="text" className="navbar-search-input" placeholder="Search..." />
-                <button className="navbar-search-btn"><i className="bi bi-search"></i></button>
-              </>
+            {!location.pathname.startsWith('/explore') &&
+             (location.pathname.includes('/top-users') || location.pathname.includes('/messages') || location.pathname.includes('/my-proposals')) && (
+              <form onSubmit={handleSearchSubmit} className="d-flex align-items-center w-100 position-relative">
+                <input
+                  type="text"
+                  className="navbar-search-input"
+                  placeholder="Search open jobs, keywords, skills..."
+                  value={navSearch}
+                  onChange={handleSearchChange}
+                />
+                <button type="submit" className="navbar-search-btn" aria-label="Search">
+                  <i className="bi bi-search"></i>
+                </button>
+              </form>
             )}
           </div>
 
           <div className="navbar-actions d-flex align-items-center gap-3">
-            <button className="navbar-action-btn d-flex align-items-center justify-content-center" onClick={() => setIsDarkMode(!isDarkMode)} aria-label="Toggle Dark Mode" title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+            <button
+              type="button"
+              className="navbar-action-btn d-flex align-items-center justify-content-center"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              aria-label="Toggle Dark Mode"
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
               <i className={isDarkMode ? "bi bi-sun-fill" : "bi bi-moon-fill"}></i>
             </button>
-            <button className="navbar-action-btn me-1 d-none d-md-flex align-items-center justify-content-center" onClick={toggleFullscreen} aria-label="Toggle Fullscreen">
+            <button
+              className="navbar-action-btn me-1 d-none d-md-flex align-items-center justify-content-center"
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            >
               <i className={isFullscreen ? "bi bi-fullscreen-exit" : "bi bi-arrows-fullscreen"}></i>
             </button>
-            <div className="d-none d-md-flex align-items-center gap-2 px-3 py-1 bg-light rounded-pill border">
-              <span className="small text-muted fw-medium text-capitalize">{user?.active_role || 'freelancer'} Mode</span>
-            </div>
+            <button
+              type="button"
+              className="navbar-role-btn btn btn-sm btn-light border rounded-pill px-3 py-1 d-none d-md-flex align-items-center gap-2 text-decoration-none shadow-none"
+              title={`Currently in ${user?.active_role || 'freelancer'} mode. Click to switch to ${user?.active_role === 'customer' ? 'freelancer' : 'customer'} mode.`}
+              onClick={handleToggleRole}
+              disabled={isSwitchingRole}
+              aria-label={`Switch mode, currently ${user?.active_role || 'freelancer'} mode`}
+            >
+              {isSwitchingRole ? (
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: '0.85rem', height: '0.85rem', color: '#FF5A1E', borderWidth: '2px' }}></span>
+              ) : (
+                <i className={`bi ${user?.active_role === 'customer' ? 'bi-briefcase-fill text-primary' : 'bi-person-badge-fill text-success'}`}></i>
+              )}
+              <span className="navbar-role-btn-text small fw-medium text-capitalize">
+                {isSwitchingRole ? 'Switching...' : `${user?.active_role || 'freelancer'} Mode`}
+              </span>
+              <i className="navbar-role-btn-icon bi bi-arrow-left-right" style={{ fontSize: '0.75rem' }}></i>
+            </button>
+            <div className="d-none d-md-block vr mx-1 text-secondary opacity-25" style={{ height: '24px' }}></div>
             <div className="dropdown">
               <button className="navbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <img src={user?.avatar_url || "https://ui-avatars.com/api/?name=User&background=random"} alt="Profile" className="navbar-profile-img" />
@@ -188,10 +289,17 @@ export default function Layout() {
                   <div className="fw-bold text-dark text-truncate" title={`${user?.first_name || 'User'} ${user?.last_name || ''}`}>{user?.first_name || 'User'} {user?.last_name || ''}</div>
                   <div className="small text-muted text-truncate" title={user?.email || 'user@example.com'}>{user?.email || 'user@example.com'}</div>
                 </li>
+                <li className="d-md-none">
+                  <button type="button" className="dropdown-item d-flex align-items-center gap-2 py-2" onClick={handleToggleRole} disabled={isSwitchingRole}>
+                    <i className="bi bi-arrow-left-right text-primary"></i>
+                    <span>Switch to {user?.active_role === 'customer' ? 'Freelancer' : 'Customer'} Mode</span>
+                  </button>
+                </li>
+                <li className="d-md-none"><hr className="dropdown-divider" /></li>
                 <li><Link className="dropdown-item" to={`/profile/${user?.user_id || user?.id}`}><i className="bi bi-person"></i> My Profile</Link></li>
                 <li><Link className="dropdown-item" to="#"><i className="bi bi-gear"></i> Settings</Link></li>
                 <li><hr className="dropdown-divider" /></li>
-                <li><Link className="dropdown-item text-danger" to="/login" onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); }}><i className="bi bi-box-arrow-right"></i> Logout</Link></li>
+                <li><Link className="dropdown-item text-danger" to="/login" onClick={() => { clearCached(); localStorage.removeItem('token'); localStorage.removeItem('user'); }}><i className="bi bi-box-arrow-right"></i> Logout</Link></li>
               </ul>
             </div>
           </div>

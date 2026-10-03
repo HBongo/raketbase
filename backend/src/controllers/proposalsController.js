@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../config/supabase');
 const { getRatingSummaries, emptySummary } = require('../utils/ratings');
+const { validateProposalInput } = require('../utils/slopFilter');
 
 // POST /api/v1/proposals - Submit a proposal for a job
 // For a 'milestone' budget_type job, `milestones` (an array of { title, amount })
@@ -19,10 +20,10 @@ exports.createProposal = async (req, res) => {
       });
     }
 
-    if (!job_id || !cover_letter) {
+    if (!job_id) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: job_id and cover_letter'
+        error: 'Missing required field: job_id',
       });
     }
 
@@ -51,6 +52,21 @@ exports.createProposal = async (req, res) => {
     }
 
     const isMilestoneJob = job.budget_type === 'milestone';
+
+    // Phase 0 Anti-Slop & Input Sanitization
+    const validation = validateProposalInput({
+      cover_letter,
+      bid_amount: isMilestoneJob ? undefined : bid_amount,
+    });
+
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: validation.errors[0],
+        errors: validation.errors,
+      });
+    }
+
     let finalBidAmount = bid_amount;
     let cleanMilestones = [];
 

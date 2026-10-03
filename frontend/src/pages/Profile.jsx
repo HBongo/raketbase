@@ -6,23 +6,77 @@
 // 4. Add/remove experience & education entries
 // 5. Spark Admin layout (sidebar + navbar)
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { getFreelancerProfile, updateProfile } from '../services/api';
-import { supabase } from '../config/supabaseClient';
+import { getCached, setCached } from '../utils/cache';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&auto=format&fit=crop';
 
+function buildFormFromProfile(p) {
+  if (!p) return {};
+  return {
+    first_name: p.first_name || '',
+    last_name: p.last_name || '',
+    title: p.title || '',
+    phone: p.phone || '',
+    location: p.location || '',
+    hourly_rate: p.hourly_rate || '',
+    bio: p.bio || '',
+    skills: Array.isArray(p.skills) ? p.skills.join(', ') : (p.skills || ''),
+    linkedin_url: p.linkedin_url || '',
+    github_url: p.github_url || '',
+    website_url: p.website_url || '',
+    experience: Array.isArray(p.experience) ? p.experience : [],
+    education: Array.isArray(p.education) ? p.education : [],
+  };
+}
+
+function ProfileSkeleton() {
+  return (
+    <div className="row g-4 px-3 mb-4">
+      {/* Left Column Skeleton */}
+      <div className="col-12 col-md-4">
+        <div className="card shadow-sm border-0 mb-4 p-4 text-center bg-white">
+          <div className="skeleton-box rounded-circle mx-auto mb-3" style={{ width: 140, height: 140 }} />
+          <div className="skeleton-box mx-auto mb-2" style={{ width: "60%", height: 22 }} />
+          <div className="skeleton-box mx-auto mb-3" style={{ width: "40%", height: 14 }} />
+          <div className="skeleton-box mx-auto mb-4" style={{ width: "80%", height: 12 }} />
+          <div className="d-flex justify-content-center gap-2">
+            <div className="skeleton-box rounded-pill" style={{ width: 100, height: 36 }} />
+          </div>
+        </div>
+      </div>
+      {/* Right Column Skeleton */}
+      <div className="col-12 col-md-8">
+        <div className="card shadow-sm border-0 mb-4 p-4 bg-white">
+          <div className="skeleton-box mb-4" style={{ width: "30%", height: 20 }} />
+          <div className="skeleton-box mb-2" style={{ width: "100%", height: 14 }} />
+          <div className="skeleton-box mb-2" style={{ width: "95%", height: 14 }} />
+          <div className="skeleton-box mb-4" style={{ width: "70%", height: 14 }} />
+          <div className="skeleton-box mb-3" style={{ width: "25%", height: 18 }} />
+          <div className="d-flex flex-wrap gap-2 mb-4">
+            <div className="skeleton-box rounded-pill" style={{ width: 80, height: 28 }} />
+            <div className="skeleton-box rounded-pill" style={{ width: 100, height: 28 }} />
+            <div className="skeleton-box rounded-pill" style={{ width: 70, height: 28 }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Profile() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const cachedProfile = getCached(`profile_${id}`);
+
+  const [profile, setProfile] = useState(cachedProfile || null);
+  const [loading, setLoading] = useState(!cachedProfile);
   const [loadError, setLoadError] = useState(null);
 
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState(cachedProfile ? buildFormFromProfile(cachedProfile) : {});
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -34,19 +88,23 @@ export default function Profile() {
     catch { return {}; }
   })();
 
-  const isOwnProfile = user.user_id === id;
+  const isOwnProfile = (user.user_id || user.id) === id;
 
   // Load profile data
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      setLoading(true);
+      const cached = getCached(`profile_${id}`);
+      if (!cached) {
+        setLoading(true);
+      }
       setLoadError(null);
       try {
         const res = await getFreelancerProfile(id);
         if (!cancelled && res.success) {
           setProfile(res.data);
           setForm(buildFormFromProfile(res.data));
+          setCached(`profile_${id}`, res.data);
         }
       } catch (err) {
         if (!cancelled) setLoadError(err.message || 'Could not load profile.');
@@ -58,23 +116,7 @@ export default function Profile() {
     return () => { cancelled = true; };
   }, [id]);
 
-  function buildFormFromProfile(p) {
-    return {
-      first_name: p.first_name || '',
-      last_name: p.last_name || '',
-      title: p.title || '',
-      phone: p.phone || '',
-      location: p.location || '',
-      hourly_rate: p.hourly_rate || '',
-      bio: p.bio || '',
-      skills: Array.isArray(p.skills) ? p.skills.join(', ') : (p.skills || ''),
-      linkedin_url: p.linkedin_url || '',
-      github_url: p.github_url || '',
-      website_url: p.website_url || '',
-      experience: Array.isArray(p.experience) ? p.experience : [],
-      education: Array.isArray(p.education) ? p.education : [],
-    };
-  }
+
 
   function handleChange(field, value) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -145,7 +187,7 @@ export default function Profile() {
           const base64String = reader.result;
           
           // Send to backend
-          const res = await updateProfile({
+          await updateProfile({
             avatar_base64: base64String,
             avatar_ext: ext
           });
@@ -201,7 +243,7 @@ export default function Profile() {
         education: form.education,
       };
 
-      const res = await updateProfile(payload);
+      await updateProfile(payload);
       // Refresh profile data
       const refreshed = await getFreelancerProfile(id);
       if (refreshed.success) {
@@ -239,46 +281,47 @@ export default function Profile() {
   const experienceArr = Array.isArray(f.experience) ? f.experience : [];
   const educationArr = Array.isArray(f.education) ? f.education : [];
 
+
+
   return (
     <>
-
-
-        <div className="page-header d-flex justify-content-between align-items-center">
-          <div>
-            <h1 className="page-title">Freelancer Profile</h1>
-            <p className="page-subtitle">View skills, experience, and portfolio details.</p>
-          </div>
-          {isOwnProfile && !editing && (
-            <button className="btn btn-dark rounded-pill px-4 fw-medium" onClick={() => setEditing(true)}>
-              <i className="bi bi-pencil-square me-2"></i>Edit Profile
-            </button>
-          )}
-          {editing && (
-            <div className="d-flex gap-2">
-              <button className="btn btn-outline-secondary rounded-pill px-4 fw-medium" onClick={cancelEdit} disabled={saving}>Cancel</button>
-              <button className="btn btn-success rounded-pill px-4 fw-medium text-white" onClick={handleSave} disabled={saving}>
-                {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</> : <><i className="bi bi-check-lg me-1"></i>Save Profile</>}
-              </button>
-            </div>
-          )}
+      {loading && (
+        <div className="loading-bar-container" style={{ position: "sticky", top: 0, zIndex: 100, margin: "-1rem -1rem 1rem -1rem" }}>
+          <div className="loading-bar-indeterminate" />
         </div>
+      )}
 
-        {/* Save / Error Messages */}
-        {saveMsg && (
-          <div className={`alert ${saveMsg.type === 'success' ? 'alert-success' : 'alert-danger'} alert-dismissible fade show`} role="alert">
-            <i className={`bi ${saveMsg.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} me-2`}></i>
-            {saveMsg.text}
-            <button type="button" className="btn-close" onClick={() => setSaveMsg(null)}></button>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Freelancer Profile</h1>
+          <p className="page-subtitle">View skills, experience, and portfolio details.</p>
+        </div>
+        {isOwnProfile && !editing && (
+          <button className="btn btn-dark rounded-pill px-4 fw-medium" onClick={() => setEditing(true)}>
+            <i className="bi bi-pencil-square me-2"></i>Edit Profile
+          </button>
+        )}
+        {editing && (
+          <div className="d-flex gap-2">
+            <button className="btn btn-outline-secondary rounded-pill px-4 fw-medium" onClick={cancelEdit} disabled={saving}>Cancel</button>
+            <button className="btn btn-success rounded-pill px-4 fw-medium text-white" onClick={handleSave} disabled={saving}>
+              {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</> : <><i className="bi bi-check-lg me-1"></i>Save Profile</>}
+            </button>
           </div>
         )}
+      </div>
 
-        {/* Loading / Error States */}
-        {loading && (
-          <div className="text-center py-5">
-            <div className="spinner-border text-dark" role="status"><span className="visually-hidden">Loading...</span></div>
-            <p className="text-muted mt-3">Loading profile...</p>
-          </div>
-        )}
+      {/* Save / Error Messages */}
+      {saveMsg && (
+        <div className={`alert ${saveMsg.type === 'success' ? 'alert-success' : 'alert-danger'} mx-3 alert-dismissible fade show`} role="alert">
+          <i className={`bi ${saveMsg.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} me-2`}></i>
+          {saveMsg.text}
+          <button type="button" className="btn-close" onClick={() => setSaveMsg(null)}></button>
+        </div>
+      )}
+
+      {/* Loading / Error States */}
+      {loading && <ProfileSkeleton />}
 
         {!loading && loadError && (
           <div className="card text-center py-5 border">
@@ -483,10 +526,19 @@ export default function Profile() {
                     </div>
                   ) : (
                     <div className="d-flex flex-wrap gap-2">
-                      {skillsArray.length > 0 ? skillsArray.map((skill) => (
-                        <span key={skill} className="badge bg-light text-dark border fw-medium px-3 py-2 rounded-pill" style={{ fontSize: '0.8rem' }}>{skill}</span>
-                      )) : (
-                        <span className="text-muted small">No skills added yet.</span>
+                      {skillsArray.length > 0 ? (
+                        skillsArray.map((skill) => (
+                          <span key={skill} className="badge bg-light text-dark border fw-medium px-3 py-2 rounded-pill" style={{ fontSize: '0.8rem' }}>{skill}</span>
+                        ))
+                      ) : (
+                        <div className="d-flex align-items-center justify-content-between p-2 bg-light rounded-3 text-muted small w-100">
+                          <span><i className="bi bi-tag me-1"></i>No skills added yet.</span>
+                          {isOwnProfile && (
+                            <button type="button" className="btn btn-sm btn-link p-0 text-decoration-none fw-semibold" onClick={() => setEditing(true)}>
+                              + Add Skills
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
@@ -529,39 +581,70 @@ export default function Profile() {
                     {editing ? (
                       <textarea className="form-control bg-light" rows="8" placeholder="Tell clients about yourself, your experience, and what makes you unique..." value={form.bio} onChange={(e) => handleChange('bio', e.target.value)} />
                     ) : (
-                      f.bio ? f.bio.split('\n\n').map((p, i) => (
-                        <p key={i} className="text-muted" style={{ lineHeight: '1.8', fontSize: '0.95rem' }}>{p}</p>
-                      )) : (
-                        <p className="text-muted fst-italic">No bio added yet.</p>
+                      f.bio ? (
+                        f.bio.split('\n\n').map((p, i) => (
+                          <p key={i} className="text-muted" style={{ lineHeight: '1.8', fontSize: '0.95rem' }}>{p}</p>
+                        ))
+                      ) : (
+                        <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded-3 text-muted">
+                          <div className="d-flex align-items-center gap-2 small">
+                            <i className="bi bi-card-text text-muted fs-5"></i>
+                            <span>No bio added yet. Tell clients about your experience and services.</span>
+                          </div>
+                          {isOwnProfile && (
+                            <button type="button" className="btn btn-sm btn-outline-dark rounded-pill px-3" onClick={() => setEditing(true)}>
+                              <i className="bi bi-pencil me-1"></i> Add Bio
+                            </button>
+                          )}
+                        </div>
                       )
                     )}
                     {!editing && (
                       <>
                         <hr className="my-4" />
-                        <div className="row g-3">
-                          <div className="col-sm-6">
-                            <div className="d-flex align-items-center gap-3 bg-light rounded-3 p-3">
-                              <div className="rounded-circle bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style={{ width: '45px', height: '45px', minWidth: '45px' }}>
-                                <i className="bi bi-check-circle-fill text-success"></i>
+                        {(!f.completed_jobs && !f.total_earnings) ? (
+                          <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded-3 text-muted">
+                            <div className="d-flex align-items-center gap-3">
+                              <div className="rounded-circle bg-white border d-flex align-items-center justify-content-center text-muted" style={{ width: '40px', height: '40px' }}>
+                                <i className="bi bi-briefcase"></i>
                               </div>
                               <div>
-                                <div className="fw-bold text-dark">{f.completed_jobs || 0} Projects</div>
-                                <div className="text-muted small">Completed successfully</div>
+                                <div className="fw-medium text-dark small">No completed contracts yet</div>
+                                <div className="text-muted small">Completed projects and escrow earnings will display here.</div>
+                              </div>
+                            </div>
+                            {isOwnProfile && (
+                              <Link to="/explore" className="btn btn-sm btn-outline-dark rounded-pill px-3">
+                                Find Work
+                              </Link>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="row g-3">
+                            <div className="col-sm-6">
+                              <div className="d-flex align-items-center gap-3 bg-light rounded-3 p-3">
+                                <div className="rounded-circle bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style={{ width: '45px', height: '45px', minWidth: '45px' }}>
+                                  <i className="bi bi-check-circle-fill text-success"></i>
+                                </div>
+                                <div>
+                                  <div className="fw-bold text-dark">{f.completed_jobs || 0} {f.completed_jobs === 1 ? 'Project' : 'Projects'}</div>
+                                  <div className="text-muted small">Completed successfully</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="col-sm-6">
+                              <div className="d-flex align-items-center gap-3 bg-light rounded-3 p-3">
+                                <div className="rounded-circle bg-warning bg-opacity-10 d-flex align-items-center justify-content-center" style={{ width: '45px', height: '45px', minWidth: '45px' }}>
+                                  <i className="bi bi-cash-stack text-warning"></i>
+                                </div>
+                                <div>
+                                  <div className="fw-bold text-dark">₱{(f.total_earnings || 0).toLocaleString()}</div>
+                                  <div className="text-muted small">Total earnings on RaketBase</div>
+                                </div>
                               </div>
                             </div>
                           </div>
-                          <div className="col-sm-6">
-                            <div className="d-flex align-items-center gap-3 bg-light rounded-3 p-3">
-                              <div className="rounded-circle bg-warning bg-opacity-10 d-flex align-items-center justify-content-center" style={{ width: '45px', height: '45px', minWidth: '45px' }}>
-                                <i className="bi bi-cash-stack text-warning"></i>
-                              </div>
-                              <div>
-                                <div className="fw-bold text-dark">₱{(f.total_earnings || 0).toLocaleString()}</div>
-                                <div className="text-muted small">Total earnings on RaketBase</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                        )}
                       </>
                     )}
                   </div>

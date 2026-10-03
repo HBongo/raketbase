@@ -2,6 +2,7 @@ const express = require('express');
 const {
   register,
   login,
+  refreshSession,
   switchRole,
   getProfile,
   updateProfile,
@@ -16,6 +17,7 @@ const router = express.Router();
 
 router.post('/register', register);
 router.post('/login', login);
+router.post('/refresh', refreshSession);
 router.post('/logout', logout);
 router.patch('/switch-role', requireAuth, switchRole);
 router.get('/profile', requireAuth, getProfile);

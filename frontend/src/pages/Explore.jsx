@@ -1,18 +1,65 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { getCached, setCached } from '../utils/cache';
 import BackToTop from '../components/BackToTop';
+import { formatCurrency } from '../utils/formatters';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
+const CORE_CATEGORY_NAMES = new Set([
+  'web development',
+  'graphic design',
+  'graphic & design',
+  'writing & content',
+  'writing & translation',
+  'mobile development',
+  'digital marketing',
+]);
+
+function ExploreSkeleton() {
+  return (
+    <div className="row g-4">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div className="col-md-6 col-xl-4" key={i}>
+          <div className="card shadow-sm border-0 h-100 p-4 bg-white">
+            <div className="d-flex justify-content-between align-items-start mb-3">
+              <div className="skeleton-box" style={{ width: "65%", height: 18 }} />
+              <div className="skeleton-box rounded-pill" style={{ width: 60, height: 20 }} />
+            </div>
+            <div className="skeleton-box mb-2" style={{ width: "100%", height: 12 }} />
+            <div className="skeleton-box mb-2" style={{ width: "90%", height: 12 }} />
+            <div className="skeleton-box mb-4" style={{ width: "70%", height: 12 }} />
+            <div className="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
+              <div className="skeleton-box" style={{ width: 80, height: 16 }} />
+              <div className="skeleton-box rounded-pill" style={{ width: 70, height: 26 }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Explore() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = searchParams.get('q') || '';
 
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const setQuery = (newVal) => {
+    if (newVal && newVal.trim()) {
+      setSearchParams({ q: newVal });
+    } else {
+      setSearchParams({});
+    }
+  };
+
+  const cachedJobs = getCached('explore_jobs');
+
+  const [jobs, setJobs] = useState(cachedJobs || []);
+  const [loading, setLoading] = useState(!cachedJobs);
   const [loadError, setLoadError] = useState(null);
 
   const [activeCategory, setActiveCategory] = useState('all');
-  const [query, setQuery] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [budget, setBudget] = useState(null);
 
@@ -28,7 +75,10 @@ export default function Explore() {
     let cancelled = false;
 
     async function loadJobs() {
-      setLoading(true);
+      const cached = getCached('explore_jobs');
+      if (!cached) {
+        setLoading(true);
+      }
       setLoadError(null);
       try {
         const res = await fetch(`${API_BASE_URL}/jobs`);
@@ -40,6 +90,7 @@ export default function Explore() {
 
         const data = body.data || [];
         setJobs(data);
+        setCached('explore_jobs', data);
 
         if (data.length) {
           const amounts = data.map((j) => Number(j.budget) || 0);
@@ -66,32 +117,65 @@ export default function Explore() {
     return { min: Math.min(...amounts), max: Math.max(...amounts) };
   }, [jobs]);
 
-  const categories = useMemo(() => {
+  const { coreCategories, otherCategories, otherCategoryIds, othersTotalCount } = useMemo(() => {
     const counts = {};
     for (const j of jobs) {
-      const name = j.categories?.category_name || 'Other';
+      const name = j.categories?.category_name || 'Others';
       counts[name] = (counts[name] || 0) + 1;
     }
-    const list = Object.entries(counts).map(([name, count]) => ({
-      id: name.toLowerCase().replace(/\s+/g, '-'),
-      name,
-      label: name,
-      count,
-    }));
-    return [{ id: 'all', name: 'All', label: 'All', count: jobs.length }, ...list];
+
+    const defaultCore = [
+      { id: 'all', name: 'All', label: 'All', count: jobs.length },
+      { id: 'web-development', name: 'Web Development', label: 'Web Development', count: counts['Web Development'] || 0 },
+      { id: 'graphic-design', name: 'Graphic & Design', label: 'Graphic & Design', count: (counts['Graphic & Design'] || counts['Graphic Design'] || 0) },
+      { id: 'writing-content', name: 'Writing & Translation', label: 'Writing & Translation', count: (counts['Writing & Translation'] || counts['Writing & Content'] || 0) },
+      { id: 'mobile-development', name: 'Mobile Development', label: 'Mobile Development', count: counts['Mobile Development'] || 0 },
+      { id: 'digital-marketing', name: 'Digital Marketing', label: 'Digital Marketing', count: counts['Digital Marketing'] || 0 },
+    ];
+
+    const others = [];
+    const otherIds = new Set();
+    let otherCount = 0;
+
+    for (const [name, count] of Object.entries(counts)) {
+      const slug = name.toLowerCase().replace(/\s+/g, '-');
+      const lowerName = name.toLowerCase();
+      if (!CORE_CATEGORY_NAMES.has(lowerName)) {
+        others.push({ id: slug, name, label: name, count });
+        otherIds.add(slug);
+        otherCount += count;
+      }
+    }
+
+    return {
+      coreCategories: defaultCore,
+      otherCategories: others,
+      otherCategoryIds: otherIds,
+      othersTotalCount: otherCount,
+    };
   }, [jobs]);
+
+  const selectedOtherCategory = otherCategories.find((c) => c.id === activeCategory);
+  const isOthersActive = activeCategory === 'others-all' || !!selectedOtherCategory;
 
   const visibleJobs = useMemo(() => {
     return jobs.filter((j) => {
       if (activeCategory !== 'all') {
-        const catName = (j.categories?.category_name || 'Other').toLowerCase().replace(/\s+/g, '-');
-        if (catName !== activeCategory) return false;
+        const catName = (j.categories?.category_name || 'Others').toLowerCase().replace(/\s+/g, '-');
+        if (activeCategory === 'others-all') {
+          if (!otherCategoryIds.has(catName) && catName !== 'others') return false;
+        } else if (catName !== activeCategory) {
+          return false;
+        }
       }
       if (query.trim()) {
         const q = query.toLowerCase();
         const inTitle = j.title?.toLowerCase().includes(q);
         const inDesc = j.description?.toLowerCase().includes(q);
-        if (!inTitle && !inDesc) return false;
+        const inCategory = (j.categories?.category_name || '').toLowerCase().includes(q);
+        const clientName = `${j.users?.first_name || ''} ${j.users?.last_name || ''}`.toLowerCase();
+        const inClient = clientName.includes(q);
+        if (!inTitle && !inDesc && !inCategory && !inClient) return false;
       }
       if (budget) {
         const amount = Number(j.budget) || 0;
@@ -99,7 +183,7 @@ export default function Explore() {
       }
       return true;
     });
-  }, [jobs, activeCategory, query, budget]);
+  }, [jobs, activeCategory, query, budget, otherCategoryIds]);
 
   function resetFilters() {
     setActiveCategory('all');
@@ -107,41 +191,126 @@ export default function Explore() {
     setBudget(budgetBounds);
   }
 
+
+
   return (
     <>
-
-
-        <div className="page-header d-flex justify-content-between align-items-center">
-          <div>
-            <h1 className="page-title">Explore Jobs</h1>
-            <p className="page-subtitle">Find the right project or talent for your needs.</p>
-          </div>
-          {user.active_role === 'customer' && (
-            <Link to="/jobs/create" className="btn btn-dark fw-bold rounded-pill px-4">
-              <i className="bi bi-plus-lg me-1"></i> Post a Job
-            </Link>
-          )}
+      {loading && (
+        <div className="loading-bar-container" style={{ position: "sticky", top: 0, zIndex: 100, margin: "-1rem -1rem 1rem -1rem" }}>
+          <div className="loading-bar-indeterminate" />
         </div>
+      )}
 
-        <div className="row g-4 mb-4">
-          <div className="col-xl-9 col-lg-8 order-2">
-            <div className="d-flex flex-wrap gap-2 mb-4 pb-2">
-              {categories.map((c) => {
-                const isActive = activeCategory === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => setActiveCategory(c.id)}
-                    className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium ${isActive ? 'text-white' : 'btn-outline-secondary bg-white'}`}
-                    style={isActive ? { backgroundColor: '#FF5A1E', borderColor: '#FF5A1E' } : {}}
-                  >
-                    {c.label} <span className="small opacity-75">({c.count})</span>
-                  </button>
-                );
-              })}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Explore Jobs</h1>
+          <p className="page-subtitle">Find the right project or talent for your needs.</p>
+        </div>
+        {user.active_role === 'customer' && (
+          <Link to="/jobs/create" className="btn btn-dark fw-bold rounded-pill px-4">
+            <i className="bi bi-plus-lg me-1"></i> Post a Job
+          </Link>
+        )}
+      </div>
+
+      <div className="row g-4 px-3 mb-4">
+        <div className="col-xl-9 col-lg-8 order-2 order-lg-1">
+          {/* Synchronized Search Bar */}
+          <div className="mb-3">
+            <div className="input-group shadow-sm rounded-pill overflow-hidden border bg-white">
+              <span className="input-group-text bg-white border-0 ps-3">
+                <i className="bi bi-search text-muted"></i>
+              </span>
+              <input
+                type="text"
+                className="form-control border-0 py-2 ps-2 text-dark bg-white"
+                placeholder="Search jobs by title, description, or category keywords..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="btn btn-white border-0 pe-3 text-muted"
+                  title="Clear search"
+                >
+                  <i className="bi bi-x-lg"></i>
+                </button>
+              )}
             </div>
+            {query && (
+              <div className="small text-muted mb-2 ps-2">
+                Showing results for &ldquo;<strong>{query}</strong>&rdquo; ({visibleJobs.length} found)
+              </div>
+            )}
+          </div>
 
-            {loading && <StateCard title="Loading jobs..." />}
+          <div className="d-flex flex-wrap gap-2 mb-4 pb-2 align-items-center">
+            {coreCategories.map((c) => {
+              const isActive = activeCategory === c.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setActiveCategory(c.id)}
+                  className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium category-filter-btn ${isActive ? 'text-white' : 'btn-outline-secondary'}`}
+                  style={isActive ? { backgroundColor: '#FF5A1E', borderColor: '#FF5A1E', color: '#fff' } : {}}
+                >
+                  {c.label} <span className="small opacity-75">({c.count})</span>
+                </button>
+              );
+            })}
+
+            {/* Others Dropdown for Custom Categories */}
+            <div className="dropdown d-inline-block flex-shrink-0">
+              <button
+                type="button"
+                className={`btn rounded-pill px-4 py-2 fw-medium dropdown-toggle category-filter-btn ${isOthersActive ? 'text-white' : 'btn-outline-secondary'}`}
+                style={isOthersActive ? { backgroundColor: '#FF5A1E', borderColor: '#FF5A1E', color: '#fff' } : {}}
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                {selectedOtherCategory ? `Others: ${selectedOtherCategory.name}` : 'Others'}
+                <span className="ms-2 small opacity-75">({othersTotalCount})</span>
+              </button>
+              <ul className="dropdown-menu shadow border-0 rounded-3 mt-1 py-2" style={{ minWidth: '220px', zIndex: 1050 }}>
+                <li>
+                  <button
+                    type="button"
+                    className={`dropdown-item py-2 px-3 fw-medium d-flex justify-content-between align-items-center ${activeCategory === 'others-all' ? 'active text-white' : ''}`}
+                    style={activeCategory === 'others-all' ? { backgroundColor: '#FF5A1E', color: '#fff' } : {}}
+                    onClick={() => setActiveCategory('others-all')}
+                  >
+                    <span>All in Others</span>
+                    <span className={`badge rounded-pill ${activeCategory === 'others-all' ? 'bg-white text-dark' : 'bg-light text-dark'}`}>
+                      {othersTotalCount}
+                    </span>
+                  </button>
+                </li>
+                {otherCategories.length > 0 && <li><hr className="dropdown-divider my-1" /></li>}
+                {otherCategories.map((subCat) => {
+                  const isSelected = activeCategory === subCat.id;
+                  return (
+                    <li key={subCat.id}>
+                      <button
+                        type="button"
+                        className={`dropdown-item py-2 px-3 d-flex justify-content-between align-items-center ${isSelected ? 'active text-white' : ''}`}
+                        style={isSelected ? { backgroundColor: '#FF5A1E', color: '#fff' } : {}}
+                        onClick={() => setActiveCategory(subCat.id)}
+                      >
+                        <span>{subCat.name}</span>
+                        <span className={`badge rounded-pill ${isSelected ? 'bg-white text-dark' : 'bg-light text-dark'}`}>
+                          {subCat.count}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+
+          {loading && <ExploreSkeleton />}
 
             {!loading && loadError && (
               <StateCard
@@ -254,27 +423,61 @@ function RangeField({ label, unit, value, onChange, bounds, onReset }) {
 function JobCard({ job, onOpen }) {
   const categoryName = job.categories?.category_name || 'Uncategorized';
   const posted = formatDate(job.created_at);
+  const clientName = [job.users?.first_name, job.users?.last_name].filter(Boolean).join(' ') || 'Client';
+  const clientInitial = (job.users?.first_name?.[0] || 'C').toUpperCase();
+  const avatarUrl = job.users?.client_avatar_url || job.users?.avatar_url;
 
   return (
     <div className="card h-100 border transition-all" style={{ cursor: 'pointer' }} onClick={onOpen}>
       <div className="card-body d-flex flex-column p-0">
         <div className="mb-3">
-          <span className="badge bg-light border text-dark fw-semibold px-3 py-2 rounded-pill" style={{ fontSize: '0.85rem' }}>
-            {categoryName}
-          </span>
-          {posted && (
-            <div className="small text-muted mt-2 d-flex align-items-center">
-              <i className="bi bi-clock me-1"></i>
-              <span>Posted {posted}</span>
-            </div>
-          )}
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <span className="badge bg-light border text-dark fw-semibold px-3 py-2 rounded-pill" style={{ fontSize: '0.85rem' }}>
+              {categoryName}
+            </span>
+            {posted && (
+              <div className="small text-muted d-flex align-items-center">
+                <i className="bi bi-clock me-1"></i>
+                <span>Posted {posted}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="d-flex align-items-center gap-2 mt-2 pt-2 border-top">
+            <Link
+              to={`/profile/${job.client_id || job.users?.user_id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="d-inline-flex align-items-center gap-2 text-decoration-none text-muted text-truncate"
+              title={`View ${clientName}'s profile`}
+            >
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={clientName}
+                  className="rounded-circle border"
+                  style={{ width: 22, height: 22, objectFit: 'cover' }}
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+              ) : (
+                <div
+                  className="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center fw-bold"
+                  style={{ width: 22, height: 22, fontSize: '10px' }}
+                >
+                  {clientInitial}
+                </div>
+              )}
+              <span className="small text-truncate">
+                Posted by <strong className="text-dark fw-medium" style={{ textDecoration: 'underline' }}>{clientName}</strong>
+              </span>
+            </Link>
+          </div>
         </div>
         <h5 className="card-title text-dark fw-bold mb-3 fs-5">
           {job.title || 'Untitled job'}
         </h5>
         <div className="mb-3">
           <span className="small text-muted">Budget: </span>
-          <span className="fw-bold text-success fs-6">₱{job.budget ? Number(job.budget).toLocaleString() : '—'}</span>
+          <span className="fw-bold text-success fs-6">{job.budget ? formatCurrency(job.budget, job.currency) : '—'}</span>
         </div>
         <p className="card-text small text-muted flex-grow-1" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {job.description || 'No description provided.'}

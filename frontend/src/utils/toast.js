@@ -1,5 +1,5 @@
-// Tiny global toast store. Call showToast('message') from anywhere;
-// <Toaster /> (mounted once in App) renders it.
+// Tiny global toast store. Call showToast('message', { loading: true }) from anywhere;
+// <Toaster /> (mounted once in App) renders it at bottom-right.
 import { useSyncExternalStore } from 'react';
 
 let toast = null;
@@ -16,11 +16,20 @@ export function dismissToast() {
   emit();
 }
 
-export function showToast(message, duration = 5000) {
+/**
+ * Show a floating toast notification.
+ * @param {string} message
+ * @param {number|{ duration?: number, loading?: boolean }} [options=4000]
+ */
+export function showToast(message, options = 4000) {
   clearTimeout(timer);
-  toast = { id: Date.now(), message, duration };
+  const duration = typeof options === 'number' ? options : (options?.duration !== undefined ? options.duration : 4000);
+  const loading = typeof options === 'object' && options !== null ? !!options.loading : false;
+  toast = { id: Date.now(), message, duration, loading };
   emit();
-  timer = setTimeout(dismissToast, duration);
+  if (duration > 0 && !loading) {
+    timer = setTimeout(dismissToast, duration);
+  }
 }
 
 function subscribe(listener) {

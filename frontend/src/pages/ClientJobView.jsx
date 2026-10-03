@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getMyJobs, getJobProposals, acceptProposal, rejectProposal } from '../services/api';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { getMyJobs, getJobProposals, acceptProposal, rejectProposal, switchRole } from '../services/api';
+import { formatCurrency } from '../utils/formatters';
+import { showToast } from '../utils/toast';
 
 export default function ClientJobView() {
   const { id } = useParams();
@@ -12,6 +14,16 @@ function MyJobsList() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+
+  const user = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  })();
+  const isCustomer = user?.active_role === 'customer';
+  const [switchingRole, setSwitchingRole] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,11 +43,71 @@ function MyJobsList() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isCustomer]);
+
+  if (!isCustomer) {
+    return (
+      <div className="row justify-content-center py-5">
+        <div className="col-12 col-md-8 col-lg-6 text-center">
+          <div className="card shadow-sm border-0 p-5 bg-white">
+            <div
+              className="d-inline-flex align-items-center justify-content-center bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-circle mb-3 mx-auto"
+              style={{ width: '64px', height: '64px', fontSize: '1.75rem' }}
+            >
+              <i className="bi bi-briefcase"></i>
+            </div>
+            <h4 className="fw-bold mb-2">Customer Mode Required</h4>
+            <p className="text-muted small mb-4 mx-auto" style={{ maxWidth: '380px' }}>
+              You are currently in <strong>Freelancer Mode</strong>. Job postings and proposal management are reserved for clients.
+            </p>
+            <div className="d-flex justify-content-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    setSwitchingRole(true);
+                    showToast('Switching to Customer Mode...', { loading: true, duration: 0 });
+                    await switchRole('customer');
+                    const updatedUser = { ...user, active_role: 'customer' };
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                    window.location.reload();
+                  } catch (err) {
+                    setSwitchingRole(false);
+                    showToast(err.message || 'Failed to switch role', 4000);
+                  }
+                }}
+                disabled={switchingRole}
+                className="btn text-white fw-bold px-4 py-2 rounded-pill"
+                style={{ backgroundColor: '#FF5A1E', borderColor: '#FF5A1E' }}
+              >
+                {switchingRole ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Switching...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-arrow-repeat me-1"></i> Switch to Customer Mode
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/my-proposals')}
+                className="btn btn-outline-secondary px-4 py-2 rounded-pill"
+              >
+                My Proposals
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
-      <div className="page-header d-flex justify-content-between align-items-center">
+      <div className="page-header">
         <div>
           <h1 className="page-title">My job postings</h1>
           <p className="page-subtitle">Review proposals and choose who gets the work.</p>
@@ -53,9 +125,21 @@ function MyJobsList() {
 
       {!loading && loadError && (
         <StateCard
-          title="Couldn't load your postings"
+          title={/expired|token/i.test(loadError) ? 'Session Expired' : "Couldn't load your postings"}
           body={loadError}
-          action={{ label: 'Try again', onClick: () => window.location.reload() }}
+          action={{
+            label: /expired|token/i.test(loadError) ? 'Log In Again' : 'Try again',
+            onClick: () => {
+              if (/expired|token/i.test(loadError)) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('user');
+                window.location.href = '/login?expired=1';
+              } else {
+                window.location.reload();
+              }
+            },
+          }}
         />
       )}
 
@@ -86,17 +170,19 @@ function MyJobsList() {
                       {job.status}
                     </span>
                     <span className="small text-muted">
-                      {job.categories?.category_name || 'Uncategorized'}
+                      Created {formatDate(job.created_at)}
                     </span>
                   </div>
-                  <h5 className="card-title fw-bold mb-1 text-truncate">{job.title}</h5>
-                  <p className="small text-muted mb-0">
-                    ₱{job.budget ? Number(job.budget).toLocaleString() : '—'}
+                  <h5 className="card-title fw-bold text-truncate mb-1">{job.title}</h5>
+                  <p className="small text-secondary text-truncate mb-0" style={{ maxWidth: '600px' }}>
+                    {job.description}
                   </p>
                 </div>
 
-                <div className="flex-shrink-0 text-end">
-                  <h3 className="fw-bold mb-0" style={{ color: '#FF5A1E' }}>{job.proposal_count}</h3>
+                <div className="text-end flex-shrink-0">
+                  <p className="fs-5 fw-bold mb-0" style={{ color: '#FF5A1E' }}>
+                    {job.budget ? formatCurrency(job.budget, job.currency) : '—'}
+                  </p>
                   <p className="small text-muted mb-0">
                     {job.pending_count > 0 ? `${job.pending_count} pending` : 'proposals'}
                   </p>
@@ -119,7 +205,7 @@ function ProposalsForJob({ jobId }) {
   const [actioningId, setActioningId] = useState(null);
   const [actionError, setActionError] = useState('');
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
@@ -131,12 +217,11 @@ function ProposalsForJob({ jobId }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [jobId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
     load();
-  }, [jobId]);
+  }, [load]);
 
   async function handleAccept(proposalId) {
     setActionError('');
@@ -179,9 +264,21 @@ function ProposalsForJob({ jobId }) {
 
         {!loading && loadError && (
           <StateCard
-            title="Couldn't load this job"
+            title={/expired|token/i.test(loadError) ? 'Session Expired' : "Couldn't load this job"}
             body={loadError}
-            action={{ label: 'Try again', onClick: load }}
+            action={{
+              label: /expired|token/i.test(loadError) ? 'Log In Again' : 'Try again',
+              onClick: () => {
+                if (/expired|token/i.test(loadError)) {
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('refreshToken');
+                  localStorage.removeItem('user');
+                  window.location.href = '/login?expired=1';
+                } else {
+                  load();
+                }
+              },
+            }}
           />
         )}
 
@@ -201,7 +298,7 @@ function ProposalsForJob({ jobId }) {
                 <div className="text-end">
                   <p className="small text-muted mb-1">Budget</p>
                   <p className="fs-5 fw-bold mb-0" style={{ color: '#FF5A1E' }}>
-                    ₱{job.budget ? Number(job.budget).toLocaleString() : '—'}
+                    {job.budget ? formatCurrency(job.budget, job.currency) : '—'}
                   </p>
                 </div>
               </div>
@@ -230,6 +327,7 @@ function ProposalsForJob({ jobId }) {
                     key={p.proposal_id}
                     proposal={p}
                     jobIsOpen={jobIsOpen}
+                    currency={job.currency}
                     busy={actioningId === p.proposal_id}
                     onAccept={() => handleAccept(p.proposal_id)}
                     onReject={() => handleReject(p.proposal_id)}
@@ -244,12 +342,13 @@ function ProposalsForJob({ jobId }) {
   );
 }
 
-function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject }) {
+function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject, currency }) {
   const freelancer = proposal.users;
   const name =
     [freelancer?.first_name, freelancer?.last_name].filter(Boolean).join(' ') ||
     freelancer?.email ||
     'Freelancer';
+  const freelancerId = freelancer?.user_id || freelancer?.id;
 
   return (
     <div className="card shadow-sm border-0">
@@ -257,7 +356,13 @@ function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject }) {
         <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
           <div>
             <div className="d-flex align-items-center gap-2 mb-1">
-              <h5 className="fw-bold mb-0">{name}</h5>
+              {freelancerId ? (
+                <Link to={`/profile/${freelancerId}`} className="text-decoration-none text-dark">
+                  <h5 className="fw-bold mb-0 text-primary-hover">{name}</h5>
+                </Link>
+              ) : (
+                <h5 className="fw-bold mb-0">{name}</h5>
+              )}
               <StatusPill status={proposal.status} />
             </div>
             <p className="small text-muted mb-1 d-flex align-items-center gap-1">
@@ -269,7 +374,7 @@ function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject }) {
             )}
           </div>
           <h4 className="fw-bold mb-0 flex-shrink-0" style={{ color: '#FF5A1E' }}>
-            ₱{Number(proposal.bid_amount || 0).toLocaleString()}
+            {formatCurrency(proposal.bid_amount, currency)}
           </h4>
         </div>
 

@@ -51,6 +51,37 @@ async function clearAvatarFiles(userId, filePrefix, keepName) {
   }
 }
 
+const ALLOWED_EMAIL_DOMAINS = [
+  'gmail.com',
+  'googlemail.com',
+  'yahoo.com',
+  'yahoo.com.ph',
+  'ymail.com',
+  'outlook.com',
+  'hotmail.com',
+  'live.com',
+  'msn.com',
+  'icloud.com',
+  'me.com',
+  'mac.com',
+  'proton.me',
+  'protonmail.com',
+  'zoho.com',
+  'aol.com',
+];
+
+function isLegitEmailDomain(email) {
+  if (!email || typeof email !== 'string') return false;
+  const parts = email.trim().toLowerCase().split('@');
+  if (parts.length !== 2) return false;
+  const domain = parts[1];
+  if (!domain || !domain.includes('.')) return false;
+  if (domain.endsWith('.edu') || domain.endsWith('.edu.ph') || domain.endsWith('.ac.uk')) {
+    return true;
+  }
+  return ALLOWED_EMAIL_DOMAINS.includes(domain);
+}
+
 // POST /api/v1/auth/register
 async function register(req, res) {
   const { firstName, lastName, email, password, role } = req.body;
@@ -58,6 +89,13 @@ async function register(req, res) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email || !emailRegex.test(email)) {
     return res.status(400).json({ status: 400, message: 'Invalid email address format' });
+  }
+
+  if (!isLegitEmailDomain(email)) {
+    return res.status(400).json({
+      status: 400,
+      message: 'Please register using a recognized email provider (e.g., Gmail, Yahoo, Outlook, or a university email).',
+    });
   }
 
   const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
@@ -137,8 +175,31 @@ async function login(req, res) {
 
   return res.status(200).json({
     token: data.session.access_token,
+    refreshToken: data.session.refresh_token,
     user: profile,
   });
+}
+
+// POST /api/v1/auth/refresh
+async function refreshSession(req, res) {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ status: 400, message: 'refreshToken is required' });
+    }
+
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+    if (error || !data?.session) {
+      return res.status(401).json({ status: 401, message: 'Invalid or expired refresh token' });
+    }
+
+    return res.status(200).json({
+      token: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 500, message: err.message });
+  }
 }
 
 // PATCH /api/v1/auth/switch-role (Member 1)
@@ -393,7 +454,7 @@ async function removeAvatar(req, res) {
   });
 }
 
-module.exports = { register, login, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout };
+module.exports = { register, login, refreshSession, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout };
 
 // POST /api/v1/auth/logout
 // Securely invalidates the user's session (for stateless JWT, this signals the client to clear tokens)

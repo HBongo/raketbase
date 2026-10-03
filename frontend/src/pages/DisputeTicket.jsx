@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getContractById, createDispute } from '../services/api';
+import { formatCurrency } from '../utils/formatters';
 
 const REASON_OPTIONS = ['Incomplete Work', 'Non-Payment', 'Unresponsive'];
 const MIN_EVIDENCE_LENGTH = 30;
@@ -72,9 +73,10 @@ export default function DisputeTicket() {
     }
   }
 
+  const currentUserId = user.user_id || user.id;
   const otherParty =
-    user.user_id === contract?.client_id ? contract?.freelancer : contract?.client;
-  const otherPartyLabel = user.user_id === contract?.client_id ? 'Freelancer' : 'Client';
+    currentUserId === contract?.client_id ? contract?.freelancer : contract?.client;
+  const otherPartyLabel = currentUserId === contract?.client_id ? 'Freelancer' : 'Client';
 
   return (
     <>
@@ -137,7 +139,7 @@ export default function DisputeTicket() {
                       {contract?.jobs?.title || 'Contract'}
                     </h6>
                     <p className="text-muted small mb-0">
-                      ₱{Number(contract?.agreed_amount || 0).toLocaleString()} in escrow
+                      {formatCurrency(contract?.agreed_amount, contract?.jobs?.currency)} in escrow
                       {otherParty && (
                         <>
                           {' · '}
@@ -153,9 +155,9 @@ export default function DisputeTicket() {
                     </div>
                   )}
 
-                  <form onSubmit={handleSubmit} className="d-flex flex-column gap-3">
+                  <form onSubmit={handleSubmit} noValidate className="d-flex flex-column gap-3">
                     <div>
-                      <label className="form-label small fw-medium text-muted mb-1" htmlFor="reason">
+                      <label className="form-label small fw-medium text-dark mb-1" htmlFor="reason">
                         Reason / Category
                       </label>
                       <select
@@ -163,7 +165,8 @@ export default function DisputeTicket() {
                         required
                         value={reasonCategory}
                         onChange={(e) => setReasonCategory(e.target.value)}
-                        className="form-select text-sm"
+                        onBlur={() => setTouched(true)}
+                        className={`form-select text-sm ${touched && !reasonCategory ? 'is-invalid border-danger' : ''}`}
                       >
                         <option value="">Select a reason</option>
                         {REASON_OPTIONS.map((reason) => (
@@ -172,12 +175,26 @@ export default function DisputeTicket() {
                           </option>
                         ))}
                       </select>
+                      {touched && !reasonCategory && (
+                        <div className="text-danger small mt-1 d-flex align-items-center gap-1">
+                          <i className="bi bi-exclamation-circle-fill"></i> Please select a reason category for the dispute.
+                        </div>
+                      )}
                     </div>
 
                     <div>
-                      <label className="form-label small fw-medium text-muted mb-1" htmlFor="evidence">
-                        Evidence Summary
-                      </label>
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <label className="form-label small fw-medium text-dark mb-0" htmlFor="evidence">
+                          Evidence Summary
+                        </label>
+                        <span className={`small ${!evidenceTooShort ? 'text-success fw-medium' : 'text-muted'}`} style={{ fontSize: '12px' }}>
+                          {!evidenceTooShort ? (
+                            <><i className="bi bi-check-circle-fill text-success me-1"></i>{evidenceSummary.trim().length} chars</>
+                          ) : (
+                            `${evidenceSummary.trim().length}/${MIN_EVIDENCE_LENGTH} min`
+                          )}
+                        </span>
+                      </div>
                       <textarea
                         id="evidence"
                         required
@@ -186,22 +203,16 @@ export default function DisputeTicket() {
                         value={evidenceSummary}
                         onChange={(e) => setEvidenceSummary(e.target.value)}
                         onBlur={() => setTouched(true)}
-                        className="form-control text-sm"
+                        className={`form-control text-sm ${touched && evidenceTooShort ? 'is-invalid border-danger' : ''}`}
                       />
-                      <div className="d-flex justify-content-between mt-1">
-                        {touched && evidenceTooShort ? (
-                          <span className="text-danger" style={{ fontSize: '12px' }}>
-                            {evidenceCharsLeft > 0
-                              ? `${evidenceCharsLeft} more character${evidenceCharsLeft === 1 ? '' : 's'} needed`
-                              : 'Evidence summary is required'}
-                          </span>
-                        ) : (
-                          <span></span>
-                        )}
-                        <span className="text-muted" style={{ fontSize: '12px' }}>
-                          {evidenceSummary.trim().length}/{MIN_EVIDENCE_LENGTH} min
-                        </span>
-                      </div>
+                      {touched && evidenceTooShort && (
+                        <div className="text-danger small mt-1 d-flex align-items-center gap-1">
+                          <i className="bi bi-exclamation-circle-fill"></i>
+                          {evidenceCharsLeft > 0
+                            ? `Evidence summary must be at least 30 characters (${evidenceCharsLeft} more needed).`
+                            : 'Evidence summary is required.'}
+                        </div>
+                      )}
                     </div>
 
                     <button

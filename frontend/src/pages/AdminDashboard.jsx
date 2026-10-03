@@ -7,6 +7,7 @@ import {
   listDisputes,
   resolveDispute,
 } from '../services/api';
+import { formatCurrency } from '../utils/formatters';
 
 const MOCK_ANALYTICS = {
   total_users: 24,
@@ -174,10 +175,9 @@ export default function AdminDashboard() {
       {/* Sidebar */}
       <div className="sidebar-wrapper" id="sidebar">
         <Link to="/" className="sidebar-brand text-decoration-none d-flex align-items-center gap-1" style={{ padding: "10px 0" }}>
-          <img src="/racketbaseSVG.svg" alt="RaketBase Logo" style={{ height: "50px", objectFit: "contain", marginTop: "-8px" }} />
-          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "24px", color: "#fff", letterSpacing: "0.5px", display: "flex", alignItems: "center" }}>
-            <span style={{ fontWeight: 800 }}>RAKET</span>
-            <span style={{ fontWeight: 400 }}>BASE</span>
+          <img src="/racketbaseSVG.svg" alt="RaketBase Logo" className="logo-shake" style={{ height: "48px", objectFit: "contain", marginTop: "-8px" }} />
+          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "23px", color: "#fff", letterSpacing: "0.5px", display: "flex", alignItems: "center" }}>
+            <span style={{ fontWeight: 800 }}>RAKET</span><span style={{ fontWeight: 400 }}>BASE</span>
           </div>
         </Link>
         <div className="flex-grow-1 overflow-y-auto mt-4">
@@ -379,7 +379,7 @@ export default function AdminDashboard() {
                             {d.contracts?.jobs?.title || 'Contract dispute'}
                           </h6>
                           <p className="text-muted mt-1 mb-0" style={{ fontSize: '12px' }}>
-                            ₱{Number(d.contracts?.agreed_amount || 0).toLocaleString()} in escrow ·{' '}
+                            {formatCurrency(d.contracts?.agreed_amount, d.contracts?.jobs?.currency)} in escrow ·{' '}
                             {new Date(d.created_at).toLocaleDateString()}
                           </p>
                         </div>
@@ -484,8 +484,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="modal-body">
                   <p className="text-muted small mb-4">
-                    {resolvingDispute.contracts?.jobs?.title} — ₱
-                    {Number(resolvingDispute.contracts?.agreed_amount || 0).toLocaleString()} in escrow
+                    {resolvingDispute.contracts?.jobs?.title} — {formatCurrency(resolvingDispute.contracts?.agreed_amount, resolvingDispute.contracts?.jobs?.currency)} in escrow
                   </p>
 
                   <div className="mb-4">

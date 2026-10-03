@@ -15,6 +15,9 @@ function getSnapshot() {
     cachedRaw = raw;
     try {
       cachedUser = JSON.parse(raw);
+      if (cachedUser && cachedUser.user_id && !cachedUser.id) {
+        cachedUser.id = cachedUser.user_id;
+      }
     } catch {
       cachedUser = {};
     }
