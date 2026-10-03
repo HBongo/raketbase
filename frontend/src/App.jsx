@@ -15,6 +15,7 @@ import Messages from './pages/Messages';
 import TopUsers from './pages/TopUsers';
 import MyProposals from './pages/MyProposals';
 import LegalPage from './pages/LegalPage';
+import LandingPage from './pages/landing/LandingPage';
 import Layout from './components/Layout';
 import Toaster from './components/Toaster';
 
@@ -29,7 +30,7 @@ function App() {
           localStorage.getItem('token') ? (
             <Navigate to="/dashboard" replace />
           ) : (
-            <Navigate to="/login" replace />
+            <LandingPage />
           )
         }
       />
@@ -55,7 +56,8 @@ function App() {
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:id" element={<Messages />} />
           <Route path="/top-users" element={<TopUsers />} />
-          <Route path="/my-proposals" element={<MyProposals />} />
+          <Route path="/my-proposals" element={<MyProposals />} /
+          >
           <Route path="/profile/:id" element={<Profile />} />
           {/* If they just hit /profile, redirect to dashboard or read user from localstorage */}
           <Route path="/profile" element={<Profile />} />
