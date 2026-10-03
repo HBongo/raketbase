@@ -1,9 +1,10 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { notify } = require('../utils/notify');
 
 async function loadContract(contract_id) {
   const { data, error } = await supabaseAdmin
     .from('contracts')
-    .select('contract_id, job_id, client_id, freelancer_id, status')
+    .select('contract_id, job_id, client_id, freelancer_id, status, jobs(title)')
     .eq('contract_id', contract_id)
     .single();
   if (error || !data) return null;
@@ -186,6 +187,15 @@ exports.submitMilestone = async (req, res) => {
       `Milestone "${milestone.title}" was submitted for review: ${deliverable_url}${deliverable_notes ? ` — "${deliverable_notes}"` : ''}`
     );
 
+    await notify({
+      user_id: contract.client_id,
+      type: 'milestone_submitted',
+      role: 'customer',
+      title: `Stage "${milestone.title}" submitted on "${contract.jobs?.title || 'your contract'}"`,
+      body: 'Review this stage and release its payment when you are satisfied.',
+      link: '/dashboard',
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Milestone submitted for client review.',
@@ -269,6 +279,15 @@ exports.approveMilestone = async (req, res) => {
       await postSystemMessage(contract_id, userId, 'All milestones are complete — this contract is now closed.');
       contractCompleted = true;
     }
+
+    await notify({
+      user_id: contract.freelancer_id,
+      type: 'payment_released',
+      role: 'freelancer',
+      title: `Stage "${milestone.title}" approved on "${contract.jobs?.title || 'your contract'}"`,
+      body: `₱${Number(milestone.amount).toLocaleString()} was released to you.${contractCompleted ? ' All stages are done, so the contract is now complete.' : ' The next stage is now active.'}`,
+      link: '/dashboard',
+    });
 
     return res.status(200).json({
       success: true,

@@ -1,5 +1,6 @@
 // usersController.js — Public user profile endpoint
 const { supabaseAdmin } = require('../config/supabase');
+const { getRatingSummaries, emptySummary } = require('../utils/ratings');
 
 const PROFILE_COLUMNS = `
   user_id, email, first_name, last_name, role, active_role,
@@ -49,6 +50,10 @@ async function getPublicProfile(req, res) {
       0
     );
 
+    // Freelancer rating: what clients rated this person, to match the freelancer stats above
+    const ratings = await getRatingSummaries([id], 'freelancer');
+    const freelancerRating = ratings[id] || emptySummary('freelancer');
+
     // Strip sensitive fields
     const { role, status, ...publicProfile } = profile;
 
@@ -67,7 +72,8 @@ async function getPublicProfile(req, res) {
         education: meta.education || [],
         completed_jobs: completedJobs || 0,
         total_earnings: totalEarnings,
-        rating: 4.8, // Placeholder
+        rating: freelancerRating.average,
+        rating_count: freelancerRating.count,
       },
     });
   } catch (err) {

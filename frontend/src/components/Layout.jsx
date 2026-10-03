@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams, Outlet } from 'react-r
 import { clearCached } from '../utils/cache';
 import { switchRole } from '../services/api';
 import { showToast } from '../utils/toast';
+import NotificationBell from './NotificationBell';
 
 export default function Layout() {
   const location = useLocation();
@@ -254,6 +255,7 @@ export default function Layout() {
           </div>
 
           <div className="navbar-actions d-flex align-items-center gap-3">
+            <NotificationBell />
             <button
               type="button"
               className="navbar-action-btn d-flex align-items-center justify-content-center"

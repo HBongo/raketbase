@@ -1,6 +1,7 @@
 const { supabaseAdmin } = require('../config/supabase');
 const { getRatingSummaries, emptySummary } = require('../utils/ratings');
 const { validateJobInput } = require('../utils/slopFilter');
+const { notify } = require('../utils/notify');
 
 // GET /api/v1/jobs - Fetch all jobs (with optional category filtering).
 // Open jobs come first (newest first); assigned/completed jobs follow so the
@@ -420,13 +421,23 @@ exports.cancelJob = async (req, res) => {
 
     if (error) throw error;
 
-    const { error: rejectError } = await supabaseAdmin
+    const { data: rejectedProposals, error: rejectError } = await supabaseAdmin
       .from('proposals')
       .update({ status: 'rejected' })
       .eq('job_id', job.job_id)
-      .eq('status', 'pending');
+      .eq('status', 'pending')
+      .select('freelancer_id');
 
     if (rejectError) throw rejectError;
+
+    await notify((rejectedProposals || []).map((p) => ({
+      user_id: p.freelancer_id,
+      type: 'job_cancelled',
+      role: 'freelancer',
+      title: `"${job.title}" was cancelled`,
+      body: 'The client cancelled this job, so your proposal was closed.',
+      link: '/my-proposals',
+    })));
 
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {

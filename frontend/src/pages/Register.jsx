@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { registerUser, updateProfile } from '../services/api';
+import { registerUser } from '../services/api';
 import LegalModal from '../components/LegalModal';
 
 function CustomAutocomplete({ value, onChange, options, placeholder, disabled, isLoading }) {
@@ -230,30 +230,23 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      const res = await registerUser({ 
-        firstName: firstName.trim(), 
-        lastName: lastName.trim(), 
-        email: email.trim(), 
-        password, 
-        role 
-      });
-      
-      if (res.token) {
-        localStorage.setItem('token', res.token);
-        const updates = {};
-        if (role === 'freelancer') {
-          if (professionalTitle) updates.professional_title = professionalTitle;
-          if (hourlyRate) updates.hourly_rate = Number(hourlyRate);
-          if (region) updates.region = region;
-          if (city) updates.city = city;
-        } else if (role === 'customer') {
-          if (companyName) updates.company_name = companyName;
-        }
-        if (Object.keys(updates).length > 0) {
-          try { await updateProfile(updates); } catch (e) { console.error(e); }
-        }
-        localStorage.removeItem('token');
+      // Step-2 onboarding details go in the same request; the backend stores them on the new account.
+      const payload = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        password,
+        role,
+      };
+      if (role === 'freelancer') {
+        payload.title = professionalTitle.trim();
+        payload.hourlyRate = hourlyRate;
+        payload.location = [city, region].filter(Boolean).join(', ');
+      } else if (role === 'customer') {
+        payload.companyName = companyName.trim();
       }
+
+      await registerUser(payload);
       navigate('/login?registered=1');
     } catch (err) {
       setError(err.message);

@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../config/supabase');
 const { postSystemMessage } = require('./contractsController');
+const { notify, displayName } = require('../utils/notify');
 
 // POST /api/v1/disputes - File a dispute against a contract (must be a participant)
 exports.createDispute = async (req, res) => {
@@ -29,7 +30,7 @@ exports.createDispute = async (req, res) => {
     // Confirm the contract exists and the caller is actually a participant
     const { data: contract, error: contractError } = await supabaseAdmin
       .from('contracts')
-      .select('contract_id, client_id, freelancer_id, status')
+      .select('contract_id, client_id, freelancer_id, status, jobs(title)')
       .eq('contract_id', contract_id)
       .single();
 
@@ -65,6 +66,17 @@ exports.createDispute = async (req, res) => {
       .from('contracts')
       .update({ status: 'disputed' })
       .eq('contract_id', contract_id);
+
+    // Tell the other side of the contract that a dispute was filed.
+    const filedByClient = contract.client_id === userId;
+    await notify({
+      user_id: filedByClient ? contract.freelancer_id : contract.client_id,
+      type: 'dispute_filed',
+      role: filedByClient ? 'freelancer' : 'customer',
+      title: `A dispute was filed on "${contract.jobs?.title || 'your contract'}"`,
+      body: `${displayName(req.user, filedByClient ? 'The client' : 'The freelancer')} raised a ${reason_category} dispute. RaketBase staff will review it.`,
+      link: '/dashboard',
+    });
 
     return res.status(201).json({ success: true, data: dispute });
   } catch (error) {
@@ -171,7 +183,7 @@ exports.resolveDispute = async (req, res) => {
 
     const { data: dispute, error: fetchError } = await supabaseAdmin
       .from('disputes')
-      .select('dispute_id, contract_id, status')
+      .select('dispute_id, contract_id, status, contracts(client_id, freelancer_id, jobs(title))')
       .eq('dispute_id', dispute_id)
       .single();
 
@@ -216,6 +228,15 @@ exports.resolveDispute = async (req, res) => {
 
       // Let both parties know the outcome in their contract chat.
       await postSystemMessage(dispute.contract_id, staffId, `Dispute resolved by admin: ${resolutionNotes}`);
+
+      const parties = dispute.contracts;
+      if (parties) {
+        const title = `Dispute resolved on "${parties.jobs?.title || 'your contract'}"`;
+        await notify([
+          { user_id: parties.client_id, type: 'dispute_resolved', role: 'customer', title, body: resolutionNotes, link: '/dashboard' },
+          { user_id: parties.freelancer_id, type: 'dispute_resolved', role: 'freelancer', title, body: resolutionNotes, link: '/dashboard' },
+        ]);
+      }
     }
 
     return res.status(200).json({ success: true, data: updatedDispute });

@@ -296,6 +296,19 @@ export function cancelDeleteConversation(id) {
   return request(`/conversations/${id}/delete-cancel`, { method: "POST" });
 }
 
+// Notifications API
+export function getNotifications() {
+  return request('/notifications');
+}
+
+export function markNotificationRead(notificationId) {
+  return request(`/notifications/${notificationId}/read`, { method: 'PATCH' });
+}
+
+export function markAllNotificationsRead() {
+  return request('/notifications/read-all', { method: 'PATCH' });
+}
+
 // Top Users API
 export function getTopUsers(params = {}) {
   const q = new URLSearchParams();

@@ -410,9 +410,11 @@ export default function Profile() {
                       <div className="bg-light rounded-3 p-2">
                         <div className="fw-bold text-dark fs-5 d-flex align-items-center justify-content-center gap-1">
                           <i className="bi bi-star-fill text-warning" style={{ fontSize: '0.85rem' }}></i>
-                          {f.rating || '—'}
+                          {f.rating != null ? f.rating : '—'}
                         </div>
-                        <div className="text-muted" style={{ fontSize: '0.7rem' }}>Rating</div>
+                        <div className="text-muted" style={{ fontSize: '0.7rem' }}>
+                          {f.rating_count ? `Rating (${f.rating_count})` : 'No reviews'}
+                        </div>
                       </div>
                     </div>
                     <div className="col-4">

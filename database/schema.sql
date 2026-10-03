@@ -321,3 +321,45 @@ ALTER TABLE public.milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ADD COLUMN message_type text NOT NULL DEFAULT 'user';
 ALTER TABLE public.messages ADD CONSTRAINT messages_message_type_check
     CHECK (message_type = ANY (ARRAY['user'::text, 'system'::text]));
+
+-- Jobs and proposals are written only by the Express backend (service-role key,
+-- bypasses RLS). Direct anon-key access is read-only and scoped; there are no
+-- INSERT/UPDATE/DELETE policies (migration 006).
+ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proposals ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public can view listed jobs" ON public.jobs
+    FOR SELECT
+    USING (status = ANY (ARRAY['open'::text, 'assigned'::text, 'completed'::text]));
+
+CREATE POLICY "Freelancers can view own proposals" ON public.proposals
+    FOR SELECT
+    USING (auth.uid() = freelancer_id);
+
+CREATE POLICY "Clients can view proposals on their jobs" ON public.proposals
+    FOR SELECT
+    USING (auth.uid() IN (SELECT jobs.client_id FROM public.jobs WHERE jobs.job_id = proposals.job_id));
+
+-- ============================================================
+-- Notifications (bell in the top bar). `role` tags which mode the
+-- notification belongs to. Backend-only: RLS on, no policies (migration 007).
+-- ============================================================
+CREATE TABLE public.notifications (
+    notification_id uuid NOT NULL DEFAULT gen_random_uuid(),
+    user_id         uuid NOT NULL,
+    type            text NOT NULL,
+    role            text,
+    title           text NOT NULL,
+    body            text,
+    link            text,
+    is_read         boolean NOT NULL DEFAULT false,
+    created_at      timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT notifications_pkey PRIMARY KEY (notification_id),
+    CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) ON DELETE CASCADE,
+    CONSTRAINT notifications_role_check CHECK (role IS NULL OR role = ANY (ARRAY['customer'::text, 'freelancer'::text]))
+);
+
+CREATE INDEX idx_notifications_user_id_created_at ON public.notifications USING btree (user_id, created_at DESC);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;

@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { notify } = require('../utils/notify');
 
 // Best-effort: posts a system message into the contract's conversation. A failure
 // here must never fail the contract action itself.
@@ -331,7 +332,7 @@ exports.submitWork = async (req, res) => {
 
     const { data: contract, error: fetchError } = await supabaseAdmin
       .from('contracts')
-      .select('contract_id, client_id, freelancer_id, status')
+      .select('contract_id, client_id, freelancer_id, status, jobs(title)')
       .eq('contract_id', contract_id)
       .single();
 
@@ -417,6 +418,15 @@ exports.submitWork = async (req, res) => {
       `Work was submitted for review: ${deliverable_url}${deliverable_notes ? ` — "${deliverable_notes}"` : ''}`
     );
 
+    await notify({
+      user_id: contract.client_id,
+      type: 'work_submitted',
+      role: 'customer',
+      title: `Work submitted on "${contract.jobs?.title || 'your contract'}"`,
+      body: 'Review the deliverables and release the escrow payment when you are satisfied.',
+      link: '/dashboard',
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Work successfully submitted for client review and escrow release.',
@@ -435,7 +445,7 @@ exports.completeContract = async (req, res) => {
 
     const { data: contract, error: fetchError } = await supabaseAdmin
       .from('contracts')
-      .select('contract_id, job_id, client_id, freelancer_id, agreed_amount, status')
+      .select('contract_id, job_id, client_id, freelancer_id, agreed_amount, status, jobs(title)')
       .eq('contract_id', contract_id)
       .single();
 
@@ -483,6 +493,15 @@ exports.completeContract = async (req, res) => {
       userId,
       `Deliverables approved! Escrow payment of ₱${Number(contract.agreed_amount).toLocaleString()} released to the freelancer.`
     );
+
+    await notify({
+      user_id: contract.freelancer_id,
+      type: 'payment_released',
+      role: 'freelancer',
+      title: `Payment released for "${contract.jobs?.title || 'your contract'}"`,
+      body: `The client approved your work and released ₱${Number(contract.agreed_amount).toLocaleString()}.`,
+      link: '/dashboard',
+    });
 
     return res.status(200).json({
       success: true,

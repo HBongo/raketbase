@@ -130,9 +130,40 @@ Changes 6
 - Added a removed status and a removal_reason column to the jobs table (005_add_job_removal.sql)
 
 
+Changes 7
+
+[Dispute Changes]
+- Restored the Dispute button on Dashboard contracts (active or under review), which was lost during the UI redesign
+
+[Registration Fixes]
+- Fixed a bug where everything entered in step 2 of registration was thrown away after sign-up
+- Freelancer professional title, hourly rate, and location (city and region) are now saved with the new account and show up on their profile
+- Client company name is now saved with the new account
+- Step 2 details are now checked before the account is created (no HTML, length limits, valid hourly rate)
+
+[Profile Fixes]
+- Removed the placeholder 4.8 rating that showed on every profile
+- Profiles now show the real freelancer rating from client reviews along with the number of reviews, or "No reviews" if there are none
+
+[Security & Database changes]
+- Closed direct public access to the proposals table, which anyone could read, edit, or delete without logging in (006_tighten_proposals_and_jobs_rls.sql)
+- Users can no longer create jobs or proposals directly through the database, bypassing the site's validation
+- Paused, cancelled, and removed jobs are no longer publicly readable through the database
+
+[Notifications]
+- Added a notification bell to the top bar with an unread count
+- Clicking the bell shows the latest 20 notifications; clicking one opens the related page and marks it as read, and there is a "Mark all as read" option
+- Each notification is tagged Client or Freelancer so users see everything from both modes
+- Clients are notified about new proposals, submitted work and milestone stages, disputes filed against them, resolved disputes, and admin takedowns of their jobs (with the reason)
+- Freelancers are notified when their proposal is accepted or declined, when a job they applied to is cancelled or taken down, when their work or milestone stage is approved and paid, and about disputes on their contracts
+- The bell checks for new notifications every 30 seconds and whenever the user changes pages
+- Added a notifications table, only accessible through the backend (007_add_notifications.sql)
+
+
+
 Roadmap
 - Make it so that people who choose the freelancer option also need to put in their bank details and phone number - Complete
 - Make it so that people who choose the client option choose whether or not they are a small business or a major contractor and need to put in their business name. - Complete
 - Have the toast that appears when changing from client to freelancer slide in and have a mini loading bar to show how much time is left before it disappears - Complete
 - Develop a messaging system - Complete
-- Have clients be able to delete their posting as long as they have not accepted a freelancer for it yet - Complete
+- Have clients be able to delete their posting as long as they have not accepted a freelancer for it yet - Complete

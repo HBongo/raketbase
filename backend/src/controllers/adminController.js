@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { notify } = require('../utils/notify');
 
 // GET /api/v1/admin/analytics - Platform-wide metrics for the admin dashboard
 exports.getAnalytics = async (req, res) => {
@@ -134,7 +135,7 @@ exports.takedownJob = async (req, res) => {
 
     const { data: job, error: fetchError } = await supabaseAdmin
       .from('jobs')
-      .select('job_id, status')
+      .select('job_id, status, client_id, title')
       .eq('job_id', job_id)
       .single();
 
@@ -157,13 +158,33 @@ exports.takedownJob = async (req, res) => {
 
     if (error) throw error;
 
-    const { error: rejectError } = await supabaseAdmin
+    const { data: rejectedProposals, error: rejectError } = await supabaseAdmin
       .from('proposals')
       .update({ status: 'rejected' })
       .eq('job_id', job_id)
-      .eq('status', 'pending');
+      .eq('status', 'pending')
+      .select('freelancer_id');
 
     if (rejectError) throw rejectError;
+
+    await notify([
+      {
+        user_id: job.client_id,
+        type: 'job_removed',
+        role: 'customer',
+        title: `Your job "${job.title}" was removed by an admin`,
+        body: `Reason: ${reason}`,
+        link: `/my-jobs/${job_id}`,
+      },
+      ...(rejectedProposals || []).map((p) => ({
+        user_id: p.freelancer_id,
+        type: 'job_removed',
+        role: 'freelancer',
+        title: `"${job.title}" is no longer available`,
+        body: 'This job was removed by an admin, so your proposal was closed.',
+        link: '/my-proposals',
+      })),
+    ]);
 
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {

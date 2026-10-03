@@ -118,21 +118,67 @@ async function register(req, res) {
   // silently break freelancer signups (auth user gets created, profile row does not).
   const requestedActiveRole = requestedRole === 'freelancer' ? 'freelancer' : 'customer';
 
-  const { error } = await supabase.auth.signUp({
+  // Optional step-2 onboarding details. Freelancer extras live in the auth user's
+  // metadata (same place updateProfile/getProfile keep them); the client's company
+  // name lives on public.users.
+  const { title, hourlyRate, location, companyName } = req.body;
+  const clean = (v) => (typeof v === 'string' ? v.trim() : '');
+  const hasHtml = (v) => /<[^>]*>/.test(v);
+
+  const profileMeta = {};
+  let cleanCompanyName = '';
+
+  if (requestedActiveRole === 'freelancer') {
+    const cleanTitle = clean(title);
+    const cleanLocation = clean(location);
+    if (cleanTitle.length > 100 || hasHtml(cleanTitle)) {
+      return res.status(400).json({ status: 400, message: 'Professional title must be 100 characters or less, without HTML.' });
+    }
+    if (cleanLocation.length > 150 || hasHtml(cleanLocation)) {
+      return res.status(400).json({ status: 400, message: 'Location must be 150 characters or less, without HTML.' });
+    }
+    if (hourlyRate !== undefined && hourlyRate !== null && hourlyRate !== '') {
+      const rate = Number(hourlyRate);
+      if (!Number.isFinite(rate) || rate < 0 || rate > 1000000) {
+        return res.status(400).json({ status: 400, message: 'Hourly rate must be a number between 0 and 1,000,000.' });
+      }
+      profileMeta.hourly_rate = rate;
+    }
+    if (cleanTitle) profileMeta.title = cleanTitle;
+    if (cleanLocation) profileMeta.location = cleanLocation;
+  } else {
+    cleanCompanyName = clean(companyName);
+    if (cleanCompanyName.length > 100 || hasHtml(cleanCompanyName)) {
+      return res.status(400).json({ status: 400, message: 'Company name must be 100 characters or less, without HTML.' });
+    }
+  }
+
+  const { data: signUpData, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { 
-        first_name: firstName, 
-        last_name: lastName, 
+      data: {
+        first_name: firstName,
+        last_name: lastName,
         role: 'customer',
         active_role: requestedActiveRole,
+        ...profileMeta,
       },
     },
   });
 
   if (error) {
     return res.status(400).json({ status: 400, message: error.message });
+  }
+
+  // The handle_new_user trigger has already created the public.users row by now.
+  // Best-effort: the account exists either way, and the name can be added later from the profile.
+  if (cleanCompanyName && signUpData?.user?.id) {
+    const { error: companyError } = await supabaseAdmin
+      .from('users')
+      .update({ company_name: cleanCompanyName })
+      .eq('user_id', signUpData.user.id);
+    if (companyError) console.error('Could not save company name at registration:', companyError);
   }
 
   return res.status(201).json({ message: 'Registration successful!' });
