@@ -31,6 +31,7 @@ body {
   --auth-surface-alt: #F1F5F9;
   --auth-accent: #B7791F;
 }
+
 body.dark-mode {
   --auth-text: #EDEEF2;
   --auth-muted: #8D93A3;
@@ -168,45 +169,56 @@ body.dark-mode .auth-split-wrapper {
   background-color: #10131A !important;
   color: #EDEEF2 !important;
 }
+
 body.dark-mode .auth-split-sidebar {
   background-color: #141824;
   border-right: 1px solid #262B36;
 }
+
 body.dark-mode .auth-split-content {
   background-color: #10131A;
 }
+
 body.dark-mode .auth-input {
   background-color: #1D2129 !important;
   border: 1px solid #262B36 !important;
   color: #EDEEF2 !important;
 }
+
 body.dark-mode .auth-input:focus {
   border-color: #E7B24B !important;
   box-shadow: 0 0 0 1px #E7B24B !important;
 }
+
 body.dark-mode .auth-input::placeholder {
   color: #5A6275 !important;
 }
+
 body.dark-mode .auth-input-error {
   border-color: #E5484D !important;
 }
+
 body.dark-mode .auth-btn-primary {
   background-color: #E7B24B !important;
   color: #1A1305 !important;
 }
+
 body.dark-mode .auth-btn-primary:hover:not(:disabled) {
   background-color: #F2C368 !important;
 }
+
 body.dark-mode .auth-btn-secondary {
   background-color: #1D2129;
   border: 1px solid #262B36;
   color: #EDEEF2;
 }
+
 body.dark-mode .auth-btn-secondary:hover:not(:disabled) {
   background-color: #252B37;
   border-color: #373E4F;
   color: #FFFFFF;
 }
+
 body.dark-mode .auth-checklist {
   background-color: #141824;
   border: 1px solid #262B36;
@@ -220,7 +232,7 @@ body.dark-mode .auth-checklist {
   text-align: left !important;
 }
 
-.page-header > div {
+.page-header>div {
   text-align: left !important;
 }
 
@@ -241,9 +253,11 @@ body.dark-mode .auth-checklist {
 
 img.rocket-logo {
   max-width: 120px;
-  width: 38% !important; /* Scaled nicely within container without overflowing */
-  height: auto !important; /* Keeps the rocket perfectly proportioned */
-  transform: rotate(0deg); 
+  width: 38% !important;
+  /* Scaled nicely within container without overflowing */
+  height: auto !important;
+  /* Keeps the rocket perfectly proportioned */
+  transform: rotate(0deg);
   transition: transform 0.2s ease;
 }
 
@@ -256,11 +270,25 @@ img.rocket-logo {
 
 /* Softer movements (max 1px translation and 1.5 degrees of rotation) */
 @keyframes wiggle-rocket {
-  0% { transform: translate(0px, 0px) rotate(0deg); }
-  25% { transform: translate(-1px, 1px) rotate(-1.5deg); }
-  50% { transform: translate(1px, -1px) rotate(1.5deg); }
-  75% { transform: translate(-1px, -1px) rotate(-1deg); }
-  100% { transform: translate(0px, 0px) rotate(0deg); }
+  0% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+
+  25% {
+    transform: translate(-1px, 1px) rotate(-1.5deg);
+  }
+
+  50% {
+    transform: translate(1px, -1px) rotate(1.5deg);
+  }
+
+  75% {
+    transform: translate(-1px, -1px) rotate(-1deg);
+  }
+
+  100% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
 }
 
 .logo-shake {
@@ -272,11 +300,13 @@ img.rocket-logo {
 .sidebar-brand:hover .logo-shake {
   animation: wiggle-rocket 0.4s ease-in-out infinite;
 }
+
 /* ── LinkedIn-style Shimmer & Progress Bar Loaders ── */
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
   }
+
   100% {
     background-position: 200% 0;
   }
@@ -295,10 +325,12 @@ img.rocket-logo {
     left: -35%;
     right: 100%;
   }
+
   60% {
     left: 100%;
     right: -90%;
   }
+
   100% {
     left: 100%;
     right: -90%;
@@ -337,6 +369,7 @@ img.rocket-logo {
   --bs-btn-focus-shadow-rgb: 255, 90, 30;
   transition: background-color 0.2s, color 0.2s;
 }
+
 .category-filter-btn.is-active,
 .category-filter-btn.is-active:hover,
 .category-filter-btn.is-active:active,
@@ -345,6 +378,7 @@ img.rocket-logo {
   background-color: #FF5A1E;
   border-color: #FF5A1E;
 }
+
 body.dark-mode .category-filter-btn:not(.is-active) {
   --bs-btn-color: var(--text-main);
   --bs-btn-bg: var(--card-background);
@@ -362,6 +396,7 @@ body.dark-mode .category-filter-btn:not(.is-active) {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -682,4 +717,3 @@ body.dark-mode .btn-outline-warning:hover {
   border-color: #F59E0B !important;
   color: #FDE68A !important;
 }
-
