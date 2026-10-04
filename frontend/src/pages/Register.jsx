@@ -69,6 +69,10 @@ export default function Register() {
     localStorage.setItem('darkMode', isDarkMode);
   }, [isDarkMode]);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1);
