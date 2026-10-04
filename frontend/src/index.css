@@ -717,3 +717,44 @@ body.dark-mode .btn-outline-warning:hover {
   border-color: #F59E0B !important;
   color: #FDE68A !important;
 }
+
+/* ── Modern Dashboard Proposal Rows & Action Items ── */
+.dashboard-proposal-row {
+  background-color: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+.dashboard-proposal-row:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+.dashboard-briefcase-icon {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+body.dark-mode .dashboard-proposal-row {
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+body.dark-mode .dashboard-proposal-row:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+body.dark-mode .dashboard-briefcase-icon {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34D399;
+}
+
+.action-item-card {
+  background-color: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  transition: all 0.2s ease;
+}
+.action-item-card:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+body.dark-mode .action-item-card {
+  background-color: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+body.dark-mode .action-item-card:hover {
+  background-color: rgba(255, 255, 255, 0.045);
+}

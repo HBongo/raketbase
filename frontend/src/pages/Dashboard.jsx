@@ -744,22 +744,30 @@ export default function Dashboard() {
                   <Link to="/my-jobs" className="text-success fw-semibold d-block mt-2">Manage Postings</Link>
                 </div>
               ) : (
-                <div className="transaction-list mt-2">
+                <div className="d-flex flex-column gap-2 mt-2">
                   {clientJobs
                     .filter((j) => (j.proposal_count || 0) > 0)
                     .map((job) => (
-                      <div className="transaction-item align-items-center" key={job.job_id}>
-                        <div className="transaction-icon bg-forest-light text-lime">
-                          <i className="bi bi-briefcase"></i>
-                        </div>
-                        <div className="transaction-info flex-grow-1 min-w-0 me-2">
-                          <div className="transaction-name text-dark fw-semibold mb-1 text-truncate">{job.title}</div>
-                          <div className="transaction-amount text-success fw-bold small">
-                            {job.pending_count > 0 ? `${job.pending_count} pending` : `${job.proposal_count} ${job.proposal_count === 1 ? 'proposal' : 'proposals'}`} · <Money amount={job.budget || 0} currency={job.currency} />
+                      <div
+                        className="dashboard-proposal-row d-flex align-items-center justify-content-between p-2.5 rounded-3 transition"
+                        key={job.job_id}
+                      >
+                        <div className="d-flex align-items-center gap-3 min-w-0 me-2">
+                          <div
+                            className="dashboard-briefcase-icon rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                            style={{ width: 36, height: 36, fontSize: '0.95rem' }}
+                          >
+                            <i className="bi bi-briefcase"></i>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-dark fw-semibold mb-0.5 text-truncate small">{job.title}</div>
+                            <div className="text-muted small" style={{ fontSize: '0.78rem' }}>
+                              <span className="text-success fw-bold">{job.pending_count > 0 ? `${job.pending_count} pending` : `${job.proposal_count} ${job.proposal_count === 1 ? 'proposal' : 'proposals'}`}</span> · <Money amount={job.budget || 0} currency={job.currency} />
+                            </div>
                           </div>
                         </div>
                         <div className="ms-auto text-end flex-shrink-0">
-                          <Link to={`/my-jobs/${job.job_id}`} className="btn btn-outline-dark btn-sm rounded-pill px-3">
+                          <Link to={`/my-jobs/${job.job_id}`} className="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 text-nowrap fw-medium" style={{ fontSize: '0.8rem' }}>
                             Review ({job.proposal_count})
                           </Link>
                         </div>
@@ -812,16 +820,21 @@ export default function Dashboard() {
 
                     return (
                       <Link to={`/jobs/${p.job_id}`} className="text-decoration-none" key={p.proposal_id}>
-                        <div className="transaction-item align-items-center">
-                          <div className="transaction-icon bg-forest-light text-lime">
-                            <i className="bi bi-file-earmark-text"></i>
-                          </div>
-                          <div className="transaction-info flex-grow-1 min-w-0 me-2">
-                            <div className="transaction-name text-dark fw-semibold mb-1 text-truncate">{p.jobs?.title || 'Job Posting'}</div>
-                            <div className="transaction-amount text-success fw-bold small"><Money amount={p.bid_amount || 0} currency={p.jobs?.currency} /></div>
+                        <div className="dashboard-proposal-row d-flex align-items-center justify-content-between p-2.5 rounded-3 transition mb-2">
+                          <div className="d-flex align-items-center gap-3 min-w-0 me-2">
+                            <div
+                              className="dashboard-briefcase-icon rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                              style={{ width: 36, height: 36, fontSize: '0.95rem' }}
+                            >
+                              <i className="bi bi-file-earmark-text"></i>
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-dark fw-semibold mb-0.5 text-truncate small">{p.jobs?.title || 'Job Posting'}</div>
+                              <div className="text-success fw-bold small"><Money amount={p.bid_amount || 0} currency={p.jobs?.currency} /></div>
+                            </div>
                           </div>
                           <div className="ms-auto text-end flex-shrink-0">
-                            <span className={`${statusClass} rounded-pill px-3 fw-medium`} style={{ pointerEvents: 'none' }}>
+                            <span className={`${statusClass} rounded-pill px-3 py-1 fw-medium text-nowrap`} style={{ fontSize: '0.78rem', pointerEvents: 'none' }}>
                               {displayStatus}
                             </span>
                           </div>
@@ -1390,28 +1403,6 @@ function ActionItemsWidget({
         });
       }
     });
-
-    // 3. Client: Completed contracts not yet rated
-    contracts.forEach((c) => {
-      if (c.status === 'completed' || c.status === 'refunded') {
-        const myReview = (c.reviews || []).find((r) => r.reviewer_id === currentUserId);
-        if (!myReview) {
-          const partnerName = c.freelancer?.users?.full_name || 'Freelancer';
-          actionItems.push({
-            id: `rate-freelancer-${c.contract_id}`,
-            icon: 'bi-star',
-            iconColor: 'text-warning',
-            badgeText: 'Feedback Needed',
-            badgeClass: 'bg-light text-dark border',
-            title: `Rate ${partnerName}`,
-            subtitle: `Completed project: ${c.jobs?.title || 'Contract'}`,
-            actionLabel: 'Leave Rating',
-            btnClass: 'btn-outline-warning text-dark',
-            onClick: () => setRatingTarget({ contract: c, revieweeRole: 'freelancer', revieweeName: partnerName }),
-          });
-        }
-      }
-    });
   } else {
     // Freelancer
     // 1. Contracts with active milestone/status ready to submit work
@@ -1536,7 +1527,7 @@ function ActionItemsWidget({
             {actionItems.slice(0, 4).map((item) => (
               <div
                 key={item.id}
-                className="p-3 rounded-3 border bg-light d-flex flex-column gap-2"
+                className="action-item-card p-3 rounded-3 d-flex flex-column gap-2"
                 style={{ fontSize: '0.86rem' }}
               >
                 <div className="d-flex justify-content-between align-items-start gap-2">
