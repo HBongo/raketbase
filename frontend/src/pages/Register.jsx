@@ -231,13 +231,13 @@ export default function Register() {
   return (
     <div className={`rb-auth ${isDarkMode ? 'rb-auth--dark' : ''}`}>
       <div className="rb-auth__sidebar">
-        <Link to="/" className="rb-auth__brand" style={{ textDecoration: 'none' }}>
+        <a href="/" className="rb-auth__brand" style={{ textDecoration: 'none' }}>
           <img src="/raketbase-icon.svg" alt="RaketBase Logo" className="rb-auth__logo" />
           <div className="rb-auth__brand-text">
             <span className="rb-auth__brand-bold">RAKET</span>
             <span className="rb-auth__brand-light">BASE</span>
           </div>
-        </Link>
+        </a>
         
         <div className="rb-auth__hero">
           <h1 className="rb-auth__tagline">
@@ -280,13 +280,13 @@ export default function Register() {
         </button>
 
         <div className="rb-auth__form-container">
-          <Link to="/" className="rb-auth__mobile-brand" style={{ textDecoration: 'none' }}>
+          <a href="/" className="rb-auth__mobile-brand" style={{ textDecoration: 'none' }}>
             <img src="/raketbase-icon.svg" alt="RaketBase Logo" className="rb-auth__logo" />
             <div className="rb-auth__brand-text">
               <span className="rb-auth__brand-bold">RAKET</span>
               <span className="rb-auth__brand-light">BASE</span>
             </div>
-          </Link>
+          </a>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
             <h2 className="rb-auth__title">Create your account</h2>

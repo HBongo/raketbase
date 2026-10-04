@@ -32,14 +32,14 @@ export const FREELANCERS = [
 
 export const HOW_IT_WORKS = {
   clients: [
-    { step: 1, title: 'Post a job or browse talent', desc: 'Describe your project requirements or search our curated pool of vetted professionals. Get matched in minutes.' },
-    { step: 2, title: 'Compare proposals and chat', desc: 'Review detailed proposals, check portfolios and ratings, and interview your top picks via built-in messaging.' },
-    { step: 3, title: 'Pay securely and approve work', desc: 'Funds are held in escrow until you approve deliverables. Release payment only when you\'re satisfied with the results.' },
+    { step: 1, title: 'Post & Match', desc: 'Share your project details and instantly reach our vetted talent pool.' },
+    { step: 2, title: 'Review & Interview', desc: 'Compare detailed proposals, review past work, and chat directly to find the right fit.' },
+    { step: 3, title: 'Hire with Confidence', desc: 'Award the project and get to work securely. Funds are safely held in escrow.' },
   ],
   freelancers: [
-    { step: 1, title: 'Create your profile', desc: 'Showcase your skills, portfolio, and experience. Set your rates and availability to attract the right clients.' },
-    { step: 2, title: 'Find jobs and send proposals', desc: 'Browse curated job listings matching your expertise. Send compelling proposals and stand out from the crowd.' },
-    { step: 3, title: 'Deliver work and get paid', desc: 'Complete milestones, submit deliverables, and receive prompt payment directly to your preferred method.' },
+    { step: 1, title: 'Sign Up & Stand Out', desc: 'Create your free profile and verify your skills to get noticed.' },
+    { step: 2, title: 'Pitch & Win', desc: 'Send tailored proposals to exciting projects and negotiate directly with clients.' },
+    { step: 3, title: 'Deliver & Get Paid', desc: 'Complete milestones, submit deliverables, and receive fast, secure payments with zero premium paywalls.' },
   ],
 };
 
@@ -61,8 +61,7 @@ export const STATS_DATA = [
 
 export const PRICING_DATA = [
   { name: 'For Clients', price: 'Free', period: '', desc: 'Free to post, 3% marketplace fee on payments.', features: ['Unlimited job posts', 'Browse all freelancers', 'Escrow protection', 'Messaging & file sharing', '24/7 support'], cta: 'Post a Job', highlight: false },
-  { name: 'Freelancer Basic', price: 'Free', period: '', desc: '10% service fee on earnings.', features: ['Create your profile', 'Send up to 30 proposals/mo', 'Escrow protection', 'Direct messaging', 'Basic analytics'], cta: 'Join Free', highlight: false },
-  { name: 'Freelancer Pro', priceMonthly: 19, priceYearly: 15, period: '/mo', desc: '5% service fee, featured profile, priority support.', features: ['Unlimited proposals', 'Featured in search results', '5% service fee (vs 10%)', 'Priority support', 'Advanced analytics', 'Custom portfolio URL', 'Early access to jobs'], cta: 'Go Pro', highlight: true },
+  { name: 'For Freelancers', price: 'Free', period: '', desc: '10% service fee on earnings.', features: ['Create your profile', 'Unlimited proposals', 'Escrow protection', 'Direct messaging', 'Zero premium paywalls'], cta: 'Join Free', highlight: true },
 ];
 
 export const TESTIMONIALS = [
@@ -80,7 +79,7 @@ export const TESTIMONIALS = [
 export const FAQS = [
   { q: 'How does payment protection work?', a: 'When a client funds a milestone, the payment is held securely in our escrow system. Funds are only released to the freelancer once the client reviews and approves the delivered work. If there\'s a dispute, our resolution team steps in to mediate fairly.' },
   { q: 'How are freelancers vetted?', a: 'Every freelancer undergoes identity verification, skill assessment, and portfolio review. We also monitor ongoing performance through client ratings, completion rates, and response times to maintain quality standards.' },
-  { q: 'What are the fees?', a: 'Clients pay a 3% marketplace fee on each payment. Freelancers on the Basic plan pay 10% of their earnings, while Pro members pay just 5%. There are no hidden costs or upfront charges.' },
+  { q: 'What are the fees?', a: 'Clients pay a 3% marketplace fee on each payment. Freelancers pay a flat 10% service fee on their earnings. There are no premium tiers, hidden costs, or upfront charges.' },
   { q: 'How do I get paid as a freelancer?', a: 'Once a client approves your milestone delivery, funds are released to your account within 24 hours. You can withdraw via bank transfer, PayPal, or Wise. Minimum withdrawal is $25.' },
   { q: 'Can I hire for long-term work?', a: 'Absolutely. Many clients use RaketBase for ongoing engagements. You can set up recurring weekly or monthly contracts with automatic milestone creation and payment scheduling.' },
   { q: 'What if I\'m not satisfied with the work?', a: 'You can request unlimited revisions within the project scope. If the issue can\'t be resolved between you and the freelancer, our dispute resolution team will review the case and ensure a fair outcome.' },

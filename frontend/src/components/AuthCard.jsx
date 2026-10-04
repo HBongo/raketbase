@@ -13,7 +13,7 @@ export default function AuthCard({ title, subtitle, children }) {
       <div className="auth-split-content">
         <div className="auth-split-card">
           <Link to="/" className="text-decoration-none d-inline-flex align-items-center gap-2 mb-4">
-            <img src="/racketbaseSVG.svg" alt="RaketBase" style={{ height: '36px', objectFit: 'contain' }} />
+            <img src="/raketbase-icon.svg" alt="RaketBase" style={{ height: '36px', objectFit: 'contain' }} />
             <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.35rem', letterSpacing: '0.5px', color: 'var(--auth-text)' }}>
               <span style={{ fontWeight: 800 }}>RAKET</span>
               <span style={{ fontWeight: 400 }}>BASE</span>

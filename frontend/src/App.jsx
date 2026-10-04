@@ -85,6 +85,8 @@ function App() {
       <Route path="/privacy" element={<LegalPage defaultDoc="privacy" />} />
       <Route path="/terms-of-service" element={<Navigate to="/terms" replace />} />
       <Route path="/privacy-policy" element={<Navigate to="/privacy" replace />} />
+      <Route path="/help" element={<Help />} />
+      <Route path="/contact" element={<Navigate to="/help" replace />} />
       <Route path="/jobs" element={<Navigate to="/explore" replace />} />
       
       {/* Protected Routes */}
@@ -108,8 +110,6 @@ function App() {
           <Route path="/profile/:id" element={<Profile />} />
           {/* If they just hit /profile, redirect to dashboard or read user from localstorage */}
           <Route path="/profile" element={<Profile />} />
-          <Route path="/help" element={<Help />} />
-          <Route path="/contact" element={<Navigate to="/help" replace />} />
 
           {/* Admin-only routes */}
           <Route element={<AdminRoute />}>

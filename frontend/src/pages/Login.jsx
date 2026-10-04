@@ -113,13 +113,13 @@ export default function Login() {
   return (
     <div className={`rb-auth ${isDarkMode ? 'rb-auth--dark' : ''}`}>
       <div className="rb-auth__sidebar">
-        <Link to="/" className="rb-auth__brand" style={{ textDecoration: 'none' }}>
+        <a href="/" className="rb-auth__brand" style={{ textDecoration: 'none' }}>
           <img src="/raketbase-icon.svg" alt="RaketBase Logo" className="rb-auth__logo" />
           <div className="rb-auth__brand-text">
             <span className="rb-auth__brand-bold">RAKET</span>
             <span className="rb-auth__brand-light">BASE</span>
           </div>
-        </Link>
+        </a>
         <div className="rb-auth__hero">
           <h1 className="rb-auth__tagline">
             Launch your <span className="rb-auth__tagline-accent">raket</span>.<br />
@@ -159,13 +159,13 @@ export default function Login() {
         </button>
         
         <div className="rb-auth__form-container">
-          <Link to="/" className="rb-auth__mobile-brand" style={{ textDecoration: 'none' }}>
+          <a href="/" className="rb-auth__mobile-brand" style={{ textDecoration: 'none' }}>
             <img src="/raketbase-icon.svg" alt="RaketBase Logo" className="rb-auth__logo" />
             <div className="rb-auth__brand-text">
               <span className="rb-auth__brand-bold">RAKET</span>
               <span className="rb-auth__brand-light">BASE</span>
             </div>
-          </Link>
+          </a>
           
           <h2 className="rb-auth__title">Welcome back</h2>
           <p className="rb-auth__description">Log in to your RaketBase account.</p>

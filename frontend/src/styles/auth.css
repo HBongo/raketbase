@@ -812,3 +812,9 @@ select.rb-auth__input {
   outline: 2px solid var(--rb-primary);
   outline-offset: 2px;
 }
+
+.rb-auth__brand, .rb-auth__mobile-brand {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
