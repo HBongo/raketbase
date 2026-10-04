@@ -280,7 +280,6 @@ export default function Explore() {
               )}
               {budgetType !== 'all' && (
                 <span className="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2 small fw-medium d-inline-flex align-items-center gap-1.5">
-                  <i className={`bi ${budgetType === 'milestone' ? 'bi-flag-fill' : 'bi-tag-fill'}`}></i>
                   {budgetType === 'milestone' ? 'Milestone-Based Jobs' : 'Fixed Price Jobs'}
                   <button type="button" className="btn-close ms-1" style={{ fontSize: '0.6rem' }} onClick={() => setBudgetType('all')} aria-label="Clear project type filter"></button>
                 </span>
@@ -419,9 +418,9 @@ function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRati
           <label className="form-label fw-medium small mb-2">Project Type</label>
           <div className="d-flex flex-column gap-2">
             {[
-              { id: 'all', label: 'All Project Types', icon: 'bi-grid' },
-              { id: 'milestone', label: 'Milestone-Based', icon: 'bi-flag' },
-              { id: 'fixed', label: 'Fixed Price', icon: 'bi-tag' },
+              { id: 'all', label: 'All Project Types' },
+              { id: 'milestone', label: 'Milestone-Based' },
+              { id: 'fixed', label: 'Fixed Price' },
             ].map((type) => (
               <div key={type.id} className="form-check">
                 <input
@@ -432,8 +431,7 @@ function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRati
                   checked={budgetType === type.id}
                   onChange={() => setBudgetType(type.id)}
                 />
-                <label className="form-check-label small fw-medium d-flex align-items-center gap-1.5" htmlFor={`budgetType_${type.id}`} style={{ cursor: 'pointer' }}>
-                  <i className={`bi ${type.icon} text-muted`}></i>
+                <label className="form-check-label small fw-medium" htmlFor={`budgetType_${type.id}`} style={{ cursor: 'pointer' }}>
                   {type.label}
                 </label>
               </div>
@@ -613,7 +611,7 @@ function JobCard({ job, onOpen }) {
           </div>
           {job.budget_type === 'milestone' ? (
             <span className="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1" style={{ fontSize: '0.78rem' }} title="Milestone-based project">
-              <i className="bi bi-flag-fill me-1"></i>Milestone
+              Milestone
             </span>
           ) : (
             <span className="badge rounded-pill bg-light text-secondary border px-2.5 py-1" style={{ fontSize: '0.78rem' }} title="Fixed price project">

@@ -322,7 +322,7 @@ export default function JobDetail() {
                       </span>
                       {job.budget_type === 'milestone' ? (
                         <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 fw-medium px-3 py-2 rounded-pill" style={{ fontSize: '0.85rem' }}>
-                          <i className="bi bi-flag-fill me-1"></i> Milestone Project
+                          Milestone Project
                         </span>
                       ) : (
                         <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle fw-medium px-3 py-2 rounded-pill" style={{ fontSize: '0.85rem' }}>
@@ -453,7 +453,7 @@ export default function JobDetail() {
                       </h3>
                       {job.budget_type === 'milestone' ? (
                         <span className="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1.5" style={{ fontSize: '0.8rem' }}>
-                          <i className="bi bi-flag-fill me-1"></i>Milestones
+                          Milestones
                         </span>
                       ) : (
                         <span className="badge rounded-pill bg-light text-secondary border px-2.5 py-1.5" style={{ fontSize: '0.8rem' }}>
