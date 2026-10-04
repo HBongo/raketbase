@@ -114,6 +114,7 @@ export default function Register() {
   // Step 2 fields
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [over18, setOver18] = useState(false);
   
   // Step 2 freelancer fields
   const [professionalTitle, setProfessionalTitle] = useState('');
@@ -210,7 +211,7 @@ export default function Register() {
   const isPasswordValid = (p) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/.test(p);
 
   const isStep1Complete = isNameValid(firstName) && isNameValid(lastName) && isEmailFormatValid(email) && isLegitEmailDomain(email) && Boolean(role);
-  const isStep2Complete = isPasswordValid(password) && password === confirmPassword;
+  const isStep2Complete = isPasswordValid(password) && password === confirmPassword && over18;
 
   function handleNext(e) {
     e.preventDefault();
@@ -255,7 +256,17 @@ export default function Register() {
   }
 
   return (
-    <div className="auth-split-wrapper">
+    <div className="auth-split-wrapper position-relative">
+      <button
+        type="button"
+        className="btn btn-outline-secondary position-absolute top-0 end-0 m-4 rounded-circle d-flex align-items-center justify-content-center border-0 shadow-sm "
+        style={{ width: '40px', height: '40px', zIndex: 1000, transition: 'all 0.2s', backgroundColor: isDarkMode ? '#1D2129' : '#FFFFFF', borderColor: isDarkMode ? '#262B36' : '#E2E8F0', border: '1px solid' }}
+        onClick={() => setIsDarkMode(!isDarkMode)}
+        aria-label="Toggle Dark Mode"
+        title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+      >
+        <i className={isDarkMode ? "bi bi-sun-fill text-warning" : "bi bi-moon-fill text-secondary"} style={{ fontSize: '1.2rem' }}></i>
+      </button>
       {/* Left branding banner (GitHub main split layout) */}
       <div className="hidden md:flex auth-split-sidebar">
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
@@ -402,16 +413,17 @@ export default function Register() {
                   className="auth-input"
                   style={{ cursor: 'pointer' }}
                 >
-                  <option value="freelancer">Freelancer</option>
-                  <option value="customer">Client (Customer)</option>
+                  <option value="freelancer">Freelancer — I want to find work</option>
+                  <option value="customer">Client — I want to hire someone</option>
                 </select>
               </div>
 
-              <button
-                type="submit"
-                disabled={!isStep1Complete}
-                className="auth-btn-primary"
-              >
+                              <button
+                  type="submit"
+                  disabled={!isStep1Complete}
+                  className="auth-btn-primary"
+                  style={{ opacity: !isStep1Complete ? 0.6 : 1, cursor: !isStep1Complete ? 'not-allowed' : 'pointer' }}
+                >
                 <span>Continue to Step 2</span>
                 <i className="bi bi-arrow-right"></i>
               </button>
@@ -598,7 +610,20 @@ export default function Register() {
                 .
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
+              <input 
+                type="checkbox" 
+                id="over18" 
+                checked={over18} 
+                onChange={(e) => setOver18(e.target.checked)} 
+                style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#FF5A1E' }}
+              />
+              <label htmlFor="over18" style={{ fontSize: '13px', color: '#EDEEF2', cursor: 'pointer', margin: 0, userSelect: 'none' }}>
+                I confirm that I am at least 18 years of age.
+              </label>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button
                   type="button"
                   onClick={handleBack}
@@ -609,12 +634,13 @@ export default function Register() {
                   <i className="bi bi-arrow-left"></i>
                   <span>Back</span>
                 </button>
-                <button
+                                <button
                   type="submit"
                   disabled={!isStep2Complete || loading}
                   className="auth-btn-primary"
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, opacity: (!isStep2Complete || loading) ? 0.6 : 1, cursor: (!isStep2Complete || loading) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                 >
+                  {loading && <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>}
                   {loading ? 'Creating account...' : 'Create account'}
                 </button>
               </div>
@@ -638,3 +664,8 @@ export default function Register() {
     </div>
   );
 }
+
+
+
+
+

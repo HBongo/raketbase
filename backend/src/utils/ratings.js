@@ -78,3 +78,5 @@ async function getRatingSummaries(userIds, role) {
 }
 
 module.exports = { CRITERIA, ROLES, emptySummary, summarize, getRatingSummaries };
+
+

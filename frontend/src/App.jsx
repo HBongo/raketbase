@@ -15,13 +15,54 @@ import Messages from './pages/Messages';
 import TopUsers from './pages/TopUsers';
 import MyProposals from './pages/MyProposals';
 import LegalPage from './pages/LegalPage';
+import LandingPage from './pages/landing/LandingPage';
 import Layout from './components/Layout';
 import Toaster from './components/Toaster';
+
+import { useState, useEffect } from 'react';
+
+function GlobalLoader() {
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const handleStart = () => setLoading(true);
+    const handleEnd = () => setLoading(false);
+    
+    window.addEventListener('global_load_start', handleStart);
+    window.addEventListener('global_load_end', handleEnd);
+    
+    return () => {
+      window.removeEventListener('global_load_start', handleStart);
+      window.removeEventListener('global_load_end', handleEnd);
+    };
+  }, []);
+
+  if (!loading) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: 'rgba(255, 255, 255, 0.6)',
+      backdropFilter: 'blur(2px)',
+      zIndex: 99999,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      cursor: 'wait'
+    }}>
+      <div className="spinner-border" style={{ width: '3rem', height: '3rem', color: '#FF5A1E', borderWidth: '4px' }} role="status">
+        <span className="visually-hidden">Loading...</span>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   return (
     <>
       <Toaster />
+      <GlobalLoader />
       <Routes>
       <Route
         path="/"
@@ -29,7 +70,7 @@ function App() {
           localStorage.getItem('token') ? (
             <Navigate to="/dashboard" replace />
           ) : (
-            <Navigate to="/login" replace />
+            <LandingPage />
           )
         }
       />
@@ -55,7 +96,8 @@ function App() {
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:id" element={<Messages />} />
           <Route path="/top-users" element={<TopUsers />} />
-          <Route path="/my-proposals" element={<MyProposals />} />
+          <Route path="/my-proposals" element={<MyProposals />} /
+          >
           <Route path="/profile/:id" element={<Profile />} />
           {/* If they just hit /profile, redirect to dashboard or read user from localstorage */}
           <Route path="/profile" element={<Profile />} />

@@ -5,6 +5,22 @@ import { switchRole } from '../services/api';
 import { showToast } from '../utils/toast';
 import NotificationBell from './NotificationBell';
 
+const FreelancerIcon = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="1" width="20" height="22" rx="4" fill="#198754"/>
+    <rect x="9" y="4" width="6" height="3" rx="1.5" fill="#fff"/>
+    <circle cx="12" cy="11" r="3.5" fill="#fff"/>
+    <path d="M6 21C6 17.6863 8.68629 15 12 15C15.3137 15 18 17.6863 18 21H6Z" fill="#fff"/>
+  </svg>
+);
+
+const CustomerIcon = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M16 6V4C16 2.89543 15.1046 2 14 2H10C8.89543 2 8 2.89543 8 4V6H4C2.89543 6 2 6.89543 2 8V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V8C22 6.89543 21.1046 6 20 6H16ZM10 4H14V6H10V4Z" fill="#0d6efd"/>
+    <path d="M2 9.5L11.2929 13.7929C11.7383 13.9984 12.2617 13.9984 12.7071 13.7929L22 9.5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -107,7 +123,7 @@ export default function Layout() {
   const handleToggleRole = async () => {
     const currentRole = user?.active_role || 'freelancer';
     const newRole = currentRole === 'customer' ? 'freelancer' : 'customer';
-    const targetLabel = newRole === 'customer' ? 'Customer' : 'Freelancer';
+    const targetLabel = newRole === 'customer' ? 'customer' : 'Freelancer';
     try {
       setIsSwitchingRole(true);
       showToast(`Switching to ${targetLabel} Mode...`, { loading: true, duration: 0 });
@@ -159,8 +175,8 @@ export default function Layout() {
                 </Link>
               </li>
               <li className="sidebar-menu-item">
-                <Link to={`/profile/${user.user_id || user.id}`} onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isProfileActive ? 'active' : ''}`}>
-                  <i className="bi bi-person"></i><span>My Account</span>
+                <Link to={`/profile/${user.user_id || user.id}?tab=security`} onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isProfileActive ? 'active' : ''}`}>
+                  <i className="bi bi-gear"></i><span>Settings</span>
                 </Link>
               </li>
             </ul>
@@ -273,47 +289,52 @@ export default function Layout() {
             >
               <i className={isFullscreen ? "bi bi-fullscreen-exit" : "bi bi-arrows-fullscreen"}></i>
             </button>
-            <button
-              type="button"
-              className="navbar-role-btn btn btn-sm btn-light border rounded-pill px-3 py-1 d-none d-md-flex align-items-center gap-2 text-decoration-none shadow-none"
-              title={`Currently in ${user?.active_role || 'freelancer'} mode. Click to switch to ${user?.active_role === 'customer' ? 'freelancer' : 'customer'} mode.`}
-              onClick={handleToggleRole}
-              disabled={isSwitchingRole}
-              aria-label={`Switch mode, currently ${user?.active_role || 'freelancer'} mode`}
-            >
-              {isSwitchingRole ? (
-                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: '0.85rem', height: '0.85rem', color: '#FF5A1E', borderWidth: '2px' }}></span>
-              ) : (
-                <i className={`bi ${user?.active_role === 'customer' ? 'bi-briefcase-fill text-primary' : 'bi-person-badge-fill text-success'}`}></i>
-              )}
-              <span className="navbar-role-btn-text small fw-medium text-capitalize">
-                {isSwitchingRole ? 'Switching...' : `${user?.active_role || 'freelancer'} Mode`}
-              </span>
-              <i className="navbar-role-btn-icon bi bi-arrow-left-right" style={{ fontSize: '0.75rem' }}></i>
-            </button>
-            <div className="d-none d-md-block vr mx-1 text-secondary opacity-25" style={{ height: '24px' }}></div>
+            
             <div className="dropdown">
               <button className="navbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <img src={user?.avatar_url || "https://ui-avatars.com/api/?name=User&background=random"} alt="Profile" className="navbar-profile-img" />
+                <img src={user?.avatar_url || "/default-avatar.png"} alt="Profile" className="navbar-profile-img" />
                 <span className="navbar-profile-name d-none d-md-inline">{user?.first_name || 'User'}</span>
                 <i className="bi bi-chevron-down navbar-profile-caret"></i>
               </button>
-              <ul className="dropdown-menu dropdown-menu-end dropdown-menu-profile">
-                <li className="dropdown-header">
-                  <div className="fw-bold text-dark text-truncate" title={`${user?.first_name || 'User'} ${user?.last_name || ''}`}>{user?.first_name || 'User'} {user?.last_name || ''}</div>
-                  <div className="small text-muted text-truncate" title={user?.email || 'user@example.com'}>{user?.email || 'user@example.com'}</div>
+              <ul className="dropdown-menu dropdown-menu-end dropdown-menu-profile shadow-sm border-0" style={{ minWidth: '240px', padding: '0.5rem 0', borderRadius: '12px' }}>
+                <li className="dropdown-header px-4 py-3 border-bottom mb-2">
+                  <div className="fw-bold text-dark text-truncate text-uppercase" style={{ letterSpacing: '0.5px' }} title={`${user?.first_name || 'User'} ${user?.last_name || ''}`}>
+                    {user?.first_name || 'User'} {user?.last_name || ''}
+                  </div>
+                  <div className="small text-muted text-truncate text-uppercase" style={{ fontSize: '0.75rem', letterSpacing: '0.5px' }} title={user?.email || 'user@example.com'}>
+                    {user?.email || 'user@example.com'}
+                  </div>
                 </li>
-                <li className="d-md-none">
-                  <button type="button" className="dropdown-item d-flex align-items-center gap-2 py-2" onClick={handleToggleRole} disabled={isSwitchingRole}>
-                    <i className="bi bi-arrow-left-right text-primary"></i>
-                    <span>Switch to {user?.active_role === 'customer' ? 'Freelancer' : 'Customer'} Mode</span>
+                
+                <li>
+                  <Link className="dropdown-item d-flex align-items-center gap-3 px-4 py-2" to={`/profile/${user?.user_id || user?.id}`}>
+                    <i className="bi bi-person fs-5 text-muted"></i>
+                    <span className="fw-medium text-dark">My Profile</span>
+                  </Link>
+                </li>
+                <li>
+                  <button type="button" className="dropdown-item d-flex align-items-center gap-3 px-4 py-2" onClick={handleToggleRole} disabled={isSwitchingRole}>
+                    {isSwitchingRole ? (
+                      <span className="spinner-border spinner-border-sm text-primary mx-1" role="status" aria-hidden="true"></span>
+                    ) : user?.active_role === 'customer' ? (
+                      <FreelancerIcon />
+                    ) : (
+                      <CustomerIcon />
+                    )}
+                    <span className="fw-medium text-dark">
+                      Switch Role ({user?.active_role === 'customer' ? 'Freelancer' : 'Customer'})
+                    </span>
                   </button>
                 </li>
-                <li className="d-md-none"><hr className="dropdown-divider" /></li>
-                <li><Link className="dropdown-item" to={`/profile/${user?.user_id || user?.id}`}><i className="bi bi-person"></i> My Profile</Link></li>
-                <li><Link className="dropdown-item" to="#"><i className="bi bi-gear"></i> Settings</Link></li>
-                <li><hr className="dropdown-divider" /></li>
-                <li><Link className="dropdown-item text-danger" to="/login" onClick={() => { clearCached(); localStorage.removeItem('token'); localStorage.removeItem('user'); }}><i className="bi bi-box-arrow-right"></i> Logout</Link></li>
+                
+                <li><hr className="dropdown-divider my-2 mx-3" /></li>
+                
+                <li>
+                  <Link className="dropdown-item d-flex align-items-center gap-3 px-4 py-2 text-danger" to="/login" onClick={() => { clearCached(); localStorage.removeItem('token'); localStorage.removeItem('refreshToken'); localStorage.removeItem('user'); }}>
+                    <i className="bi bi-box-arrow-right fs-5"></i>
+                    <span className="fw-medium">Logout</span>
+                  </Link>
+                </li>
               </ul>
             </div>
           </div>
@@ -322,7 +343,31 @@ export default function Layout() {
         {/* Page Content Rendered Here */}
         <Outlet />
 
+        {/* Global Footer */}
+        {!location.pathname.startsWith('/messages') && (
+          <footer className="footer mt-auto py-3 border-top" style={{ backgroundColor: 'var(--bs-body-bg)' }}>
+            <div className="container-fluid px-4 d-flex flex-column flex-md-row justify-content-between align-items-center small text-muted">
+              <div className="mb-2 mb-md-0 fw-medium">
+                &copy; {new Date().getFullYear()} RaketBase. All rights reserved.
+              </div>
+              <div className="d-flex gap-3 gap-md-4">
+                <Link to="/terms" className="text-decoration-none text-muted">Terms</Link>
+                <Link to="/privacy" className="text-decoration-none text-muted">Privacy</Link>
+                <Link to="/contact" className="text-decoration-none text-muted">Help & Support</Link>
+              </div>
+            </div>
+          </footer>
+        )}
+
       </div>
     </>
   );
 }
+
+
+
+
+
+
+
+

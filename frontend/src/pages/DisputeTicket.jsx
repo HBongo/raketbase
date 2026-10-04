@@ -76,7 +76,7 @@ export default function DisputeTicket() {
   const currentUserId = user.user_id || user.id;
   const otherParty =
     currentUserId === contract?.client_id ? contract?.freelancer : contract?.client;
-  const otherPartyLabel = currentUserId === contract?.client_id ? 'Freelancer' : 'Client';
+  const otherPartyLabel = currentUserId === contract?.client_id ? 'Freelancer' : 'customer';
 
   return (
     <>
@@ -232,3 +232,4 @@ export default function DisputeTicket() {
     </>
   );
 }
+

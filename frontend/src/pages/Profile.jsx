@@ -6,11 +6,84 @@
 // 4. Add/remove experience & education entries
 // 5. Spark Admin layout (sidebar + navbar)
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { getFreelancerProfile, updateProfile } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
+import { supabase } from '../config/supabaseClient';
+import { showToast } from '../utils/toast';
 
-const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&auto=format&fit=crop';
+function SecurityTab() {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isFormValid = newPassword.length >= 6 && newPassword === confirmPassword;
+
+  async function handleUpdatePassword(e) {
+    e.preventDefault();
+    if (!isFormValid || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      
+      showToast('Password updated successfully', { type: 'success' });
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      showToast(err.message || 'Failed to update password', { type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="card shadow-sm border-0 mb-4">
+      <div className="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
+        <h5 className="fw-bold text-dark mb-0"><i className="bi bi-shield-lock me-2 text-muted"></i>Account Security</h5>
+      </div>
+      <div className="card-body px-4 pb-4 mt-3">
+        <form onSubmit={handleUpdatePassword}>
+          <div className="mb-3">
+            <label className="form-label small fw-medium text-dark">New Password</label>
+            <input 
+              type="password" 
+              className="form-control bg-light" 
+              placeholder="Enter new password (min. 6 characters)"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="mb-4">
+            <label className="form-label small fw-medium text-dark">Confirm New Password</label>
+            <input 
+              type="password" 
+              className={`form-control bg-light ${confirmPassword && newPassword !== confirmPassword ? 'is-invalid border-danger' : ''}`}
+              placeholder="Confirm new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={isSubmitting}
+            />
+            {confirmPassword && newPassword !== confirmPassword && (
+              <div className="invalid-feedback">Passwords do not match</div>
+            )}
+          </div>
+          <button 
+            type="submit" 
+            className="btn btn-dark fw-medium rounded-pill px-4"
+            disabled={!isFormValid || isSubmitting}
+          >
+            {isSubmitting ? <><span className="spinner-border spinner-border-sm me-2"></span>Updating...</> : 'Update Password'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const DEFAULT_AVATAR = "/default-avatar.png";
 
 function buildFormFromProfile(p) {
   if (!p) return {};
@@ -80,7 +153,13 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState('about');
+    const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'about');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
 
   // Current logged-in user
   const user = (() => {
@@ -351,7 +430,7 @@ export default function Profile() {
                     />
                     {isOwnProfile && (
                       <>
-                        <input type="file" ref={fileInputRef} className="d-none" accept="image/png,image/jpeg,image/webp" onChange={handleAvatarUpload} />
+                        <input type="file" ref={fileInputRef} className="d-none" accept=".jpg,.jpeg,.png" onChange={handleAvatarUpload} />
                         <button
                           className="btn btn-dark btn-sm rounded-circle position-absolute bottom-0 end-0 d-flex align-items-center justify-content-center"
                           style={{ width: '36px', height: '36px' }}
@@ -379,7 +458,7 @@ export default function Profile() {
                         </div>
                       </div>
                       <label className="form-label small fw-medium">Professional Title</label>
-                      <input type="text" className="form-control bg-light" placeholder="e.g. Full Stack Developer" value={form.title} onChange={(e) => handleChange('title', e.target.value)} />
+                      <input type="text" className="form-control bg-light" placeholder="e.g. Full Stack Developer" maxLength="50" value={form.title} onChange={(e) => { const v = e.target.value.replace(/[^A-Za-z0-9 ]/g, ""); handleChange("title", v); }} />
                     </div>
                   ) : (
                     <>
@@ -392,7 +471,13 @@ export default function Profile() {
                   {editing ? (
                     <div className="text-start mb-3">
                       <label className="form-label small fw-medium">Location</label>
-                      <input type="text" className="form-control bg-light" placeholder="e.g. Manila, Philippines" value={form.location} onChange={(e) => handleChange('location', e.target.value)} />
+                      <select className="form-select bg-light" value={form.location} onChange={(e) => handleChange('location', e.target.value)}>
+    <option value="">Select a region...</option>
+    <option value="Metro Manila">Metro Manila</option>
+    <option value="Cebu">Cebu</option>
+    <option value="Davao">Davao</option>
+    <option value="Other">Other</option>
+  </select>
                     </div>
                   ) : (
                     f.location && <p className="text-muted small mb-3"><i className="bi bi-geo-alt-fill me-1"></i>{f.location}</p>
@@ -552,6 +637,7 @@ export default function Profile() {
                       { id: 'about', label: 'About Me', icon: 'bi-person' },
                       { id: 'experience', label: 'Experience', icon: 'bi-building' },
                       { id: 'education', label: 'Education', icon: 'bi-mortarboard' },
+                      ...(isOwnProfile ? [{ id: 'security', label: 'Security', icon: 'bi-shield-lock' }] : [])
                     ].map((tab) => (
                       <li className="nav-item" key={tab.id}>
                         <button
@@ -778,6 +864,8 @@ export default function Profile() {
                   </div>
                 </div>
               )}
+
+              {activeTab === 'security' && <SecurityTab />}
             </div>
           </div>
         )}
@@ -785,3 +873,8 @@ export default function Profile() {
     </>
   );
 }
+
+
+
+
+

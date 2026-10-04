@@ -22,21 +22,23 @@ body {
 
 /* ── GitHub main Dark Split-Screen System ── */
 .auth-split-wrapper {
-  background-color: #10131A !important;
-  color: #EDEEF2 !important;
+  background-color: #F8FAFC !important;
+  color: #1E293B !important;
   font-family: var(--font-sans);
   min-height: 100vh;
   display: flex;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .auth-split-sidebar {
   width: 42%;
-  background-color: #141824;
-  border-right: 1px solid #262B36;
+  background-color: #F1F5F9;
+  border-right: 1px solid #E2E8F0;
   padding: 3.5rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .auth-split-content {
@@ -45,7 +47,8 @@ body {
   align-items: center;
   justify-content: center;
   padding: 2.5rem 1.5rem;
-  background-color: #10131A;
+  background-color: #F8FAFC;
+  transition: background-color 0.3s ease;
 }
 
 .auth-split-card {
@@ -55,14 +58,14 @@ body {
 
 .auth-input {
   width: 100%;
-  background-color: #1D2129 !important;
-  border: 1px solid #262B36 !important;
-  color: #EDEEF2 !important;
+  background-color: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #1E293B !important;
   padding: 0.625rem 0.85rem;
   border-radius: 6px;
   font-size: 0.875rem;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.3s ease, color 0.3s ease;
 }
 
 .auth-input:focus {
@@ -71,11 +74,11 @@ body {
 }
 
 .auth-input::placeholder {
-  color: #5A6275 !important;
+  color: #94A3B8 !important;
 }
 
 .auth-input-error {
-  border-color: #E5484D !important;
+  border-color: #EF4444 !important;
 }
 
 .auth-btn-primary {
@@ -105,9 +108,9 @@ body {
 }
 
 .auth-btn-secondary {
-  background-color: #1D2129;
-  border: 1px solid #262B36;
-  color: #EDEEF2;
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  color: #1E293B;
   font-size: 0.8125rem;
   padding: 0.55rem 0.85rem;
   border-radius: 6px;
@@ -120,9 +123,9 @@ body {
 }
 
 .auth-btn-secondary:hover:not(:disabled) {
-  background-color: #252B37;
-  border-color: #373E4F;
-  color: #FFFFFF;
+  background-color: #F1F5F9;
+  border-color: #94A3B8;
+  color: #0F172A;
 }
 
 .auth-btn-secondary:disabled {
@@ -131,11 +134,61 @@ body {
 }
 
 .auth-checklist {
-  background-color: #141824;
-  border: 1px solid #262B36;
+  background-color: #F1F5F9;
+  border: 1px solid #E2E8F0;
   border-radius: 6px;
   padding: 0.75rem 0.85rem;
   font-size: 0.75rem;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* 🌙 Dark Mode Overrides for Auth Layout 🌙 */
+body.dark-mode .auth-split-wrapper {
+  background-color: #10131A !important;
+  color: #EDEEF2 !important;
+}
+body.dark-mode .auth-split-sidebar {
+  background-color: #141824;
+  border-right: 1px solid #262B36;
+}
+body.dark-mode .auth-split-content {
+  background-color: #10131A;
+}
+body.dark-mode .auth-input {
+  background-color: #1D2129 !important;
+  border: 1px solid #262B36 !important;
+  color: #EDEEF2 !important;
+}
+body.dark-mode .auth-input:focus {
+  border-color: #E7B24B !important;
+  box-shadow: 0 0 0 1px #E7B24B !important;
+}
+body.dark-mode .auth-input::placeholder {
+  color: #5A6275 !important;
+}
+body.dark-mode .auth-input-error {
+  border-color: #E5484D !important;
+}
+body.dark-mode .auth-btn-primary {
+  background-color: #E7B24B !important;
+  color: #1A1305 !important;
+}
+body.dark-mode .auth-btn-primary:hover:not(:disabled) {
+  background-color: #F2C368 !important;
+}
+body.dark-mode .auth-btn-secondary {
+  background-color: #1D2129;
+  border: 1px solid #262B36;
+  color: #EDEEF2;
+}
+body.dark-mode .auth-btn-secondary:hover:not(:disabled) {
+  background-color: #252B37;
+  border-color: #373E4F;
+  color: #FFFFFF;
+}
+body.dark-mode .auth-checklist {
+  background-color: #141824;
+  border: 1px solid #262B36;
 }
 
 /* ── Standardize page-header to match Dashboard heading position (left-aligned) ── */

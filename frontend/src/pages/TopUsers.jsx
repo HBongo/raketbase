@@ -427,7 +427,7 @@ function TopUserCard({ user, role, rank }) {
           #{rank}
         </span>
         <img 
-          src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.first_name || user.name || 'User')}&background=random`} 
+          src={user.avatar_url || "/default-avatar.png"} 
           alt="Avatar" 
           className="rounded-circle mb-3 border" 
           style={{ width: "80px", height: "80px", objectFit: "cover" }} 
@@ -448,3 +448,9 @@ function TopUserCard({ user, role, rank }) {
     </div>
   );
 }
+
+
+
+
+
+
