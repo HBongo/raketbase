@@ -7,7 +7,7 @@
 // 5. Spark Admin layout (sidebar + navbar)
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { getFreelancerProfile, updateProfile, changePassword, getActivityLogs, getPayoutDetails, getPaymentMethodDetails, getProfileChat } from '../services/api';
+import { getFreelancerProfile, updateProfile, changePassword, getPayoutDetails, getPaymentMethodDetails, getProfileChat } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
 import { showToast } from '../utils/toast';
 import Money from '../components/Money';
@@ -19,132 +19,6 @@ import ActivityList from '../components/ActivityList';
 import DeleteAccountCard from '../components/DeleteAccountCard';
 import StartChatModal from '../components/StartChatModal';
 
-function ActivityTab() {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchLogs() {
-      try {
-        const res = await getActivityLogs();
-        if (!cancelled && res.success) {
-          setLogs(res.data || []);
-        }
-      } catch (err) {
-        if (!cancelled) setError(err.message || 'Could not load activity logs');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    fetchLogs();
-    return () => { cancelled = true; };
-  }, []);
-
-  const actionMeta = (action) => {
-    switch (action) {
-      case 'USER_LOGIN':
-        return { label: 'Account Login', icon: 'bi-box-arrow-in-right', color: 'text-primary' };
-      case 'USER_REGISTER':
-        return { label: 'Account Created', icon: 'bi-person-check', color: 'text-success' };
-      case 'PASSWORD_CHANGE':
-        return { label: 'Password Changed', icon: 'bi-key', color: 'text-warning' };
-      case 'PROFILE_UPDATE':
-        return { label: 'Profile Updated', icon: 'bi-pencil-square', color: 'text-info' };
-      case 'CREATE_JOB':
-        return { label: 'Job Posted', icon: 'bi-briefcase', color: 'text-success' };
-      case 'SUBMIT_PROPOSAL':
-        return { label: 'Proposal Submitted', icon: 'bi-send', color: 'text-info' };
-      case 'ACCEPT_PROPOSAL':
-        return { label: 'Proposal Accepted', icon: 'bi-check2-circle', color: 'text-success' };
-      case 'CONTRACT_ACTIVE':
-        return { label: 'Contract Active', icon: 'bi-file-earmark-text', color: 'text-secondary' };
-      default:
-        return { label: (action || 'activity').replace(/_/g, ' '), icon: 'bi-activity', color: 'text-secondary' };
-    }
-  };
-
-  const formatLogTime = (iso) => {
-    if (!iso) return '';
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-  };
-
-  return (
-    <div className="card shadow-sm border-0 mb-4">
-      <div className="card-header bg-transparent border-bottom-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
-        <h5 className="fw-bold mb-0">
-          <i className="bi bi-activity me-2 text-muted"></i>Activity Log
-        </h5>
-        <span className="badge bg-light text-secondary border rounded-pill">
-          {logs.length} {logs.length === 1 ? 'event' : 'events'}
-        </span>
-      </div>
-      <div className="card-body px-4 pb-4 mt-3">
-        {loading ? (
-          <div className="text-center py-4 text-muted">
-            <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-            Loading activity log...
-          </div>
-        ) : error ? (
-          <div className="alert alert-danger py-2 small">{error}</div>
-        ) : logs.length === 0 ? (
-          <div className="text-center py-5 text-muted">
-            <i className="bi bi-clock-history fs-2 d-block mb-2 opacity-50"></i>
-            <p className="mb-0 small">No activity recorded yet.</p>
-          </div>
-        ) : (
-          <div className="timeline-list d-flex flex-column gap-3">
-            {logs.map((log) => {
-              const meta = actionMeta(log.action);
-              return (
-                <div
-                  key={log.log_id}
-                  className="p-3 rounded-3 border bg-light d-flex align-items-start gap-3"
-                >
-                  <div
-                    className="rounded-circle bg-white border d-flex align-items-center justify-content-center flex-shrink-0"
-                    style={{ width: '40px', height: '40px' }}
-                  >
-                    <i className={`bi ${meta.icon} ${meta.color} fs-5`}></i>
-                  </div>
-                  <div className="flex-grow-1 min-w-0">
-                    <div className="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-1">
-                      <span className="fw-semibold text-dark small">{meta.label}</span>
-                      <span className="text-muted" style={{ fontSize: '11px' }}>
-                        {formatLogTime(log.created_at)}
-                      </span>
-                    </div>
-                    {log.details && Object.keys(log.details).length > 0 && (
-                      <p className="text-muted small mb-0 text-truncate" style={{ fontSize: '12px' }}>
-                        {log.details.title || log.details.job_title
-                          ? `Project: ${log.details.title || log.details.job_title}`
-                          : log.details.role
-                          ? `Active Role: ${log.details.role}`
-                          : log.details.email
-                          ? `Registered as ${log.details.email}`
-                          : JSON.stringify(log.details).slice(0, 100)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function SecurityTab() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -152,8 +26,8 @@ function SecurityTab() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // Same rule as sign-up: 8+ characters, 1 uppercase letter, 1 number
-  const meetsRule = /^(?=.*[A-Z])(?=.*\d).{8,}$/.test(newPassword);
+  // Same rule as sign-up: 8+ characters with an uppercase, a lowercase, a number and a special character
+  const meetsRule = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/.test(newPassword);
   const isFormValid = currentPassword && meetsRule && newPassword === confirmPassword;
 
   async function handleUpdatePassword(e) {
@@ -204,14 +78,14 @@ function SecurityTab() {
               id="new-password"
               type="password"
               className={`form-control ${newPassword && !meetsRule ? 'is-invalid border-danger' : ''}`}
-              placeholder="At least 8 characters, 1 uppercase letter, 1 number"
+              placeholder="8+ characters, upper & lowercase, number, symbol"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               autoComplete="new-password"
               disabled={isSubmitting}
             />
             {newPassword && !meetsRule && (
-              <div className="invalid-feedback">Use at least 8 characters, including 1 uppercase letter and 1 number</div>
+              <div className="invalid-feedback">Use at least 8 characters, including an uppercase letter, a lowercase letter, a number, and a special character (like ! @ # $ %)</div>
             )}
           </div>
           <div className="mb-4">

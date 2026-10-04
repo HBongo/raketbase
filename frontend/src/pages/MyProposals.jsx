@@ -237,6 +237,8 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
   const [editError, setEditError] = useState('');
 
   const jobIsOpen = proposal.jobs?.status === 'open';
+  // A milestone bid is the sum of its stages: only the cover letter can be edited here
+  const isMilestone = proposal.jobs?.budget_type === 'milestone';
 
   function startEdit() {
     setBidAmount(proposal.bid_amount);
@@ -247,7 +249,7 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
 
   function handleResubmit() {
     const amount = Number(bidAmount);
-    if (!bidAmount || Number.isNaN(amount) || amount <= 0) {
+    if (!isMilestone && (!bidAmount || Number.isNaN(amount) || amount <= 0)) {
       setEditError('Enter a bid amount greater than 0.');
       return;
     }
@@ -256,7 +258,9 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
       return;
     }
     setEditError('');
-    onUnwithdraw({ bid_amount: amount, cover_letter: coverLetter.trim() });
+    onUnwithdraw(isMilestone
+      ? { cover_letter: coverLetter.trim() }
+      : { bid_amount: amount, cover_letter: coverLetter.trim() });
     setEditing(false);
   }
 
@@ -336,6 +340,13 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
 
         {proposal.status === 'withdrawn' && jobIsOpen && editing && (
           <div className="mt-4 pt-3 border-top">
+            {isMilestone ? (
+              <p className="small text-muted mb-3">
+                <i className="bi bi-info-circle me-1"></i>
+                This is a milestone bid, so its amounts come from its stages. To change them, use{' '}
+                <Link to={`/jobs/${proposal.job_id}`}>Withdraw &amp; Edit on the job page</Link>.
+              </p>
+            ) : (
             <div className="mb-3">
               <label className="form-label small fw-medium text-muted mb-1">
                 Your bid ({getCurrencySymbol(proposal.jobs?.currency)})
@@ -349,6 +360,7 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
                 className="form-control form-control-sm rounded-3"
               />
             </div>
+            )}
             <div className="mb-3">
               <label className="form-label small fw-medium text-muted mb-1">
                 Cover letter

@@ -12,7 +12,6 @@ const {
   forgotPassword,
   resetPassword,
   changePassword,
-  getActivityLogs,
   getPayoutDetails,
   updatePayoutDetails,
   getPaymentMethodDetails,
@@ -40,7 +39,6 @@ router.post('/reset-password', resetPassword);
 router.patch('/password', requireAuth, changePassword);
 router.patch('/switch-role', requireAuth, switchRole);
 router.get('/profile', requireAuth, getProfile);
-router.get('/activity', requireAuth, getActivityLogs);
 router.put('/profile', requireAuth, updateProfile);
 // Freelancer payout details (only ever returned masked)
 router.get('/payout', requireAuth, getPayoutDetails);

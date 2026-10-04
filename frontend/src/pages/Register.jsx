@@ -360,7 +360,7 @@ export default function Register() {
                     autoFocus
                   />
                   {firstName && !isNameValid(firstName) && (
-                    <div className="rb-auth__error-text">2-50 letters/spaces allowed</div>
+                    <div className="rb-auth__field-error">2-50 letters/spaces allowed</div>
                   )}
                 </div>
                 <div className="rb-auth__field">
@@ -373,7 +373,7 @@ export default function Register() {
                     placeholder="Dela Cruz"
                   />
                   {lastName && !isNameValid(lastName) && (
-                    <div className="rb-auth__error-text">2-50 letters/spaces allowed</div>
+                    <div className="rb-auth__field-error">2-50 letters/spaces allowed</div>
                   )}
                 </div>
               </div>
@@ -388,10 +388,10 @@ export default function Register() {
                   placeholder="juandelacruz@example.com"
                 />
                 {email && !isEmailFormatValid(email) && (
-                  <div className="rb-auth__error-text">Invalid email format</div>
+                  <div className="rb-auth__field-error">Invalid email format</div>
                 )}
                 {email && isEmailFormatValid(email) && !isLegitEmailDomain(email) && (
-                  <div className="rb-auth__error-text">Please use a recognized email provider</div>
+                  <div className="rb-auth__field-error">Please use a recognized email provider</div>
                 )}
               </div>
 
@@ -667,7 +667,7 @@ export default function Register() {
                     />
                     <button
                       type="button"
-                      className="rb-auth__toggle-pwd"
+                      className="rb-auth__input-icon"
                       onClick={() => setShowPassword(!showPassword)}
                       tabIndex="-1"
                     >
@@ -687,7 +687,7 @@ export default function Register() {
                     />
                     <button
                       type="button"
-                      className="rb-auth__toggle-pwd"
+                      className="rb-auth__input-icon"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       tabIndex="-1"
                     >
@@ -695,7 +695,7 @@ export default function Register() {
                     </button>
                   </div>
                   {confirmPassword && password !== confirmPassword && (
-                    <div className="rb-auth__error-text">Passwords do not match</div>
+                    <div className="rb-auth__field-error">Passwords do not match</div>
                   )}
                 </div>
               </div>
@@ -722,7 +722,7 @@ export default function Register() {
               </div>
 
               <p className="rb-auth__legal-disclaimer">
-                By creating an account, you agree to our <button type="button" className="rb-auth__link-btn" onClick={() => openLegalModal('terms')}>Terms</button> and <button type="button" className="rb-auth__link-btn" onClick={() => openLegalModal('privacy')}>Privacy Policy</button>.
+                By creating an account, you agree to our <button type="button" className="rb-auth__btn-ghost rb-auth__btn-ghost--accent" onClick={() => openLegalModal('terms')}>Terms</button> and <button type="button" className="rb-auth__btn-ghost rb-auth__btn-ghost--accent" onClick={() => openLegalModal('privacy')}>Privacy Policy</button>.
               </p>
 
               <div className="rb-auth__checkbox-row">
@@ -749,7 +749,7 @@ export default function Register() {
                   disabled={!isStep2Complete || loading}
                 >
                   {loading ? (
-                    <span className="rb-auth__spinner"></span>
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                   ) : (
                     'Create Account'
                   )}

@@ -77,3 +77,14 @@ export function convertForDisplay(amount, fromCurrency = 'PHP') {
   const inPhp = Number(amount) / rates[from];
   return { value: inPhp * rates[to], currency: to };
 }
+
+// An amount in its own currency (PHP or USD) converted to PHP, for totals that mix both.
+// Uses the live rates once loaded, otherwise an approximate fallback.
+const FALLBACK_PHP_RATES = { PHP: 1, USD: 0.0178 };
+export function toPhp(amount, fromCurrency = 'PHP') {
+  const from = (fromCurrency || 'PHP').toUpperCase();
+  const value = Number(amount) || 0;
+  if (from === 'PHP') return value;
+  const rate = state.rates?.[from] || FALLBACK_PHP_RATES[from];
+  return rate ? value / rate : value;
+}

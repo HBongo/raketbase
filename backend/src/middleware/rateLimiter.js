@@ -1,4 +1,6 @@
-// rateLimiter.js — Sliding window in-memory rate limiter for auth routes
+// rateLimiter.js — Sliding window in-memory rate limiter for auth routes.
+// Only failed requests count, so logging in normally (e.g. switching between accounts
+// on one computer) never locks anyone out; repeated wrong passwords still do.
 const attempts = new Map();
 
 function createRateLimiter({
@@ -37,8 +39,14 @@ function createRateLimiter({
       });
     }
 
-    timestamps.push(now);
     attempts.set(ip, timestamps);
+    res.on('finish', () => {
+      if (res.statusCode >= 400 && res.statusCode !== 429) {
+        const list = attempts.get(ip) || [];
+        list.push(Date.now());
+        attempts.set(ip, list);
+      }
+    });
     next();
   };
 }

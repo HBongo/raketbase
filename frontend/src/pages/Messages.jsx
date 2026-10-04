@@ -361,7 +361,10 @@ export default function Messages() {
     const q = searchQuery.toLowerCase();
     const amClient = c.client_id === (user?.user_id || user?.id);
     const them = amClient ? c.freelancer : c.client;
-    const label = [them?.first_name, them?.last_name].filter(Boolean).join(" ") || them?.email || "";
+    const watching = !amClient && c.freelancer_id !== (user?.user_id || user?.id);
+    const label = watching
+      ? `${personName(c.client)} ${personName(c.freelancer)}`
+      : [them?.first_name, them?.last_name].filter(Boolean).join(" ") || them?.email || "";
     return (c.title || "").toLowerCase().includes(q) || label.toLowerCase().includes(q);
   });
 
@@ -506,7 +509,11 @@ export default function Messages() {
                   const isActiveConv = c.conversation_id === selectedId;
                   const amClient = c.client_id === (user?.user_id || user?.id);
                   const them = amClient ? c.freelancer : c.client;
-                  const label = [them?.first_name, them?.last_name].filter(Boolean).join(" ") || them?.email || "User";
+                  // Staff/admin aren't in the chat, so name both sides
+                  const watching = !amClient && c.freelancer_id !== (user?.user_id || user?.id);
+                  const label = watching
+                    ? `${personName(c.client)} & ${personName(c.freelancer)}`
+                    : [them?.first_name, them?.last_name].filter(Boolean).join(" ") || them?.email || "User";
 
                   return (
                     <div
@@ -652,16 +659,24 @@ export default function Messages() {
                           </div>
                         );
                       }
-                      const mine = m.sender_id === (user?.user_id || user?.id);
+                      // Staff/admin read both sides: client on the left, freelancer on the right, each labeled
+                      const fromClient = m.sender_id === active?.client_id;
+                      const sender = fromClient ? active?.client : active?.freelancer;
+                      const mine = isParticipant ? m.sender_id === (user?.user_id || user?.id) : !fromClient;
                       const imageUrl = m.file_url || attachmentUrls[m.message_id];
                       const isImg = isImageAttachment(m);
 
                       return (
                         <div key={m.message_id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start", alignItems: "flex-end", gap: "8px" }}>
                           {!mine && (
-                            <Avatar src={other?.avatar_url} name={personName(other)} size={30} />
+                            <Avatar src={(isParticipant ? other : sender)?.avatar_url} name={personName(isParticipant ? other : sender)} size={30} />
                           )}
                           <div className={mine ? "bubble-mine" : "bubble-theirs"}>
+                            {!isParticipant && (
+                              <div style={{ fontSize: "11px", fontWeight: 700, opacity: 0.75, marginBottom: "4px" }}>
+                                {personName(sender)} · {fromClient ? "Client" : "Freelancer"}
+                              </div>
+                            )}
                             {m.content && (
                               <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.55", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                                 <LinkifiedText content={m.content} mine={mine} />
@@ -735,9 +750,11 @@ export default function Messages() {
 
                             <div className="bubble-time">{formatClock(m.created_at)}</div>
                           </div>
-                          {mine && (
+                          {mine && (isParticipant ? (
                             <Avatar src={(isClient && user?.client_avatar_url) || user?.avatar_url} name={user?.first_name || "Me"} size={30} />
-                          )}
+                          ) : (
+                            <Avatar src={sender?.avatar_url} name={personName(sender)} size={30} />
+                          ))}
                         </div>
                       );
                     })

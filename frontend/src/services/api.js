@@ -461,11 +461,6 @@ export function removeAvatar() {
   return request("/auth/profile/avatar", { method: "DELETE" });
 }
 
-// Activity Logs API
-export function getActivityLogs() {
-  return request('/auth/activity');
-}
-
 // Proposals API (withdraw)
 export function withdrawProposal(proposalId) { return request(`/proposals/${proposalId}/withdraw`, { method: "PATCH" }); }
 export function unwithdrawProposal(proposalId, payload) {

@@ -1,6 +1,7 @@
 const { supabaseAdmin } = require('../config/supabase');
 const { logActivity } = require('../utils/activity');
 const { notify } = require('../utils/notify');
+const { formatMoney } = require('../utils/money');
 
 // Best-effort: posts a system message into the contract's conversation. A failure
 // here must never fail the contract action itself.
@@ -452,7 +453,7 @@ exports.completeContract = async (req, res) => {
 
     const { data: contract, error: fetchError } = await supabaseAdmin
       .from('contracts')
-      .select('contract_id, job_id, client_id, freelancer_id, agreed_amount, status, jobs(title)')
+      .select('contract_id, job_id, client_id, freelancer_id, agreed_amount, status, jobs(title, currency)')
       .eq('contract_id', contract_id)
       .single();
 
@@ -493,7 +494,7 @@ exports.completeContract = async (req, res) => {
     await postSystemMessage(
       contract_id,
       userId,
-      `Deliverables approved! Escrow payment of ₱${Number(contract.agreed_amount).toLocaleString()} released to the freelancer.`
+      `Deliverables approved! Escrow payment of ${formatMoney(contract.agreed_amount, contract.jobs?.currency)} released to the freelancer.`
     );
 
     await notify({
@@ -501,7 +502,7 @@ exports.completeContract = async (req, res) => {
       type: 'payment_released',
       role: 'freelancer',
       title: `Payment released for "${contract.jobs?.title || 'your contract'}"`,
-      body: `The client approved your work and released ₱${Number(contract.agreed_amount).toLocaleString()}.`,
+      body: `The client approved your work and released ${formatMoney(contract.agreed_amount, contract.jobs?.currency)}.`,
       link: '/dashboard',
     });
 
@@ -509,7 +510,7 @@ exports.completeContract = async (req, res) => {
       user_id: userId,
       category: 'contracts',
       action: 'contract.payment_released',
-      description: `Approved the work and released ₱${Number(contract.agreed_amount || 0).toLocaleString()} for "${contract.jobs?.title || 'a contract'}"`,
+      description: `Approved the work and released ${formatMoney(contract.agreed_amount, contract.jobs?.currency)} for "${contract.jobs?.title || 'a contract'}"`,
       target_type: 'contract',
       target_id: contract.contract_id,
       link: '/dashboard',
@@ -518,7 +519,7 @@ exports.completeContract = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: `Contract approved! ₱${Number(contract.agreed_amount).toLocaleString()} released to freelancer.`,
+      message: `Contract approved! ${formatMoney(contract.agreed_amount, contract.jobs?.currency)} released to freelancer.`,
       data: updated,
     });
   } catch (error) {

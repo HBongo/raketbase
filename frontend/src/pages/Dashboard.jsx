@@ -18,10 +18,11 @@ import {
   submitMilestoneWork,
   approveMilestoneWork,
   switchRole,
-  getActivityLogs,
+  getMyActivity,
 } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
 import { formatCurrency } from '../utils/formatters';
+import { toPhp, useDisplayCurrency } from '../utils/currency';
 import Money from '../components/Money';
 import RateContractModal from '../components/RateContractModal';
 
@@ -236,9 +237,11 @@ export default function Dashboard() {
   // Summary metrics calculation
   const activeContracts = contracts.filter((c) => c.status === 'active' || c.status === 'submitted');
   // Refunded contracts count for nothing; after a split dispute only the released half counts.
+  // USD contracts are converted to PHP so the total is one currency.
+  useDisplayCurrency(); // recalculate once exchange rates load
   const totalAgreedEscrow = contracts
     .filter((c) => c.status !== 'refunded')
-    .reduce((sum, c) => sum + Number(c.released_amount ?? c.agreed_amount ?? 0), 0);
+    .reduce((sum, c) => sum + toPhp(c.released_amount ?? c.agreed_amount ?? 0, c.jobs?.currency), 0);
   const pendingProposalsCount = isCustomer
     ? clientJobs.reduce((sum, j) => sum + (j.pending_count || 0), 0)
     : proposals.filter((p) => p.status === 'pending').length;
@@ -1179,108 +1182,52 @@ function RecentActivityWidget({ isCustomer, userId }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
-    getActivityLogs()
+  // Reads the same activity log as Profile → Activity
+  const loadLogs = useCallback(() => {
+    return getMyActivity({ limit: 15 })
       .then((res) => {
-        if (!mounted) return;
-        const rawList = (res && res.data && Array.isArray(res.data))
-          ? res.data
-          : (Array.isArray(res) ? res : []);
-
-        // Filter out redundant repeat login entries so at most 1 recent login is shown,
-        // leaving space for contracts, proposals, and project milestones
+        const rawList = res?.data?.items || [];
+        // Only the latest login is shown, leaving room for jobs, bids, contracts and payments
         let seenLogin = false;
         const filtered = rawList.filter((log) => {
-          const act = (log.action || '').toUpperCase();
-          const isLogin = act.includes('LOGIN');
-          if (isLogin) {
-            if (seenLogin) return false;
-            seenLogin = true;
-            return true;
-          }
+          if (log.action !== 'account.login') return true;
+          if (seenLogin) return false;
+          seenLogin = true;
           return true;
         });
-
         setLogs(filtered.slice(0, 5));
       })
       .catch((err) => {
         console.warn('Could not load activity logs:', err);
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
       });
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    loadLogs().finally(() => {
+      if (mounted) setLoading(false);
+    });
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [loadLogs]);
 
-  const getActionBadge = (action) => {
-    switch (action) {
-      case 'SUBMIT_PROPOSAL':
-        return { icon: 'bi-send-fill', bg: 'bg-primary-subtle text-primary border border-primary-subtle' };
-      case 'CREATE_JOB':
-        return { icon: 'bi-briefcase-fill', bg: 'bg-success-subtle text-success border border-success-subtle' };
-      case 'CONTRACT_ACTIVE':
-        return { icon: 'bi-shield-lock-fill', bg: 'bg-info-subtle text-info border border-info-subtle' };
-      case 'SUBMIT_WORK':
-        return { icon: 'bi-file-earmark-check-fill', bg: 'bg-warning-subtle text-warning border border-warning-subtle' };
-      case 'RELEASE_MILESTONE':
-      case 'RELEASE_FUNDS':
+  // Live: new bids, hires, payments and offers show up without a refresh
+  useLive(['contracts', 'proposals', 'offers', 'jobs'], () => loadLogs());
+
+  const getActionBadge = (category) => {
+    switch (category) {
+      case 'jobs':
+        return { icon: 'bi-briefcase-fill', bg: 'bg-primary-subtle text-primary border border-primary-subtle' };
+      case 'contracts':
         return { icon: 'bi-cash-coin', bg: 'bg-success-subtle text-success border border-success-subtle' };
-      case 'LOGIN':
-      case 'user_login':
-        return { icon: 'bi-box-arrow-in-right', bg: 'bg-secondary-subtle text-secondary border border-secondary-subtle' };
+      case 'admin':
+        return { icon: 'bi-shield-check', bg: 'bg-info-subtle text-info border border-info-subtle' };
+      case 'account':
+        return { icon: 'bi-person-circle', bg: 'bg-secondary-subtle text-secondary border border-secondary-subtle' };
       default:
         return { icon: 'bi-clock-history', bg: 'bg-light text-muted border' };
     }
-  };
-
-  const getActionDescription = (log) => {
-    const act = log.action || '';
-    const d = log.details || {};
-    if (act === 'SUBMIT_PROPOSAL') {
-      return (
-        <>
-          Submitted bid on <strong className="text-dark">{d.job_title || 'a job posting'}</strong>
-          {d.bid_amount ? <span className="ms-1 badge bg-light text-success border">{formatCurrency(d.bid_amount)}</span> : null}
-        </>
-      );
-    }
-    if (act === 'CREATE_JOB') {
-      return (
-        <>
-          Posted new job <strong className="text-dark">{d.title || 'listing'}</strong>
-          {d.budget ? <span className="ms-1 badge bg-light text-success border">{formatCurrency(d.budget)}</span> : null}
-        </>
-      );
-    }
-    if (act === 'CONTRACT_ACTIVE') {
-      return (
-        <>
-          Escrow funded & contract active for <strong className="text-dark">{d.job_title || 'project'}</strong>
-          {d.agreed_amount ? <span className="ms-1 badge bg-light text-success border">{formatCurrency(d.agreed_amount)}</span> : null}
-        </>
-      );
-    }
-    if (act === 'SUBMIT_WORK') {
-      return (
-        <>
-          Submitted deliverable for review on <strong className="text-dark">{d.job_title || 'contract'}</strong>
-        </>
-      );
-    }
-    if (act === 'RELEASE_MILESTONE' || act === 'RELEASE_FUNDS') {
-      return (
-        <>
-          Released escrow payment for <strong className="text-dark">{d.job_title || 'contract'}</strong>
-        </>
-      );
-    }
-    if (act === 'LOGIN' || act === 'user_login') {
-      return <>Signed in to account session</>;
-    }
-    return <span className="text-dark">{act.replace(/_/g, ' ')}</span>;
   };
 
   return (
@@ -1317,10 +1264,10 @@ function RecentActivityWidget({ isCustomer, userId }) {
         ) : (
           <div className="d-flex flex-column gap-2">
             {logs.map((log, idx) => {
-              const badge = getActionBadge(log.action);
+              const badge = getActionBadge(log.category);
               return (
                 <div
-                  key={log.log_id || idx}
+                  key={log.activity_id || idx}
                   className="d-flex align-items-center gap-3 p-2 rounded-3 hover-bg-light transition"
                   style={{ backgroundColor: 'rgba(0,0,0,0.01)' }}
                 >
@@ -1331,7 +1278,7 @@ function RecentActivityWidget({ isCustomer, userId }) {
                     <i className={`bi ${badge.icon}`}></i>
                   </div>
                   <div className="flex-grow-1 min-w-0" style={{ fontSize: '0.86rem' }}>
-                    <div className="text-truncate-2 mb-0.5">{getActionDescription(log)}</div>
+                    <div className="text-truncate-2 mb-0.5">{log.description}</div>
                     <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
                       <i className="bi bi-clock me-1"></i>
                       {formatRelativeTime(log.created_at)}

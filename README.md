@@ -365,6 +365,35 @@ Changes 10
 - Professional title, location (city and region), and business name are now actually saved with the new account
 - The Create Account button stays disabled until the details are filled in correctly, with hints for wrong mobile and account numbers
 
+[Proposal & Chat Fixes]
+- Fixed "Withdraw & Edit" on the job page: re-sending a withdrawn proposal always failed with "You have already submitted a proposal for this job"
+- Re-sending now replaces the withdrawn proposal completely (bid, cover letter, milestones, portfolio link, and files; old files are removed), and the client sees it as a new proposal
+- If anything fails while re-sending, the proposal goes back to how it was (still withdrawn), so the freelancer can simply try again
+- Admins reading a contract chat now see who sent each message: client messages on the left and freelancer messages on the right, each with the right photo and a "Name · Client" or "Name · Freelancer" label (admins still can't send messages)
+- The admin's chat list names both people ("Client & Freelancer") instead of only the client
+
+[Login & Account Fixes]
+- The login rate limit now only counts failed attempts, so switching between accounts on one computer no longer locks everyone out for 5 minutes; repeated wrong passwords still do
+- Removed the login page's browser-only 3-try / 30-second lock again, so the server's messages show (attempts left before a lock, and how long to wait)
+- "Forgot password?" on the login page opens the reset page again (it only showed a test pop-up)
+- Fixed the Forgot password and Set a new password pages showing an unstyled text box and button in light mode (their styles were lost when the login page was redesigned)
+- The login page tells suspended users they were suspended by an admin, and deleted accounts that they were deleted, instead of showing nothing
+- One password rule everywhere: sign-up, changing your password, and resetting it all need 8+ characters with an uppercase letter, a lowercase letter, a number, and a special character (existing passwords keep working)
+
+[Proposal & Payment Display Fixes]
+- The "Your Proposal" card on a job page now shows your milestone stages, portfolio link, and attached files (it was reading the wrong fields and showed none of them)
+- Withdraw & Edit now fills the form back in with your stages and portfolio link
+- Payment messages in chats, notifications, and the activity log use the job's currency ($ for USD jobs and offers instead of always ₱)
+- Totals that mix PHP and USD contracts (Dashboard escrow total, admin platform revenue, and average rates on profiles, Browse Users, and Top Users) now convert USD to PHP with the live exchange rate instead of adding dollars as pesos
+- My Proposals now shows USD bids in dollars (it was missing the job's currency)
+- Restoring a withdrawn milestone proposal from My Proposals only lets you edit the cover letter; the total comes from the stages, so changing amounts is done with Withdraw & Edit on the job page (it could leave a total that didn't match the stages)
+- Register page: fixed the field error messages, password show/hide buttons, Terms and Privacy links, and the loading spinner, which had no styles
+- Job pages no longer send the client's email address to the browser
+
+[Activity Log Cleanup]
+- Removed the second activity log that recorded logins, job posts, proposals, profile and password changes twice (activity_logs table and a backup file on the server)
+- The Dashboard's Recent Activity widget now reads the same activity log as Profile → Activity, shows the latest login only once, and updates live
+
 
 Roadmap
 - Make it so that people who choose the freelancer option also need to put in their bank details and phone number - Complete

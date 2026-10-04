@@ -3,7 +3,6 @@ const { logActivity } = require('../utils/activity');
 const { getRatingSummaries, emptySummary } = require('../utils/ratings');
 const { validateJobInput } = require('../utils/slopFilter');
 const { notify } = require('../utils/notify');
-const { logActivity: logAuditActivity } = require('../utils/activityLogger');
 
 // GET /api/v1/jobs - Fetch all jobs (with optional category filtering).
 // Open jobs come first (newest first); assigned/completed jobs follow so the
@@ -73,7 +72,7 @@ exports.getJobById = async (req, res) => {
 
     const { data: job, error } = await supabaseAdmin
       .from('jobs')
-      .select('*, categories(category_name), users!jobs_client_id_fkey(user_id, first_name, last_name, email, client_avatar_url, avatar_url)')
+      .select('*, categories(category_name), users!jobs_client_id_fkey(user_id, first_name, last_name, client_avatar_url, avatar_url)')
       .eq('job_id', id)
       .single();
 
@@ -223,12 +222,6 @@ exports.createJob = async (req, res) => {
     if (insertRes.error) throw insertRes.error;
     job = insertRes.data;
 
-    logAuditActivity({
-      userId: client_id,
-      action: 'CREATE_JOB',
-      details: { job_id: job.job_id, title: job.title, budget: job.budget },
-      ip: req.ip || req.headers['x-forwarded-for'] || null,
-    }).catch(() => {});
 
     await logActivity({
       user_id: req.user.id,

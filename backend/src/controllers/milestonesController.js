@@ -1,11 +1,12 @@
 const { supabaseAdmin } = require('../config/supabase');
 const { logActivity } = require('../utils/activity');
 const { notify } = require('../utils/notify');
+const { formatMoney } = require('../utils/money');
 
 async function loadContract(contract_id) {
   const { data, error } = await supabaseAdmin
     .from('contracts')
-    .select('contract_id, job_id, client_id, freelancer_id, status, jobs(title)')
+    .select('contract_id, job_id, client_id, freelancer_id, status, jobs(title, currency)')
     .eq('contract_id', contract_id)
     .single();
   if (error || !data) return null;
@@ -257,7 +258,7 @@ exports.approveMilestone = async (req, res) => {
     await postSystemMessage(
       contract_id,
       userId,
-      `Milestone "${milestone.title}" was approved — ₱${Number(milestone.amount).toLocaleString()} released.`
+      `Milestone "${milestone.title}" was approved — ${formatMoney(milestone.amount, contract.jobs?.currency)} released.`
     );
 
     // Is there a next milestone to activate, or was this the last one?
@@ -285,7 +286,7 @@ exports.approveMilestone = async (req, res) => {
       type: 'payment_released',
       role: 'freelancer',
       title: `Stage "${milestone.title}" approved on "${contract.jobs?.title || 'your contract'}"`,
-      body: `₱${Number(milestone.amount).toLocaleString()} was released to you.${contractCompleted ? ' All stages are done, so the contract is now complete.' : ' The next stage is now active.'}`,
+      body: `${formatMoney(milestone.amount, contract.jobs?.currency)} was released to you.${contractCompleted ? ' All stages are done, so the contract is now complete.' : ' The next stage is now active.'}`,
       link: '/dashboard',
     });
 
@@ -293,7 +294,7 @@ exports.approveMilestone = async (req, res) => {
       user_id: userId,
       category: 'contracts',
       action: 'milestone.payment_released',
-      description: `Approved stage "${milestone.title}" and released ₱${Number(milestone.amount).toLocaleString()} on "${contract.jobs?.title || 'a contract'}"`,
+      description: `Approved stage "${milestone.title}" and released ${formatMoney(milestone.amount, contract.jobs?.currency)} on "${contract.jobs?.title || 'a contract'}"`,
       target_type: 'contract',
       target_id: contract.contract_id,
       link: '/dashboard',
@@ -302,7 +303,7 @@ exports.approveMilestone = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: `₱${Number(milestone.amount).toLocaleString()} released to freelancer.${contractCompleted ? ' Contract completed!' : ''}`,
+      message: `${formatMoney(milestone.amount, contract.jobs?.currency)} released to freelancer.${contractCompleted ? ' Contract completed!' : ''}`,
       data: { milestone: updated, contract_completed: contractCompleted },
     });
   } catch (error) {

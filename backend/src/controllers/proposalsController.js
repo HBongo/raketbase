@@ -4,7 +4,7 @@ const { logActivity } = require('../utils/activity');
 const { getRatingSummaries, emptySummary } = require('../utils/ratings');
 const { validateProposalInput } = require('../utils/slopFilter');
 const { notify, displayName } = require('../utils/notify');
-const { logActivity: logAuditActivity } = require('../utils/activityLogger');
+const { formatMoney } = require('../utils/money');
 
 function formatProposal(proposal) {
   if (!proposal) return proposal;
@@ -104,7 +104,7 @@ exports.createProposal = async (req, res) => {
     // Nobody may bid on a job they posted themselves, regardless of mode.
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
-      .select('job_id, client_id, status, budget_type, title')
+      .select('job_id, client_id, status, budget_type, title, currency')
       .eq('job_id', job_id)
       .single();
 
@@ -163,7 +163,7 @@ exports.createProposal = async (req, res) => {
           return res.status(400).json({ success: false, error: 'Every milestone needs a title.' });
         }
         if (!Number.isFinite(amount) || amount <= 0) {
-          return res.status(400).json({ success: false, error: `Milestone "${title}" needs an amount greater than ₱0.` });
+          return res.status(400).json({ success: false, error: `Milestone "${title}" needs an amount greater than ${formatMoney(0, job.currency)}.` });
         }
         cleanMilestones.push({ title, amount });
       }
@@ -180,6 +180,19 @@ exports.createProposal = async (req, res) => {
         });
       }
     }
+
+    // One proposal per freelancer per job. A withdrawn one is re-sent in place: the new
+    // bid, cover letter, milestones, link and files replace the old ones entirely.
+    const { data: earlier } = await supabaseAdmin
+      .from('proposals')
+      .select('*')
+      .eq('job_id', job_id)
+      .eq('freelancer_id', freelancer_id)
+      .maybeSingle();
+    if (earlier && earlier.status !== 'withdrawn') {
+      return res.status(409).json({ success: false, error: 'You have already submitted a proposal for this job.' });
+    }
+    const resubmitting = Boolean(earlier);
 
     let attachmentUrl = null;
     let attachmentName = null;
@@ -210,30 +223,72 @@ exports.createProposal = async (req, res) => {
       finalCoverLetter = `${finalCoverLetter.trim()}\n\n${metaTags.join('\n')}`;
     }
 
-    const { data: proposal, error } = await supabaseAdmin
-      .from('proposals')
-      .insert([
-        {
-          job_id,
-          freelancer_id,
+    let oldMilestones = [];
+    let oldFiles = [];
+    if (resubmitting) {
+      ({ data: oldMilestones } = await supabaseAdmin
+        .from('proposal_milestones').select('title, amount, sequence').eq('proposal_id', earlier.proposal_id));
+      ({ data: oldFiles } = await supabaseAdmin
+        .from('proposal_files').select('file_id, file_path').eq('proposal_id', earlier.proposal_id));
+    }
+
+    const { data: proposal, error } = resubmitting
+      ? await supabaseAdmin
+        .from('proposals')
+        .update({
           bid_amount: finalBidAmount,
           cover_letter: finalCoverLetter,
-          status: 'pending'
-        }
-      ])
-      .select()
-      .single();
+          status: 'pending',
+          submitted_at: new Date().toISOString(),
+        })
+        .eq('proposal_id', earlier.proposal_id)
+        .select()
+        .single()
+      : await supabaseAdmin
+        .from('proposals')
+        .insert([
+          {
+            job_id,
+            freelancer_id,
+            bid_amount: finalBidAmount,
+            cover_letter: finalCoverLetter,
+            status: 'pending'
+          }
+        ])
+        .select()
+        .single();
 
     if (error) throw error;
 
-    // Best-effort populate dedicated columns if they exist
-    if (attachmentUrl || portfolio_link) {
+    // If a later step fails: a new proposal is removed; a re-sent one goes back to how it was
+    // (still withdrawn, with its old milestones), so the freelancer can simply try again.
+    async function undoProposal() {
+      if (!resubmitting) {
+        await supabaseAdmin.from('proposals').delete().eq('proposal_id', proposal.proposal_id);
+        return;
+      }
+      await supabaseAdmin.from('proposals').update({
+        bid_amount: earlier.bid_amount,
+        cover_letter: earlier.cover_letter,
+        status: 'withdrawn',
+        submitted_at: earlier.submitted_at,
+      }).eq('proposal_id', earlier.proposal_id);
+      await supabaseAdmin.from('proposal_milestones').delete().eq('proposal_id', earlier.proposal_id);
+      if (oldMilestones?.length) {
+        await supabaseAdmin.from('proposal_milestones').insert(
+          oldMilestones.map((m) => ({ ...m, proposal_id: earlier.proposal_id }))
+        );
+      }
+    }
+
+    // Best-effort populate dedicated columns if they exist (cleared when re-sending)
+    if (attachmentUrl || portfolio_link || resubmitting) {
       try {
         await supabaseAdmin
           .from('proposals')
           .update({
-            ...(attachmentUrl ? { attachment_url: attachmentUrl, attachment_name: attachmentName } : {}),
-            ...(portfolio_link ? { portfolio_link: portfolio_link.trim() } : {}),
+            ...(attachmentUrl || resubmitting ? { attachment_url: attachmentUrl, attachment_name: attachmentName } : {}),
+            ...(portfolio_link || resubmitting ? { portfolio_link: portfolio_link ? portfolio_link.trim() : null } : {}),
           })
           .eq('proposal_id', proposal.proposal_id);
       } catch {
@@ -241,6 +296,9 @@ exports.createProposal = async (req, res) => {
       }
     }
 
+    if (resubmitting) {
+      await supabaseAdmin.from('proposal_milestones').delete().eq('proposal_id', proposal.proposal_id);
+    }
     if (isMilestoneJob) {
       const { error: milestoneError } = await supabaseAdmin.from('proposal_milestones').insert(
         cleanMilestones.map((m, i) => ({
@@ -252,7 +310,7 @@ exports.createProposal = async (req, res) => {
       );
       if (milestoneError) {
         // Don't leave a half-formed proposal behind if the breakdown failed to save.
-        await supabaseAdmin.from('proposals').delete().eq('proposal_id', proposal.proposal_id);
+        await undoProposal();
         throw milestoneError;
       }
     }
@@ -279,13 +337,22 @@ exports.createProposal = async (req, res) => {
         if (fileRowError) throw fileRowError;
       }
     } catch (uploadErr) {
-      if (uploadedPaths.length) await supabaseAdmin.storage.from(PROPOSAL_BUCKET).remove(uploadedPaths);
-      await supabaseAdmin.from('proposals').delete().eq('proposal_id', proposal.proposal_id);
+      if (uploadedPaths.length) {
+        await supabaseAdmin.storage.from(PROPOSAL_BUCKET).remove(uploadedPaths);
+        await supabaseAdmin.from('proposal_files').delete().in('file_path', uploadedPaths);
+      }
+      await undoProposal();
       console.error('Proposal attachment upload failed:', uploadErr.message);
       return res.status(500).json({
         success: false,
         error: 'Could not upload your files, so the proposal wasn\'t sent. Please try again (make sure migration 014 has been run).',
       });
+    }
+
+    // The re-sent proposal's new files replace its old ones
+    if (oldFiles?.length) {
+      await supabaseAdmin.from('proposal_files').delete().in('file_id', oldFiles.map((f) => f.file_id));
+      await supabaseAdmin.storage.from(PROPOSAL_BUCKET).remove(oldFiles.map((f) => f.file_path));
     }
 
     await notify({
@@ -297,12 +364,6 @@ exports.createProposal = async (req, res) => {
       link: `/my-jobs/${job.job_id}`,
     });
 
-    logAuditActivity({
-      userId: freelancer_id,
-      action: 'SUBMIT_PROPOSAL',
-      details: { job_id, title: job.title, bid_amount: finalBidAmount },
-      ip: req.ip || req.headers['x-forwarded-for'] || null,
-    }).catch(() => {});
 
     await logActivity({
       user_id: freelancer_id,
@@ -338,7 +399,7 @@ exports.getMyProposals = async (req, res) => {
 
     const { data: proposals, error } = await supabaseAdmin
       .from('proposals')
-      .select('*, jobs(title, budget, status), proposal_milestones(proposal_milestone_id, title, amount, sequence)')
+      .select('*, jobs(title, budget, status, budget_type, currency), proposal_milestones(proposal_milestone_id, title, amount, sequence)')
       .eq('freelancer_id', freelancer_id)
       .order('submitted_at', { ascending: false })
       .order('sequence', { foreignTable: 'proposal_milestones', ascending: true });
@@ -761,7 +822,7 @@ exports.unwithdrawProposal = async (req, res) => {
 
     const { data: proposal, error: proposalError } = await supabaseAdmin
       .from('proposals')
-      .select('proposal_id, freelancer_id, status, jobs(job_id, status, title)')
+      .select('proposal_id, freelancer_id, status, bid_amount, jobs(job_id, status, title, budget_type)')
       .eq('proposal_id', proposal_id)
       .single();
 
@@ -790,6 +851,13 @@ exports.unwithdrawProposal = async (req, res) => {
       const amount = Number(bid_amount);
       if (!Number.isFinite(amount) || amount <= 0) {
         return res.status(400).json({ success: false, error: 'Bid amount must be greater than 0.' });
+      }
+      // A milestone bid is the sum of its stages, so its total can't be changed on its own
+      if (proposal.jobs.budget_type === 'milestone' && amount !== Number(proposal.bid_amount)) {
+        return res.status(400).json({
+          success: false,
+          error: 'This job is milestone-based. To change your amounts, use Withdraw & Edit on the job page, where you can edit each stage.',
+        });
       }
       updates.bid_amount = amount;
     }

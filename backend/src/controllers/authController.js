@@ -1,5 +1,4 @@
 const { supabase, supabaseAdmin } = require('../config/supabase');
-const { logActivity: logAuditActivity, getUserActivityLogs } = require('../utils/activityLogger');
 const { logActivity } = require('../utils/activity');
 const { loginBlocked, recordLoginFailure, clearLoginFailures, allowPasswordReset } = require('../utils/loginLimiter');
 const { cleanPhone, validatePayout, maskPayout, getPayout, savePayout } = require('../utils/payout');
@@ -109,12 +108,8 @@ async function register(req, res) {
     });
   }
 
-  const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
-  if (!password || !passwordRegex.test(password)) {
-    return res.status(400).json({
-      status: 400,
-      message: 'Password must be at least 8 characters long, contain 1 uppercase letter and 1 number',
-    });
+  if (!password || !PASSWORD_RULE.test(password)) {
+    return res.status(400).json({ status: 400, message: PASSWORD_RULE_MESSAGE });
   }
 
   const allowedRoles = ['customer', 'freelancer'];
@@ -238,14 +233,6 @@ async function register(req, res) {
     });
   }
 
-  if (signUpData?.user?.id) {
-    logActivity({
-      userId: signUpData.user.id,
-      action: 'USER_REGISTER',
-      details: { email, role: requestedActiveRole },
-      ip: req.ip || req.headers['x-forwarded-for'] || null,
-    }).catch(() => {});
-  }
 
   return res.status(201).json({ message: 'Registration successful!' });
 }
@@ -303,12 +290,6 @@ async function login(req, res) {
     });
   }
 
-  logAuditActivity({
-    userId: profile.user_id,
-    action: 'USER_LOGIN',
-    details: { role: profile.active_role || profile.role },
-    ip: req.ip || req.headers['x-forwarded-for'] || null,
-  }).catch(() => {});
 
   await logActivity({
     user_id: profile.user_id,
@@ -548,12 +529,6 @@ async function updateProfile(req, res) {
       };
     }
 
-    logAuditActivity({
-      userId: req.user.id,
-      action: 'PROFILE_UPDATE',
-      details: { role: req.user.active_role },
-      ip: req.ip || req.headers['x-forwarded-for'] || null,
-    }).catch(() => {});
 
     await logActivity({
       user_id: req.user.id,
@@ -649,21 +624,12 @@ async function removeAvatar(req, res) {
   });
 }
 
-// GET /api/v1/auth/activity
-async function getActivityLogs(req, res) {
-  try {
-    const logs = await getUserActivityLogs(req.user.id);
-    return res.status(200).json({ success: true, data: logs });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-}
+module.exports = { register, login, refreshSession, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout, forgotPassword, resetPassword, changePassword, getPayoutDetails, updatePayoutDetails, getPaymentMethodDetails, updatePaymentMethodDetails };
 
-module.exports = { register, login, refreshSession, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout, forgotPassword, resetPassword, changePassword, getActivityLogs, getPayoutDetails, updatePayoutDetails, getPaymentMethodDetails, updatePaymentMethodDetails };
-
-// Same rule as registration.
-const PASSWORD_RULE = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
-const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters long, contain 1 uppercase letter and 1 number';
+// One password rule for sign-up, changing and resetting a password (the same checklist
+// the register page shows). Existing passwords keep working; it applies to new ones.
+const PASSWORD_RULE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters with an uppercase letter, a lowercase letter, a number, and a special character (like ! @ # $ %)';
 
 // Reads the claims of a JWT that Supabase has already verified (via auth.getUser).
 function decodeJwtPayload(token) {
@@ -778,12 +744,6 @@ async function changePassword(req, res) {
     return res.status(400).json({ status: 400, message: error.message });
   }
 
-  logAuditActivity({
-    userId: req.user.id,
-    action: 'PASSWORD_CHANGE',
-    details: {},
-    ip: req.ip || req.headers['x-forwarded-for'] || null,
-  }).catch(() => {});
 
   await logActivity({
     user_id: req.user.id,

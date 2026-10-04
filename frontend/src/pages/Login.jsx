@@ -22,13 +22,13 @@ export default function Login() {
   const [searchParams] = useSearchParams();
   const justRegistered = searchParams.get('registered') === '1';
   const sessionExpired = searchParams.get('expired') === '1';
+  const accountSuspended = searchParams.get('suspended') === '1';
+  const accountDeleted = searchParams.get('deleted') === '1';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
 
   const [legalModalOpen, setLegalModalOpen] = useState(false);
@@ -38,19 +38,6 @@ export default function Login() {
     setLegalModalDoc(docType);
     setLegalModalOpen(true);
   };
-
-  useEffect(() => {
-    let interval = null;
-    if (lockoutSeconds > 0) {
-      interval = setInterval(() => {
-        setLockoutSeconds((prev) => prev - 1);
-      }, 1000);
-    } else if (lockoutSeconds === 0 && failedAttempts >= 3) {
-      setFailedAttempts(0);
-      setError('');
-    }
-    return () => clearInterval(interval);
-  }, [lockoutSeconds, failedAttempts]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -68,14 +55,7 @@ export default function Login() {
       window.location.href = '/dashboard';
     } catch (err) {
       setLoading(false);
-      const newFails = failedAttempts + 1;
-      setFailedAttempts(newFails);
-      if (newFails >= 3) {
-        setLockoutSeconds(30);
-        setError('Too many failed attempts. Please try again in 30 seconds.');
-      } else {
-        setError(err.message);
-      }
+      setError(err.message);
     }
   }
 
@@ -98,14 +78,7 @@ export default function Login() {
       window.location.href = '/dashboard';
     } catch (err) {
       setLoading(false);
-      const newFails = failedAttempts + 1;
-      setFailedAttempts(newFails);
-      if (newFails >= 3) {
-        setLockoutSeconds(30);
-        setError('Too many failed attempts. Please try again in 30 seconds.');
-      } else {
-        setError(err.message);
-      }
+      setError(err.message);
     }
   }
 
@@ -176,6 +149,16 @@ export default function Login() {
               <i className="bi bi-check-circle-fill" /> Account created! Log in below.
             </div>
           )}
+          {accountDeleted && (
+            <div className="rb-auth__alert rb-auth__alert--info">
+              <i className="bi bi-person-x" /> Your account has been deleted. Thanks for using RaketBase.
+            </div>
+          )}
+          {accountSuspended && (
+            <div className="rb-auth__alert rb-auth__alert--error">
+              <i className="bi bi-slash-circle" /> Your account has been suspended by an admin, so you've been logged out.
+            </div>
+          )}
           {sessionExpired && (
             <div className="rb-auth__alert rb-auth__alert--info">
               <i className="bi bi-clock-history" /> Session expired. Log in again.
@@ -205,13 +188,9 @@ export default function Login() {
             <div className="rb-auth__field">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                 <label className="rb-auth__label" htmlFor="password" style={{ margin: 0 }}>Password</label>
-                <button
-                  className="rb-auth__btn-ghost"
-                  type="button"
-                  onClick={() => alert('Forgot password clicked')}
-                >
+                <Link className="rb-auth__btn-ghost" to="/forgot-password" style={{ textDecoration: 'none' }}>
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <div className="rb-auth__input-wrapper">
                 <input
@@ -238,10 +217,10 @@ export default function Login() {
             <button
               className="rb-auth__btn-primary"
               type="submit"
-              disabled={!isFormValid || loading || lockoutSeconds > 0}
+              disabled={!isFormValid || loading}
             >
               {loading && <span className="spinner-border spinner-border-sm" style={{marginRight: '8px'}} role="status" aria-hidden="true" />}
-              {lockoutSeconds > 0 ? `Locked out (${lockoutSeconds}s)` : loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
           

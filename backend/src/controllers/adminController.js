@@ -4,6 +4,7 @@ const { publishToUsers } = require('../utils/live');
 const { maskPayout } = require('../utils/payout');
 const { maskPaymentMethod } = require('../utils/paymentMethod');
 const { notify } = require('../utils/notify');
+const { getPhpRates, toPhp } = require('../utils/rates');
 
 // GET /api/v1/admin/analytics - Platform-wide metrics for the admin dashboard
 exports.getAnalytics = async (req, res) => {
@@ -19,7 +20,7 @@ exports.getAnalytics = async (req, res) => {
         .from('contracts')
         .select('contract_id', { count: 'exact', head: true })
         .in('status', ['active', 'submitted']),
-      supabaseAdmin.from('contracts').select('*').eq('status', 'completed'),
+      supabaseAdmin.from('contracts').select('*, jobs(currency)').eq('status', 'completed'),
       supabaseAdmin
         .from('disputes')
         .select('dispute_id', { count: 'exact', head: true })
@@ -31,8 +32,10 @@ exports.getAnalytics = async (req, res) => {
     if (revenueError) throw revenueError;
     if (disputesError) throw disputesError;
 
+    // In PHP: USD contracts are converted with the current exchange rate
+    const { rates } = await getPhpRates();
     const platformRevenue = (completedContracts || []).reduce(
-      (sum, c) => sum + Number(c.released_amount ?? c.agreed_amount ?? 0),
+      (sum, c) => sum + toPhp(c.released_amount ?? c.agreed_amount ?? 0, c.jobs?.currency, rates),
       0
     );
 

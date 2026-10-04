@@ -18,7 +18,9 @@ function readResetLink() {
 const RULES = [
   { test: (p) => p.length >= 8, label: 'At least 8 characters' },
   { test: (p) => /[A-Z]/.test(p), label: 'One uppercase letter' },
+  { test: (p) => /[a-z]/.test(p), label: 'One lowercase letter' },
   { test: (p) => /\d/.test(p), label: 'One number' },
+  { test: (p) => /[!@#$%^&*(),.?":{}|<>]/.test(p), label: 'One special character (like ! @ # $ %)' },
 ];
 
 export default function ResetPassword() {

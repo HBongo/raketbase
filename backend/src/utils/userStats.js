@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { getPhpRates, toPhp } = require('./rates');
 
 // Which contracts column holds the person, per role. 'freelancer' = took the work,
 // 'customer' = posted it (same role names as the ratings).
@@ -26,23 +27,24 @@ async function fetchAllRows(buildQuery) {
 
 // Every COMPLETED contract, grouped into { [userId]: { average, contracts } } for one role.
 // "Average price" (freelancer) and "average budget" (client) both mean: the average agreed
-// amount across the contracts that person finished.
+// amount across the contracts that person finished, in PHP (USD contracts are converted).
 async function getAverageAmountsByUser(role) {
   const column = ROLE_COLUMN[role];
   const rows = await fetchAllRows((from, to) =>
     supabaseAdmin
       .from('contracts')
-      .select('*') // includes released_amount once migration 009 has run
+      .select('*, jobs(currency)') // includes released_amount once migration 009 has run
       .eq('status', 'completed')
       .order('contract_id')
       .range(from, to)
   );
 
+  const { rates } = await getPhpRates();
   const totals = {};
   for (const row of rows) {
     const userId = row[column];
     // What the freelancer actually received (half after a split dispute); NULL = full amount
-    const amount = Number(row.released_amount ?? row.agreed_amount);
+    const amount = toPhp(row.released_amount ?? row.agreed_amount, row.jobs?.currency, rates);
     if (!userId || !Number.isFinite(amount)) continue;
     const t = (totals[userId] = totals[userId] || { sum: 0, contracts: 0 });
     t.sum += amount;
@@ -67,13 +69,16 @@ async function getAverageAmountForUser(userId, role) {
     const rows = await fetchAllRows((from, to) =>
       supabaseAdmin
         .from('contracts')
-        .select('*')
+        .select('*, jobs(currency)')
         .eq(column, userId)
         .eq('status', 'completed')
         .order('contract_id')
         .range(from, to)
     );
-    const amounts = rows.map((r) => Number(r.released_amount ?? r.agreed_amount)).filter((n) => Number.isFinite(n));
+    const { rates } = await getPhpRates();
+    const amounts = rows
+      .map((r) => toPhp(r.released_amount ?? r.agreed_amount, r.jobs?.currency, rates))
+      .filter((n) => Number.isFinite(n));
     if (amounts.length === 0) return empty;
     return {
       average: round2(amounts.reduce((sum, n) => sum + n, 0) / amounts.length),

@@ -6,7 +6,17 @@ import { showToast } from '../utils/toast';
 import { withdrawProposal } from '../services/api';
 
 import { useLive } from '../utils/useLive';
+import ProposalFiles from '../components/ProposalFiles';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+
+function normalizeProposal(p) {
+  if (!p) return p;
+  return {
+    ...p,
+    milestones: [...(p.proposal_milestones || p.milestones || [])].sort((a, b) => (a.sequence || 0) - (b.sequence || 0)),
+    portfolio_url: p.portfolio_link || p.portfolio_url || null,
+  };
+}
 
 export default function JobDetail() {
   const { id } = useParams();
@@ -66,6 +76,7 @@ export default function JobDetail() {
     return () => { cancelled = true; };
   }, [id, liveTick]);
 
+  const [proposalTick, setProposalTick] = useState(0);
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token || !id) return;
@@ -82,7 +93,7 @@ export default function JobDetail() {
           );
           if (existing) {
             setAlreadyApplied(true);
-            setUserProposal(existing);
+            setUserProposal(normalizeProposal(existing));
           } else {
             setAlreadyApplied(false);
             setUserProposal(null);
@@ -94,7 +105,7 @@ export default function JobDetail() {
     }
     checkExistingProposal();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, proposalTick]);
 
   const [milestones, setMilestones] = useState([ { title: 'Stage 1 Deliverables', description: '', amount: '' } ]);
 
@@ -236,7 +247,8 @@ export default function JobDetail() {
         throw new Error(body.error || body.message || 'Could not submit your proposal.');
       }
       setAlreadyApplied(true);
-      if (body.data) setUserProposal(body.data);
+      if (body.data) setUserProposal(normalizeProposal(body.data));
+      setProposalTick((t) => t + 1);
       showToast('Proposal sent! The client will review it soon.', { type: 'success' });
       setBidAmount('');
       setCoverLetter('');
@@ -265,7 +277,7 @@ export default function JobDetail() {
       setAlreadyApplied(false);
       setUserProposal(null);
       setTouched({ bidAmount: false, coverLetter: false });
-      setSubmitResult({ type: 'info', message: 'Proposal withdrawn. Your previous answers are kept below so you can make changes and re-submit.' });
+      setSubmitResult({ type: 'info', message: 'Proposal withdrawn. Your previous answers are kept below so you can make changes and re-submit. Re-sending replaces your old proposal, so attach any files you want to include again.' });
       showToast('Proposal withdrawn. You can now edit and re-submit.', { type: 'info' });
     } catch (err) {
       showToast(err.message || 'Could not withdraw proposal', { type: 'error' });
@@ -560,7 +572,7 @@ export default function JobDetail() {
                           </div>
                         </div>
 
-                        {(userProposal?.portfolio_url || userProposal?.sample_file_url) && (
+                        {(userProposal?.portfolio_url || userProposal?.attachment_url || userProposal?.files?.length > 0) && (
                           <div className="p-3 rounded-3 bg-light border mb-3">
                             <label className="text-muted small fw-medium text-uppercase mb-2 d-block" style={{ fontSize: '11px' }}>Portfolio & Samples</label>
                             {userProposal?.portfolio_url && (
@@ -577,16 +589,17 @@ export default function JobDetail() {
                                 </a>
                               </div>
                             )}
-                            {userProposal?.sample_file_url && (
+                            <ProposalFiles proposalId={userProposal.proposal_id} files={userProposal.files} />
+                            {userProposal?.attachment_url && (
                               <div>
                                 <a
-                                  href={userProposal.sample_file_url}
+                                  href={userProposal.attachment_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1"
                                 >
                                   <i className="bi bi-paperclip"></i>
-                                  <span>{userProposal.sample_file_name || 'Download Sample File'}</span>
+                                  <span>{userProposal.attachment_name || 'Download Sample File'}</span>
                                 </a>
                               </div>
                             )}
