@@ -61,6 +61,7 @@ export default function Explore() {
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [budgetType, setBudgetType] = useState('all');
   const [budget, setBudget] = useState(null);
   const [minRating, setMinRating] = useState(0);
   const [hideTaken, setHideTaken] = useState(false);
@@ -161,8 +162,12 @@ export default function Explore() {
   const isOthersActive = activeCategory === 'others-all' || !!selectedOtherCategory;
 
   const visibleJobs = useMemo(() => {
-        return jobs.filter((j) => {
+    return jobs.filter((j) => {
       if (hideTaken && isTakenJob(j)) return false;
+      if (budgetType !== 'all') {
+        const bt = (j.budget_type || 'fixed').toLowerCase();
+        if (bt !== budgetType) return false;
+      }
       if (activeCategory !== 'all') {
         const catName = (j.categories?.category_name || 'Others').toLowerCase().replace(/\s+/g, '-');
         if (activeCategory === 'others-all') {
@@ -174,11 +179,20 @@ export default function Explore() {
         }
       }
       if (query) {
-        const q = query.toLowerCase();
+        const q = query.toLowerCase().trim();
+        const tokens = q.split(/\s+/).filter(Boolean);
         const t = (j.title || '').toLowerCase();
         const d = (j.description || '').toLowerCase();
         const cn = (j.categories?.category_name || '').toLowerCase();
-        if (!t.includes(q) && !d.includes(q) && !cn.includes(q)) return false;
+        const bt = (j.budget_type || 'fixed').toLowerCase();
+
+        const matchesAll = tokens.every((token) => {
+          if (t.includes(token) || d.includes(token) || cn.includes(token)) return true;
+          if (token.startsWith('milestone') && bt === 'milestone') return true;
+          if (token.startsWith('fixed') && bt === 'fixed') return true;
+          return false;
+        });
+        if (!matchesAll) return false;
       }
       if (budget) {
         const amount = Number(j.budget) || 0;
@@ -191,11 +205,12 @@ export default function Explore() {
       }
       return true;
     });
-  }, [jobs, activeCategory, query, budget, otherCategoryIds, minRating, hideTaken]);
+  }, [jobs, activeCategory, query, budget, otherCategoryIds, minRating, hideTaken, budgetType]);
 
-    function resetFilters() {
+  function resetFilters() {
     setActiveCategory('all');
     setQuery('');
+    setBudgetType('all');
     setBudget(budgetBounds);
     setMinRating(0);
     setHideTaken(false);
@@ -226,12 +241,12 @@ export default function Explore() {
       <div className="row g-4 px-3 mb-4">
         <div className="col-xl-9 col-lg-8 order-2 order-lg-1">
           {/* Synchronized Search Bar */}
-                    <div className="mb-3 d-flex gap-2">
+          <div className="mb-2 d-flex gap-2">
             <div className="input-group shadow-sm rounded-pill overflow-hidden border bg-white flex-grow-1">
               <input
                 type="text"
                 className="form-control border-0 py-2 ps-4 text-dark bg-white shadow-none" style={{ outline: "none" }}
-                placeholder="Search jobs by title, description, or category keywords..."
+                placeholder="Search jobs by title, description, category, or 'milestone'..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -245,19 +260,36 @@ export default function Explore() {
                   <i className="bi bi-x-lg"></i>
                 </button>
               )}
-                            <span className="input-group-text bg-white border-0 pe-4">
+              <span className="input-group-text bg-white border-0 pe-4">
                 <i className="bi bi-search text-muted"></i>
               </span>
             </div>
             <button className="btn btn-outline-dark rounded-pill px-4 d-lg-none flex-shrink-0" onClick={() => setFiltersOpen(!filtersOpen)} aria-label="Toggle Filters">
               <i className="bi bi-sliders me-1"></i> Filters
             </button>
-            {query && (
-              <div className="small text-muted mb-2 ps-2">
-                Showing results for &ldquo;<strong>{query}</strong>&rdquo; ({visibleJobs.length} found)
-              </div>
-            )}
           </div>
+
+          {/* Active Search & Filter Badges */}
+          {(query || budgetType !== 'all') && (
+            <div className="d-flex flex-wrap align-items-center gap-2 mb-3 ps-1">
+              {query && (
+                <span className="badge rounded-pill bg-light text-dark border px-3 py-2 small fw-normal d-inline-flex align-items-center gap-1.5">
+                  <i className="bi bi-search text-muted"></i> &ldquo;{query}&rdquo;
+                  <button type="button" className="btn-close ms-1" style={{ fontSize: '0.6rem' }} onClick={() => setQuery('')} aria-label="Clear query"></button>
+                </span>
+              )}
+              {budgetType !== 'all' && (
+                <span className="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2 small fw-medium d-inline-flex align-items-center gap-1.5">
+                  <i className={`bi ${budgetType === 'milestone' ? 'bi-flag-fill' : 'bi-tag-fill'}`}></i>
+                  {budgetType === 'milestone' ? 'Milestone-Based Jobs' : 'Fixed Price Jobs'}
+                  <button type="button" className="btn-close ms-1" style={{ fontSize: '0.6rem' }} onClick={() => setBudgetType('all')} aria-label="Clear project type filter"></button>
+                </span>
+              )}
+              <span className="small text-muted ms-1">
+                ({visibleJobs.length} {visibleJobs.length === 1 ? 'job' : 'jobs'} found)
+              </span>
+            </div>
+          )}
 
           <div className="d-flex flex-wrap gap-2 mb-4 pb-2 align-items-center">
             {coreCategories.map((c) => {
@@ -361,6 +393,8 @@ export default function Explore() {
                   setMinRating={setMinRating}
                   hideTaken={hideTaken}
                   setHideTaken={setHideTaken}
+                  budgetType={budgetType}
+                  setBudgetType={setBudgetType}
                   resetFilters={resetFilters}
                   resultCount={visibleJobs.length}
                   onClose={() => setFiltersOpen(false)}
@@ -373,7 +407,7 @@ export default function Explore() {
   );
 }
 
-function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRating, hideTaken, setHideTaken, resetFilters, resultCount, onClose }) {
+function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRating, hideTaken, setHideTaken, budgetType, setBudgetType, resetFilters, resultCount, onClose }) {
   return (
     <div className="card h-100">
       <div className="card-header d-flex justify-content-between align-items-center">
@@ -381,6 +415,32 @@ function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRati
         <button onClick={onClose} className="btn-close d-lg-none" aria-label="Close filters"></button>
       </div>
       <div className="card-body">
+        <div className="mb-4">
+          <label className="form-label fw-medium small mb-2">Project Type</label>
+          <div className="d-flex flex-column gap-2">
+            {[
+              { id: 'all', label: 'All Project Types', icon: 'bi-grid' },
+              { id: 'milestone', label: 'Milestone-Based', icon: 'bi-flag' },
+              { id: 'fixed', label: 'Fixed Price', icon: 'bi-tag' },
+            ].map((type) => (
+              <div key={type.id} className="form-check">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="budgetTypeFilter"
+                  id={`budgetType_${type.id}`}
+                  checked={budgetType === type.id}
+                  onChange={() => setBudgetType(type.id)}
+                />
+                <label className="form-check-label small fw-medium d-flex align-items-center gap-1.5" htmlFor={`budgetType_${type.id}`} style={{ cursor: 'pointer' }}>
+                  <i className={`bi ${type.icon} text-muted`}></i>
+                  {type.label}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="mb-4">
           <label className="form-label fw-medium small mb-2">Client Rating</label>
           <select className="form-select form-select-sm" value={minRating} onChange={(e) => setMinRating(Number(e.target.value))}>
@@ -546,9 +606,20 @@ function JobCard({ job, onOpen }) {
         <h5 className="card-title text-dark fw-bold mb-3" style={{ fontSize: "1.15rem", lineHeight: "1.4" }}>
           {job.title || 'Untitled job'}
         </h5>
-        <div className="mb-3">
-          <span className="small text-muted">Budget: </span>
-          <span className="fw-bold text-success fs-6">{job.budget ? <Money amount={job.budget} currency={job.currency} /> : '—'}</span>
+        <div className="mb-3 d-flex align-items-center justify-content-between">
+          <div>
+            <span className="small text-muted">Budget: </span>
+            <span className="fw-bold text-success fs-6">{job.budget ? <Money amount={job.budget} currency={job.currency} /> : '—'}</span>
+          </div>
+          {job.budget_type === 'milestone' ? (
+            <span className="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1" style={{ fontSize: '0.78rem' }} title="Milestone-based project">
+              <i className="bi bi-flag-fill me-1"></i>Milestone
+            </span>
+          ) : (
+            <span className="badge rounded-pill bg-light text-secondary border px-2.5 py-1" style={{ fontSize: '0.78rem' }} title="Fixed price project">
+              Fixed Price
+            </span>
+          )}
         </div>
         <p className="card-text small text-muted flex-grow-1" style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {job.description || 'No description provided.'}

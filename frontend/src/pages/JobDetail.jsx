@@ -320,6 +320,15 @@ export default function JobDetail() {
                       <span className="badge bg-light border text-dark fw-semibold px-3 py-2 rounded-pill" style={{ fontSize: '0.85rem' }}>
                         {job.categories?.category_name || 'Uncategorized'}
                       </span>
+                      {job.budget_type === 'milestone' ? (
+                        <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 fw-medium px-3 py-2 rounded-pill" style={{ fontSize: '0.85rem' }}>
+                          <i className="bi bi-flag-fill me-1"></i> Milestone Project
+                        </span>
+                      ) : (
+                        <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle fw-medium px-3 py-2 rounded-pill" style={{ fontSize: '0.85rem' }}>
+                          Fixed Price
+                        </span>
+                      )}
                       {alreadyApplied && (
                         <span className="badge bg-success-subtle text-success border border-success fw-medium px-3 py-2 rounded-pill">
                           <i className="bi bi-check-circle me-1"></i> Applied
@@ -438,9 +447,20 @@ export default function JobDetail() {
                 >
                   <div className="card-body p-4">
                     <p className="text-muted small fw-medium text-uppercase mb-1">Budget</p>
-                    <h3 className="fw-bold text-success mb-4">
-                      {job.budget ? <Money amount={job.budget} currency={job.currency} /> : '—'}
-                    </h3>
+                    <div className="d-flex align-items-center justify-content-between mb-4">
+                      <h3 className="fw-bold text-success mb-0">
+                        {job.budget ? <Money amount={job.budget} currency={job.currency} /> : '—'}
+                      </h3>
+                      {job.budget_type === 'milestone' ? (
+                        <span className="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1.5" style={{ fontSize: '0.8rem' }}>
+                          <i className="bi bi-flag-fill me-1"></i>Milestones
+                        </span>
+                      ) : (
+                        <span className="badge rounded-pill bg-light text-secondary border px-2.5 py-1.5" style={{ fontSize: '0.8rem' }}>
+                          Fixed Price
+                        </span>
+                      )}
+                    </div>
                     
                     <hr className="my-4" />
                     
