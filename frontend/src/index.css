@@ -92,7 +92,6 @@ body.dark-mode .auth-split-sidebar {
 body.dark-mode .auth-split-content {
   background-color: #10131A;
 }
-<<<<<<< HEAD
 
 body.dark-mode .auth-input {
   background-color: #1D2129 !important;
@@ -140,9 +139,6 @@ body.dark-mode .auth-checklist {
 }
 
 /* ── Standardize page-header to match Dashboard heading position (left-aligned) ── */
-=======
-body.dark-mode body.dark-mode body.dark-mode body.dark-mode body.dark-mode body.dark-mode body.dark-mode body.dark-mode body.dark-mode /* ── Standardize page-header to match Dashboard heading position (left-aligned) ── */
->>>>>>> paulaver2+missingfeatures
 .page-header {
   display: flex !important;
   align-items: flex-start !important;

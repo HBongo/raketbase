@@ -5,24 +5,13 @@ import LegalModal from '../components/LegalModal';
 import '../styles/auth.css';
 
 export default function Login() {
-<<<<<<< HEAD
   // Persist dark mode preference in localStorage and sync with document.body
-=======
->>>>>>> paulaver2+missingfeatures
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('darkMode') === 'true';
   });
 
   useEffect(() => {
-<<<<<<< HEAD
     document.body.classList.toggle('dark-mode', isDarkMode);
-=======
-    if (isDarkMode) {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-    }
->>>>>>> paulaver2+missingfeatures
     localStorage.setItem('darkMode', isDarkMode);
   }, [isDarkMode]);
 

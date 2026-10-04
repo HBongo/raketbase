@@ -59,24 +59,13 @@ const ALLOWED_EMAIL_DOMAINS = [
 ];
 
 export default function Register() {
-<<<<<<< HEAD
   // Persist dark mode preference in localStorage and sync with document.body
-=======
->>>>>>> paulaver2+missingfeatures
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('darkMode') === 'true';
   });
 
   useEffect(() => {
-<<<<<<< HEAD
     document.body.classList.toggle('dark-mode', isDarkMode);
-=======
-    if (isDarkMode) {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-    }
->>>>>>> paulaver2+missingfeatures
     localStorage.setItem('darkMode', isDarkMode);
   }, [isDarkMode]);
 
@@ -205,7 +194,6 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-<<<<<<< HEAD
       // Step-2 onboarding details go in the same request; the backend stores them on the new account.
       const payload = {
         firstName: firstName.trim(),
@@ -230,31 +218,6 @@ export default function Register() {
         payload.paymentAccountName = paymentAccountName.trim();
         payload.paymentAccountNumber = paymentAccountNumber.trim();
         payload.cardExpiry = cardExpiry.trim();
-=======
-      const res = await registerUser({ 
-        firstName: firstName.trim(), 
-        lastName: lastName.trim(), 
-        email: email.trim(), 
-        password, 
-        role 
-      });
-      
-      if (res.token) {
-        localStorage.setItem('token', res.token);
-        const updates = {};
-        if (role === 'freelancer') {
-          if (professionalTitle) updates.professional_title = professionalTitle;
-          if (hourlyRate) updates.hourly_rate = Number(hourlyRate);
-          if (region) updates.region = region;
-          if (city) updates.city = city;
-        } else if (role === 'customer') {
-          if (companyName) updates.company_name = companyName;
-        }
-        if (Object.keys(updates).length > 0) {
-          try { await updateProfile(updates); } catch (e) { console.error(e); }
-        }
-        localStorage.removeItem('token');
->>>>>>> paulaver2+missingfeatures
       }
       navigate('/login?registered=1');
     } catch (err) {
