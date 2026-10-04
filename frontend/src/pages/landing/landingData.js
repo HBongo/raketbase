@@ -1,8 +1,8 @@
 export const BRAND = {
   name: 'RaketBase',
   tagline: 'The Homebase for Your Next Big Raket.',
-  heroTitle: 'Hire top freelancers. Get work done, faster.',
-  heroSub: 'Access vetted talent from 150+ countries. Secure payments, milestone tracking, and results you can count on.',
+  heroTitle: 'Launch your raket. Build your base.',
+  heroSub: 'Welcome to RaketBase—the modern freelance services marketplace built to connect skilled talent with clients ready to bring their projects to life. Whether you are an entrepreneur searching for reliable creative, technical, or business solutions, or a freelancer looking to showcase your skills and turn your passion into rewarding opportunities, RaketBase makes finding the right match seamless, secure, and accessible. Discover verified local services, collaborate with total confidence, and power your next big idea forward—all within one unified platform.',
   stats: { rating: '4.9/5', projects: '120K+', countries: '150+', freelancers: '50K+', paidOut: '$85M+' },
 };
 

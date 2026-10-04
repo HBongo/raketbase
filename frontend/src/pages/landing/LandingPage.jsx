@@ -360,35 +360,15 @@ export default function LandingPage() {
         <section className="lp-hero" id="hero">
           <div className="lp-container lp-hero__inner">
             <div className="lp-hero__content lp-reveal">
-              <h1 className="lp-hero__title">{BRAND.heroTitle}</h1>
-              <p className="lp-hero__sub">{BRAND.heroSub}</p>
+              <h1 className="lp-hero__title">
+                Launch your raket.<br />
+                Build your base.
+              </h1>
+              <p className="lp-hero__sub">
+                <strong>Welcome to RaketBase!</strong><br /><br />
               
-              <form className="lp-hero__search" onSubmit={handleSearch}>
-                <select 
-                  value={searchCategory} 
-                  onChange={(e) => setSearchCategory(e.target.value)}
-                  aria-label="Select category"
-                >
-                  <option value="">Any Category</option>
-                  {CATEGORIES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-                <div className="lp-hero__search-divider"></div>
-                <input 
-                  type="text" 
-                  placeholder="Keywords e.g. React Developer" 
-                  value={searchKeyword}
-                  onChange={(e) => setSearchKeyword(e.target.value)}
-                  aria-label="Search keywords"
-                />
-                <button type="submit" className="lp-btn-primary">Search</button>
-              </form>
-
-              <div className="lp-hero__popular">
-                <span>Popular:</span>
-                {POPULAR_SEARCHES.map((term, i) => (
-                  <button key={i} className="lp-chip" onClick={() => handlePopularSearch(term)}>{term}</button>
-                ))}
-              </div>
+                Whether you are an entrepreneur searching for reliable creatives, technical, or business solutions, or a freelancer looking to showcase your skills and turn your passion into rewarding opportunities, RaketBase makes finding the right match seamless, secure, and accessible. Discover verified local services, collaborate with total confidence, and power your next big idea forward, all within one unified platform.
+              </p>
 
               <div className="lp-hero__ctas">
                 <button className="lp-btn-primary lp-btn-large" onClick={() => navigate('/register')}>Hire a Freelancer</button>
@@ -676,18 +656,14 @@ export default function LandingPage() {
         <section className="lp-final-cta">
           <div className="lp-container lp-reveal">
             <h2>Your next great project starts here.</h2>
-            <form className="lp-final-form" onSubmit={handleFinalSubmit}>
-              <input 
-                type="email" 
-                placeholder="Enter your email address" 
-                value={finalEmail}
-                onChange={e => setFinalEmail(e.target.value)}
-                required
-                aria-label="Email address"
-              />
-              <button type="submit" className="lp-btn-primary">Get Started</button>
-            </form>
-            {finalEmailSuccess && <p className="lp-success-msg">Thanks! We'll be in touch soon.</p>}
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
+              <button 
+                className="lp-btn-white lp-btn-large" 
+                onClick={() => navigate('/register')}
+              >
+                Create an Account
+              </button>
+            </div>
           </div>
         </section>
       </main>
