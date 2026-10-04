@@ -298,8 +298,16 @@ function ProfileSkeleton() {
 }
 
 export default function Profile() {
-  const { id } = useParams();
+  const { id: paramId } = useParams();
   const fileInputRef = useRef(null);
+
+  // Current logged-in user
+  const user = (() => {
+    try { return JSON.parse(localStorage.getItem('user') || '{}'); }
+    catch { return {}; }
+  })();
+
+  const id = paramId || user.user_id || user.id;
 
   const cachedProfile = getCached(`profile_${id}`);
 
@@ -312,7 +320,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
   const [uploading, setUploading] = useState(false);
-    const [searchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'about');
   const [showHireModal, setShowHireModal] = useState(false);
 
@@ -320,12 +328,6 @@ export default function Profile() {
     const tab = searchParams.get('tab');
     if (tab) setActiveTab(tab);
   }, [searchParams]);
-
-  // Current logged-in user
-  const user = (() => {
-    try { return JSON.parse(localStorage.getItem('user') || '{}'); }
-    catch { return {}; }
-  })();
 
   const isOwnProfile = (user.user_id || user.id) === id;
 

@@ -839,7 +839,7 @@ export default function Dashboard() {
       <div className="row g-4 mt-1">
         {/* Left Column: Recent Activity Feed (7 cols) */}
         <div className="col-xl-7 col-lg-7">
-          <RecentActivityWidget isCustomer={isCustomer} />
+          <RecentActivityWidget isCustomer={isCustomer} userId={currentUserId} />
         </div>
 
         {/* Right Column: Action Items & Attention Center (5 cols) */}
@@ -1157,7 +1157,7 @@ function formatRelativeTime(dateStr) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-function RecentActivityWidget({ isCustomer }) {
+function RecentActivityWidget({ isCustomer, userId }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -1313,7 +1313,10 @@ function RecentActivityWidget({ isCustomer }) {
       </div>
 
       <div className="card-footer bg-transparent border-top pt-2 pb-2 text-center">
-        <Link to="/profile?tab=activity" className="small text-decoration-none fw-medium text-primary">
+        <Link
+          to={userId ? `/profile/${userId}?tab=activity` : '/profile?tab=activity'}
+          className="small text-decoration-none fw-medium text-primary"
+        >
           View full activity history &rarr;
         </Link>
       </div>
