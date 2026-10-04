@@ -1,7 +1,37 @@
+const crypto = require('crypto');
 const { supabaseAdmin } = require('../config/supabase');
 const { getRatingSummaries, emptySummary } = require('../utils/ratings');
 const { validateProposalInput } = require('../utils/slopFilter');
 const { notify, displayName } = require('../utils/notify');
+const { logActivity } = require('../utils/activityLogger');
+
+function formatProposal(proposal) {
+  if (!proposal) return proposal;
+  let coverLetter = proposal.cover_letter || '';
+  let portfolioLink = proposal.portfolio_link || null;
+  let attachmentUrl = proposal.attachment_url || null;
+  let attachmentName = proposal.attachment_name || null;
+
+  const portMatch = coverLetter.match(/\[Portfolio:\s*([^\]]+)\]/);
+  if (portMatch) {
+    if (!portfolioLink) portfolioLink = portMatch[1].trim();
+    coverLetter = coverLetter.replace(portMatch[0], '').trim();
+  }
+  const attachMatch = coverLetter.match(/\[Attachment:\s*([^\]]+)\]\((https?:\/\/[^\)]+)\)/);
+  if (attachMatch) {
+    if (!attachmentName) attachmentName = attachMatch[1].trim();
+    if (!attachmentUrl) attachmentUrl = attachMatch[2].trim();
+    coverLetter = coverLetter.replace(attachMatch[0], '').trim();
+  }
+
+  return {
+    ...proposal,
+    cover_letter: coverLetter,
+    portfolio_link: portfolioLink,
+    attachment_url: attachmentUrl,
+    attachment_name: attachmentName,
+  };
+}
 
 // POST /api/v1/proposals - Submit a proposal for a job
 // For a 'milestone' budget_type job, `milestones` (an array of { title, amount })
@@ -9,7 +39,15 @@ const { notify, displayName } = require('../utils/notify');
 // stages, so the two numbers can never drift apart. Fixed-price jobs are unchanged.
 exports.createProposal = async (req, res) => {
   try {
-    const { job_id, bid_amount, cover_letter, milestones } = req.body;
+    const { job_id, bid_amount, cover_letter, portfolio_link } = req.body;
+    let milestones = req.body.milestones;
+    if (typeof milestones === 'string') {
+      try {
+        milestones = JSON.parse(milestones);
+      } catch (e) {
+        milestones = [];
+      }
+    }
     // req.user is appended by JWT auth middleware
     const freelancer_id = req.user.id;
 
@@ -108,6 +146,35 @@ exports.createProposal = async (req, res) => {
       }
     }
 
+    let attachmentUrl = null;
+    let attachmentName = null;
+    if (req.file) {
+      const safeName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filePath = `${job_id}/${freelancer_id}/${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from('proposal-attachments')
+        .upload(filePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+      if (uploadError) {
+        console.error('Proposal attachment upload error:', uploadError.message);
+      } else {
+        const { data: pubData } = supabaseAdmin.storage.from('proposal-attachments').getPublicUrl(filePath);
+        attachmentUrl = pubData?.publicUrl;
+        attachmentName = req.file.originalname;
+      }
+    }
+
+    let finalCoverLetter = cover_letter;
+    const metaTags = [];
+    if (portfolio_link && typeof portfolio_link === 'string' && portfolio_link.trim()) {
+      metaTags.push(`[Portfolio: ${portfolio_link.trim()}]`);
+    }
+    if (attachmentUrl) {
+      metaTags.push(`[Attachment: ${attachmentName || 'Sample Work'}](${attachmentUrl})`);
+    }
+    if (metaTags.length > 0) {
+      finalCoverLetter = `${finalCoverLetter.trim()}\n\n${metaTags.join('\n')}`;
+    }
+
     const { data: proposal, error } = await supabaseAdmin
       .from('proposals')
       .insert([
@@ -115,7 +182,7 @@ exports.createProposal = async (req, res) => {
           job_id,
           freelancer_id,
           bid_amount: finalBidAmount,
-          cover_letter,
+          cover_letter: finalCoverLetter,
           status: 'pending'
         }
       ])
@@ -123,6 +190,21 @@ exports.createProposal = async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // Best-effort populate dedicated columns if they exist
+    if (attachmentUrl || portfolio_link) {
+      try {
+        await supabaseAdmin
+          .from('proposals')
+          .update({
+            ...(attachmentUrl ? { attachment_url: attachmentUrl, attachment_name: attachmentName } : {}),
+            ...(portfolio_link ? { portfolio_link: portfolio_link.trim() } : {}),
+          })
+          .eq('proposal_id', proposal.proposal_id);
+      } catch {
+        // Safe to ignore if columns not migrated yet
+      }
+    }
 
     if (isMilestoneJob) {
       const { error: milestoneError } = await supabaseAdmin.from('proposal_milestones').insert(
@@ -149,7 +231,14 @@ exports.createProposal = async (req, res) => {
       link: `/my-jobs/${job.job_id}`,
     });
 
-    return res.status(201).json({ success: true, data: proposal });
+    logActivity({
+      userId: freelancer_id,
+      action: 'SUBMIT_PROPOSAL',
+      details: { job_id, title: job.title, bid_amount: finalBidAmount },
+      ip: req.ip || req.headers['x-forwarded-for'] || null,
+    }).catch(() => {});
+
+    return res.status(201).json({ success: true, data: formatProposal(proposal) });
   } catch (error) {
     // Catch Postgres error code 23505 (unique violation on job_id + freelancer_id)
     if (
@@ -180,7 +269,7 @@ exports.getMyProposals = async (req, res) => {
 
     if (error) throw error;
 
-    return res.status(200).json({ success: true, data: proposals });
+    return res.status(200).json({ success: true, data: (proposals || []).map(formatProposal) });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -237,18 +326,29 @@ exports.getProposalsForJob = async (req, res) => {
     if (accepted) {
       const { data: contract } = await supabaseAdmin
         .from('contracts')
-        .select('contract_id, conversations ( conversation_id )')
+        .select('contract_id')
         .eq('job_id', job.job_id)
         .eq('freelancer_id', accepted.freelancer_id)
         .maybeSingle();
-      acceptedConversationId = contract?.conversations?.conversation_id || null;
+
+      if (contract?.contract_id) {
+        const { data: conv } = await supabaseAdmin
+          .from('conversations')
+          .select('conversation_id')
+          .eq('contract_id', contract.contract_id)
+          .maybeSingle();
+        acceptedConversationId = conv?.conversation_id || null;
+      }
     }
 
-    const proposalsWithRatings = (proposals || []).map((p) => ({
-      ...p,
-      freelancer_rating: ratings[p.freelancer_id] || emptySummary('freelancer'),
-      conversation_id: p.status === 'accepted' ? acceptedConversationId : null,
-    }));
+    const proposalsWithRatings = (proposals || []).map((p) => {
+      const formatted = formatProposal(p);
+      return {
+        ...formatted,
+        freelancer_rating: ratings[p.freelancer_id] || emptySummary('freelancer'),
+        conversation_id: p.status === 'accepted' ? acceptedConversationId : null,
+      };
+    });
 
     return res.status(200).json({ success: true, data: { job, proposals: proposalsWithRatings } });
   } catch (error) {
@@ -309,6 +409,13 @@ exports.acceptProposal = async (req, res) => {
       }
       return res.status(500).json({ success: false, error: msg });
     }
+
+    logActivity({
+      userId: client_id,
+      action: 'ACCEPT_PROPOSAL',
+      details: { proposal_id, contract_id: contract?.contract_id, freelancer_id: contract?.freelancer_id },
+      ip: req.ip || req.headers['x-forwarded-for'] || null,
+    }).catch(() => {});
 
     // Auto-create the chat for this new contract. Best-effort: a failure here must
     // never undo the already-committed contract/proposal acceptance. If a freelancer

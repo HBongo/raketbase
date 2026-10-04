@@ -12,8 +12,9 @@ exports.createDispute = async (req, res) => {
       return res.status(400).json({ success: false, error: 'contract_id is required' });
     }
 
-    const validCategories = ['Incomplete Work', 'Non-Payment', 'Unresponsive'];
-    if (!reason_category || !validCategories.includes(reason_category)) {
+    const validCategories = ['Incomplete Work', 'Non-Payment', 'Unresponsive', 'Others'];
+    const isOthers = typeof reason_category === 'string' && (reason_category === 'Others' || reason_category.startsWith('Others:'));
+    if (!reason_category || (!validCategories.includes(reason_category) && !isOthers)) {
       return res.status(400).json({
         success: false,
         error: `reason_category must be one of: ${validCategories.join(', ')}`,

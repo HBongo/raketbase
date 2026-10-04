@@ -100,6 +100,7 @@ async function browseUsers(req, res) {
     }
     const q = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase().slice(0, 100) : '';
     const sort = ['top', 'reviews', 'newest'].includes(req.query.sort) ? req.query.sort : 'top';
+    const minRating = parseFloat(req.query.min_rating) || 0;
     const limit = Math.min(BROWSE_MAX_LIMIT, Math.max(1, parseInt(req.query.limit, 10) || BROWSE_PAGE_SIZE));
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const isFreelancer = role === 'freelancer';
@@ -163,6 +164,10 @@ async function browseUsers(req, res) {
           exactAverage: own.length ? sum / own.length : null,
           count: own.length,
         };
+      })
+      .filter((entry) => {
+        if (!minRating || minRating <= 0) return true;
+        return entry.exactAverage !== null && entry.exactAverage >= minRating;
       });
 
     listed.sort((a, b) => {

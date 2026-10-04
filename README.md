@@ -206,6 +206,42 @@ Changes 8
 - Added a Refunded contract status and the amount actually released after a split (009_dispute_outcomes.sql)
 
 
+Changes 9
+
+[Dark Mode & UI Polish]
+- Synchronized dark mode persistence across the login and register pages so toggling dark mode on one stays active when switching between them
+- Fixed the Security tab under Profile settings in dark mode: password form inputs, labels, and helper descriptions now use proper dark mode colors and borders instead of unstyled white backgrounds
+- Unified dynamic legal routes (/privacy, /terms, /faq, /guidelines) with responsive tab switching, back buttons, and full dark mode support
+- Fixed the mobile filter drawer on Explore: increased z-index above the header, improved overlay backdrop, and added smooth slide animations
+- Added a dedicated Help & Support page (/contact) with categorized support topics, contact channels, and footer/sidebar navigation
+
+[Job Proposals & Attachments]
+- Freelancers can now add a portfolio link and upload a sample file attachment (PDF, DOCX, TXT, PNG, JPEG up to 5 MB) when submitting a job proposal
+- Clients can view the submitted portfolio link and download the attached sample file directly from the proposal card alongside the milestone breakdown
+- Added a private proposal-attachments Supabase storage bucket and database columns for portfolio and file attachments (010_add_proposal_attachments.sql)
+
+[Messaging & Grace Period]
+- Added a 1-week messaging grace period after a contract ends (completed, refunded, or cancelled) with an alert banner showing the remaining time
+- Contract chats automatically lock to read-only once the 1-week grace period expires, preserving full message history while preventing further sends
+- Shared links in chat messages are now automatically detected and turned into clickable, secure external links
+
+[Browse Users & Ratings]
+- Added a star rating filter dropdown (4.5+, 4.0+, 3.5+, 3.0+, Any Rating) on Browse Users to filter freelancers and clients by minimum review rating
+- Integrated the minimum rating filter with the backend user search and ranking queries
+
+[Activity Logging & Audit Trail]
+- Added an activity logging system that records user actions (proposals, contracts, disputes, job postings, reviews) into the database with automatic fallback
+- Added an Activity Log tab in Profile settings showing chronological account actions with type and date filters
+- Added an activity_logs audit table with indexing and row-level security (011_add_activity_logs.sql)
+
+[Security & Rate Limiting]
+- Added sliding-window rate limiting on login and forgot-password endpoints (5 requests per 15 minutes) with retry-after response headers
+- Added double-submit protection on login and register forms to prevent duplicate requests from repeated clicks
+- Added an 18+ age verification requirement during account registration
+- Added a "Both (Freelancer & Client)" role choice during sign-up to register users for both modes
+- Added an "Others" option with a custom explanation text field when filing a dispute ticket
+
+
 
 Roadmap
 - Make it so that people who choose the freelancer option also need to put in their bank details and phone number - Complete
@@ -213,3 +249,4 @@ Roadmap
 - Have the toast that appears when changing from client to freelancer slide in and have a mini loading bar to show how much time is left before it disappears - Complete
 - Develop a messaging system - Complete
 - Have clients be able to delete their posting as long as they have not accepted a freelancer for it yet - Complete
+

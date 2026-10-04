@@ -823,6 +823,180 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* ── Lower Section: Quick Actions & Escrow Guarantee ── */}
+      <div className="row g-4 mt-1">
+        <div className="col-xl-8 col-lg-8">
+          <div className="card h-100">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <h2 className="card-title mb-0">Quick Actions</h2>
+              <span className="small text-muted">Frequent shortcuts</span>
+            </div>
+            <div className="card-body p-4">
+              <div className="row g-3">
+                {isCustomer ? (
+                  <>
+                    <div className="col-12 col-sm-6">
+                      <Link to="/jobs/create" className="text-decoration-none">
+                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
+                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="bi bi-plus-circle fs-5"></i>
+                          </div>
+                          <div>
+                            <div className="fw-bold text-dark mb-1">Post a Job</div>
+                            <div className="small text-muted">Create a fixed or milestone-based project listing</div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                    <div className="col-12 col-sm-6">
+                      <Link to="/browse?tab=freelancers" className="text-decoration-none">
+                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
+                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="bi bi-people fs-5"></i>
+                          </div>
+                          <div>
+                            <div className="fw-bold text-dark mb-1">Browse Freelancers</div>
+                            <div className="small text-muted">Search top-rated talent by skills and ratings</div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                    <div className="col-12 col-sm-6">
+                      <Link to="/my-jobs" className="text-decoration-none">
+                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
+                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="bi bi-briefcase fs-5"></i>
+                          </div>
+                          <div>
+                            <div className="fw-bold text-dark mb-1">Manage Postings</div>
+                            <div className="small text-muted">Review proposals, pause or edit your jobs</div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                    <div className="col-12 col-sm-6">
+                      <Link to="/contact" className="text-decoration-none">
+                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
+                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="bi bi-question-circle fs-5"></i>
+                          </div>
+                          <div>
+                            <div className="fw-bold text-dark mb-1">Help & Support</div>
+                            <div className="small text-muted">Get assistance with contracts, escrow, and FAQs</div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="col-12 col-sm-6">
+                      <Link to="/explore" className="text-decoration-none">
+                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
+                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="bi bi-search fs-5"></i>
+                          </div>
+                          <div>
+                            <div className="fw-bold text-dark mb-1">Explore Jobs</div>
+                            <div className="small text-muted">Browse open projects matching your skillset</div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                    <div className="col-12 col-sm-6">
+                      <Link to="/my-proposals" className="text-decoration-none">
+                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
+                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="bi bi-file-earmark-text fs-5"></i>
+                          </div>
+                          <div>
+                            <div className="fw-bold text-dark mb-1">My Proposals</div>
+                            <div className="small text-muted">Track status of bids and active discussions</div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                    <div className="col-12 col-sm-6">
+                      <Link to={`/profile/${user.user_id || user.id}`} className="text-decoration-none">
+                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
+                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="bi bi-person fs-5"></i>
+                          </div>
+                          <div>
+                            <div className="fw-bold text-dark mb-1">Profile & Skills</div>
+                            <div className="small text-muted">Keep your bio, skills, and portfolio updated</div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                    <div className="col-12 col-sm-6">
+                      <Link to="/contact" className="text-decoration-none">
+                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
+                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="bi bi-question-circle fs-5"></i>
+                          </div>
+                          <div>
+                            <div className="fw-bold text-dark mb-1">Help & Support</div>
+                            <div className="small text-muted">Learn about milestones, payments, and safety</div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-xl-4 col-lg-4">
+          <div className="card h-100">
+            <div className="card-header">
+              <h2 className="card-title mb-0">Escrow Protection</h2>
+            </div>
+            <div className="card-body p-4 d-flex flex-column justify-content-between">
+              <div className="d-flex flex-column gap-3">
+                <div className="d-flex align-items-start gap-3">
+                  <div className="text-success fs-4 mt-1">
+                    <i className="bi bi-shield-check"></i>
+                  </div>
+                  <div>
+                    <div className="fw-semibold text-dark small mb-0.5">Funded Milestone Escrow</div>
+                    <div className="small text-muted">Funds are held safely in escrow before work begins and released upon client sign-off.</div>
+                  </div>
+                </div>
+
+                <div className="d-flex align-items-start gap-3">
+                  <div className="text-primary fs-4 mt-1">
+                    <i className="bi bi-chat-heart"></i>
+                  </div>
+                  <div>
+                    <div className="fw-semibold text-dark small mb-0.5">Integrated Work Chat</div>
+                    <div className="small text-muted">Keep all deliverables, milestone discussions, and files inside verified contract channels.</div>
+                  </div>
+                </div>
+
+                <div className="d-flex align-items-start gap-3">
+                  <div className="text-warning fs-4 mt-1">
+                    <i className="bi bi-shield-lock"></i>
+                  </div>
+                  <div>
+                    <div className="fw-semibold text-dark small mb-0.5">Staff Dispute Mediation</div>
+                    <div className="small text-muted">Disagreements are reviewed by staff with options for full/partial refunds and escrow splits.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-3 border-top mt-3 text-center">
+                <Link to="/contact" className="small text-success text-decoration-none fw-semibold">
+                  Read Escrow & Payment Policies &rarr;
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {ratingTarget && (
         <RateContractModal
           contract={ratingTarget.contract}

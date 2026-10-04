@@ -1,4 +1,5 @@
 const { supabase, supabaseAdmin } = require('../config/supabase');
+const { logActivity, getUserActivityLogs } = require('../utils/activityLogger');
 
 // Supabase Storage bucket for profile photos (created by database/avatar_setup.sql).
 // Files live at <bucket>/<user_id>/avatar-<timestamp>.<ext>.
@@ -181,6 +182,15 @@ async function register(req, res) {
     if (companyError) console.error('Could not save company name at registration:', companyError);
   }
 
+  if (signUpData?.user?.id) {
+    logActivity({
+      userId: signUpData.user.id,
+      action: 'USER_REGISTER',
+      details: { email, role: requestedActiveRole },
+      ip: req.ip || req.headers['x-forwarded-for'] || null,
+    }).catch(() => {});
+  }
+
   return res.status(201).json({ message: 'Registration successful!' });
 }
 
@@ -218,6 +228,13 @@ async function login(req, res) {
       message: 'This account has been suspended. Please contact support.',
     });
   }
+
+  logActivity({
+    userId: profile.user_id,
+    action: 'USER_LOGIN',
+    details: { role: profile.active_role || profile.role },
+    ip: req.ip || req.headers['x-forwarded-for'] || null,
+  }).catch(() => {});
 
   return res.status(200).json({
     token: data.session.access_token,
@@ -415,6 +432,13 @@ async function updateProfile(req, res) {
       };
     }
 
+    logActivity({
+      userId: req.user.id,
+      action: 'PROFILE_UPDATE',
+      details: { role: req.user.active_role },
+      ip: req.ip || req.headers['x-forwarded-for'] || null,
+    }).catch(() => {});
+
     return res.status(200).json({ message: 'Profile updated successfully', data: updatedProfile });
   } catch (err) {
     console.error('updateProfile error:', err);
@@ -500,7 +524,17 @@ async function removeAvatar(req, res) {
   });
 }
 
-module.exports = { register, login, refreshSession, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout, forgotPassword, resetPassword, changePassword };
+// GET /api/v1/auth/activity
+async function getActivityLogs(req, res) {
+  try {
+    const logs = await getUserActivityLogs(req.user.id);
+    return res.status(200).json({ success: true, data: logs });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+module.exports = { register, login, refreshSession, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout, forgotPassword, resetPassword, changePassword, getActivityLogs };
 
 // Same rule as registration.
 const PASSWORD_RULE = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
@@ -595,6 +629,13 @@ async function changePassword(req, res) {
   if (error) {
     return res.status(400).json({ status: 400, message: error.message });
   }
+
+  logActivity({
+    userId: req.user.id,
+    action: 'PASSWORD_CHANGE',
+    details: {},
+    ip: req.ip || req.headers['x-forwarded-for'] || null,
+  }).catch(() => {});
 
   return res.status(200).json({ message: 'Password updated successfully.' });
 }
