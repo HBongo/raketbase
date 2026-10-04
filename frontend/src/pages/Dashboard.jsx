@@ -489,33 +489,33 @@ export default function Dashboard() {
                                 <>
                                   {!isClient && activeMilestone && (
                                     <button
-                                      className="btn btn-sm btn-primary rounded-pill px-3"
+                                      className="btn btn-sm btn-primary rounded-pill px-2.5 py-1 text-nowrap d-inline-flex align-items-center gap-1"
                                       onClick={() => openSubmitModal(c, activeMilestone)}
                                     >
-                                      <i className="bi bi-upload me-1"></i> Submit Stage {activeMilestone.sequence}
+                                      <i className="bi bi-upload"></i> Submit Stage {activeMilestone.sequence}
                                     </button>
                                   )}
                                   {!isClient && submittedMilestone && (
                                     <button
-                                      className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                                      className="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 text-nowrap d-inline-flex align-items-center gap-1"
                                       onClick={() => openReviewModal(c, submittedMilestone)}
                                     >
-                                      <i className="bi bi-eye me-1"></i> View Submitted
+                                      <i className="bi bi-eye"></i> View Work
                                     </button>
                                   )}
                                   {isClient && submittedMilestone && (
                                     <button
-                                      className="btn btn-sm btn-success rounded-pill px-3"
+                                      className="btn btn-sm btn-success rounded-pill px-2.5 py-1 text-nowrap d-inline-flex align-items-center gap-1"
                                       onClick={() => openReviewModal(c, submittedMilestone)}
                                     >
-                                      <i className="bi bi-shield-check me-1"></i> Review Stage {submittedMilestone.sequence}
+                                      <i className="bi bi-shield-check"></i> Review Stage {submittedMilestone.sequence}
                                     </button>
                                   )}
                                   {isClient && !submittedMilestone && activeMilestone && (
-                                    <span className="small text-dark fw-semibold fst-italic">Stage {activeMilestone.sequence} in Progress</span>
+                                    <span className="small text-dark fw-semibold fst-italic text-nowrap">Stage {activeMilestone.sequence} in Progress</span>
                                   )}
                                   {c.status === 'completed' && (
-                                    <span className="badge rounded-pill px-3 py-2 fw-semibold bg-success text-white border border-success d-inline-flex align-items-center gap-1 shadow-sm" style={{ fontSize: '0.8rem' }}>
+                                    <span className="badge rounded-pill px-2.5 py-1 fw-semibold bg-success text-white border border-success d-inline-flex align-items-center gap-1 shadow-sm text-nowrap" style={{ fontSize: '0.8rem' }}>
                                       <i className="bi bi-check2-all"></i> Released
                                     </span>
                                   )}
@@ -525,41 +525,41 @@ export default function Dashboard() {
                                 <>
                                   {!isClient && c.status === 'active' && (
                                     <button
-                                      className="btn btn-sm btn-primary rounded-pill px-3"
+                                      className="btn btn-sm btn-primary rounded-pill px-2.5 py-1 text-nowrap d-inline-flex align-items-center gap-1"
                                       onClick={() => openSubmitModal(c)}
                                     >
-                                      <i className="bi bi-upload me-1"></i> Submit Work
+                                      <i className="bi bi-upload"></i> Submit Work
                                     </button>
                                   )}
                                   {!isClient && c.status === 'submitted' && (
                                     <button
-                                      className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                                      className="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 text-nowrap d-inline-flex align-items-center gap-1"
                                       onClick={() => openReviewModal(c)}
                                     >
-                                      <i className="bi bi-eye me-1"></i> View Submitted
+                                      <i className="bi bi-eye"></i> View Work
                                     </button>
                                   )}
                                   {isClient && c.status === 'submitted' && (
                                     <button
-                                      className="btn btn-sm btn-success rounded-pill px-3"
+                                      className="btn btn-sm btn-success rounded-pill px-2.5 py-1 text-nowrap d-inline-flex align-items-center gap-1"
                                       onClick={() => openReviewModal(c)}
                                     >
-                                      <i className="bi bi-shield-check me-1"></i> Review & Release
+                                      <i className="bi bi-shield-check"></i> Review & Release
                                     </button>
                                   )}
                                   {isClient && c.status === 'active' && (
-                                    <span className="small text-dark fw-semibold fst-italic">Work in Progress</span>
+                                    <span className="small text-dark fw-semibold fst-italic text-nowrap">Work in Progress</span>
                                   )}
                                   {c.status === 'completed' && (
                                     c.deliverable_url ? (
                                       <button
-                                        className="btn btn-sm btn-outline-success rounded-pill px-3"
+                                        className="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1 text-nowrap d-inline-flex align-items-center gap-1"
                                         onClick={() => openReviewModal(c)}
                                       >
-                                        <i className="bi bi-check2-circle me-1"></i> View Deliverables
+                                        <i className="bi bi-check2-circle"></i> View Deliverables
                                       </button>
                                     ) : (
-                                      <span className="badge rounded-pill px-3 py-2 fw-semibold bg-success text-white border border-success d-inline-flex align-items-center gap-1 shadow-sm" style={{ fontSize: '0.8rem' }}>
+                                      <span className="badge rounded-pill px-2.5 py-1 fw-semibold bg-success text-white border border-success d-inline-flex align-items-center gap-1 shadow-sm text-nowrap" style={{ fontSize: '0.8rem' }}>
                                         <i className="bi bi-check2-all"></i> Released
                                       </span>
                                     )
@@ -570,7 +570,7 @@ export default function Dashboard() {
                               {/* Chat conversation jump button */}
                               <Link
                                 to={c.conversations?.conversation_id ? `/messages/${c.conversations.conversation_id}` : '/messages'}
-                                className="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 text-decoration-none"
+                                className="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 text-decoration-none text-nowrap"
                                 title="Open Contract Chat"
                               >
                                 <i className="bi bi-chat-text"></i>
@@ -581,7 +581,7 @@ export default function Dashboard() {
                               {(c.status === 'active' || c.status === 'submitted') && (
                                 <Link
                                   to={`/contracts/${c.contract_id}/dispute`}
-                                  className="btn btn-sm btn-outline-danger rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 text-decoration-none"
+                                  className="btn btn-sm btn-outline-danger rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 text-decoration-none text-nowrap"
                                   title="File a dispute with RaketBase staff"
                                 >
                                   <i className="bi bi-flag"></i>
@@ -599,7 +599,7 @@ export default function Dashboard() {
                                 ) : (
                                   <button
                                     type="button"
-                                    className="btn btn-sm btn-outline-warning rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1"
+                                    className="btn btn-sm btn-outline-warning rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 text-nowrap"
                                     onClick={() => setRatingTarget({ contract: c, revieweeRole: isClient ? 'freelancer' : 'customer', revieweeName: partnerName })}
                                     title={`Rate ${partnerName}`}
                                   >
