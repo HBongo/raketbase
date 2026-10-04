@@ -30,7 +30,7 @@ CREATE TABLE public.users (
     CONSTRAINT users_email_key UNIQUE (email),
     CONSTRAINT users_role_check CHECK (role = ANY (ARRAY['customer'::text, 'staff'::text, 'admin'::text])),
     CONSTRAINT users_active_role_check CHECK (active_role = ANY (ARRAY['customer'::text, 'freelancer'::text])),
-    CONSTRAINT users_status_check CHECK (status = ANY (ARRAY['active'::text, 'suspended'::text]))
+    CONSTRAINT users_status_check CHECK (status = ANY (ARRAY['active'::text, 'suspended'::text, 'deleted'::text]))
 );
 
 CREATE TABLE public.jobs (
@@ -45,6 +45,7 @@ CREATE TABLE public.jobs (
     budget_type text DEFAULT 'fixed'::text,
     deadline    timestamp with time zone,
     removal_reason text,
+    is_direct   boolean NOT NULL DEFAULT false,
     CONSTRAINT jobs_pkey PRIMARY KEY (job_id),
     CONSTRAINT jobs_client_id_fkey FOREIGN KEY (client_id)
         REFERENCES public.users (user_id) ON DELETE CASCADE,
@@ -98,7 +99,7 @@ CREATE TABLE public.contracts (
         REFERENCES public.users (user_id) ON DELETE CASCADE,
     CONSTRAINT contracts_freelancer_id_fkey FOREIGN KEY (freelancer_id)
         REFERENCES public.users (user_id) ON DELETE CASCADE,
-    CONSTRAINT contracts_status_check CHECK (status = ANY (ARRAY['active'::text, 'submitted'::text, 'completed'::text, 'disputed'::text]))
+    CONSTRAINT contracts_status_check CHECK (status = ANY (ARRAY['active'::text, 'submitted'::text, 'completed'::text, 'disputed'::text, 'refunded'::text]))
 );
 
 CREATE TABLE public.disputes (
@@ -321,3 +322,166 @@ ALTER TABLE public.milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ADD COLUMN message_type text NOT NULL DEFAULT 'user';
 ALTER TABLE public.messages ADD CONSTRAINT messages_message_type_check
     CHECK (message_type = ANY (ARRAY['user'::text, 'system'::text]));
+
+-- Jobs and proposals are written only by the Express backend (service-role key,
+-- bypasses RLS). Direct anon-key access is read-only and scoped; there are no
+-- INSERT/UPDATE/DELETE policies (migration 006).
+ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proposals ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public can view listed jobs" ON public.jobs
+    FOR SELECT
+    USING (status = ANY (ARRAY['open'::text, 'assigned'::text, 'completed'::text]) AND is_direct = false);
+
+CREATE POLICY "Freelancers can view own proposals" ON public.proposals
+    FOR SELECT
+    USING (auth.uid() = freelancer_id);
+
+CREATE POLICY "Clients can view proposals on their jobs" ON public.proposals
+    FOR SELECT
+    USING (auth.uid() IN (SELECT jobs.client_id FROM public.jobs WHERE jobs.job_id = proposals.job_id));
+
+-- ============================================================
+-- Notifications (bell in the top bar). `role` tags which mode the
+-- notification belongs to. Backend-only: RLS on, no policies (migration 007).
+-- ============================================================
+CREATE TABLE public.notifications (
+    notification_id uuid NOT NULL DEFAULT gen_random_uuid(),
+    user_id         uuid NOT NULL,
+    type            text NOT NULL,
+    role            text,
+    title           text NOT NULL,
+    body            text,
+    link            text,
+    is_read         boolean NOT NULL DEFAULT false,
+    created_at      timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT notifications_pkey PRIMARY KEY (notification_id),
+    CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) ON DELETE CASCADE,
+    CONSTRAINT notifications_role_check CHECK (role IS NULL OR role = ANY (ARRAY['customer'::text, 'freelancer'::text]))
+);
+
+CREATE INDEX idx_notifications_user_id_created_at ON public.notifications USING btree (user_id, created_at DESC);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- Direct offers ("Hire Me"). Backend-only: RLS on, no policies (migration 008).
+-- ============================================================
+CREATE TABLE public.direct_offers (
+    offer_id      uuid NOT NULL DEFAULT gen_random_uuid(),
+    client_id     uuid NOT NULL,
+    freelancer_id uuid NOT NULL,
+    title         text NOT NULL,
+    description   text NOT NULL,
+    amount        numeric NOT NULL,
+    currency      text NOT NULL DEFAULT 'PHP',
+    deadline      timestamp with time zone,
+    status        text NOT NULL DEFAULT 'pending',
+    job_id        uuid,
+    contract_id   uuid,
+    created_at    timestamp with time zone NOT NULL DEFAULT now(),
+    responded_at  timestamp with time zone,
+    CONSTRAINT direct_offers_pkey PRIMARY KEY (offer_id),
+    CONSTRAINT direct_offers_client_id_fkey FOREIGN KEY (client_id)
+        REFERENCES public.users (user_id) ON DELETE CASCADE,
+    CONSTRAINT direct_offers_freelancer_id_fkey FOREIGN KEY (freelancer_id)
+        REFERENCES public.users (user_id) ON DELETE CASCADE,
+    CONSTRAINT direct_offers_job_id_fkey FOREIGN KEY (job_id)
+        REFERENCES public.jobs (job_id) ON DELETE SET NULL,
+    CONSTRAINT direct_offers_contract_id_fkey FOREIGN KEY (contract_id)
+        REFERENCES public.contracts (contract_id) ON DELETE SET NULL,
+    CONSTRAINT direct_offers_amount_check CHECK (amount > 0),
+    CONSTRAINT direct_offers_currency_check CHECK (currency = ANY (ARRAY['PHP'::text, 'USD'::text])),
+    CONSTRAINT direct_offers_status_check CHECK (status = ANY (ARRAY['pending'::text, 'accepted'::text, 'declined'::text, 'withdrawn'::text])),
+    CONSTRAINT direct_offers_not_self_check CHECK (client_id <> freelancer_id)
+);
+
+CREATE INDEX idx_direct_offers_freelancer_id ON public.direct_offers USING btree (freelancer_id, created_at DESC);
+CREATE INDEX idx_direct_offers_client_id ON public.direct_offers USING btree (client_id, created_at DESC);
+
+CREATE TABLE public.direct_offer_files (
+    file_id        uuid NOT NULL DEFAULT gen_random_uuid(),
+    offer_id       uuid NOT NULL,
+    file_name      text NOT NULL,
+    file_path      text NOT NULL,
+    file_size      integer NOT NULL,
+    file_mime_type text NOT NULL,
+    created_at     timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT direct_offer_files_pkey PRIMARY KEY (file_id),
+    CONSTRAINT direct_offer_files_offer_id_fkey FOREIGN KEY (offer_id)
+        REFERENCES public.direct_offers (offer_id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.direct_offers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.direct_offer_files ENABLE ROW LEVEL SECURITY;
+
+-- Private bucket for offer attachments (downloaded through short-lived signed URLs).
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('offer-attachments', 'offer-attachments', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- What the freelancer actually received after a split dispute; NULL = the full agreed_amount (migration 009).
+ALTER TABLE public.contracts ADD COLUMN released_amount numeric;
+
+-- ============================================================================
+-- Activity log, freelancer payout details, client business type (migration 010).
+-- Both tables are backend-only: RLS enabled with no policies.
+-- ============================================================================
+CREATE TABLE public.activity_log (
+    activity_id  uuid NOT NULL DEFAULT gen_random_uuid(),
+    user_id      uuid,
+    category     text NOT NULL,
+    action       text NOT NULL,
+    description  text NOT NULL,
+    target_type  text,
+    target_id    text,
+    link         text,
+    metadata     jsonb,
+    created_at   timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT activity_log_pkey PRIMARY KEY (activity_id),
+    CONSTRAINT activity_log_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) ON DELETE SET NULL,
+    CONSTRAINT activity_log_category_check CHECK (category = ANY (ARRAY['account'::text, 'jobs'::text, 'contracts'::text, 'admin'::text]))
+);
+CREATE INDEX idx_activity_log_user_id_created_at ON public.activity_log USING btree (user_id, created_at DESC);
+CREATE INDEX idx_activity_log_created_at ON public.activity_log USING btree (created_at DESC);
+ALTER TABLE public.activity_log ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.payout_details (
+    user_id         uuid NOT NULL,
+    method          text NOT NULL,
+    provider_name   text,
+    account_name    text NOT NULL,
+    account_number  text NOT NULL,
+    updated_at      timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT payout_details_pkey PRIMARY KEY (user_id),
+    CONSTRAINT payout_details_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) ON DELETE CASCADE,
+    CONSTRAINT payout_details_method_check CHECK (method = ANY (ARRAY['bank'::text, 'gcash'::text, 'maya'::text]))
+);
+ALTER TABLE public.payout_details ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.users ADD COLUMN client_type text;
+ALTER TABLE public.users ADD CONSTRAINT users_client_type_check
+    CHECK (client_type IS NULL OR client_type = ANY (ARRAY['individual'::text, 'small_business'::text, 'major_contractor'::text]));
+
+-- Client payment methods: how a client funds escrow (migration 011). Backend-only.
+-- Cards keep only the brand, last 4 digits and expiry, never the full number.
+CREATE TABLE public.client_payment_methods (
+    user_id         uuid NOT NULL,
+    method          text NOT NULL,
+    provider_name   text,
+    account_name    text NOT NULL,
+    account_number  text NOT NULL,
+    card_expiry     text,
+    updated_at      timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT client_payment_methods_pkey PRIMARY KEY (user_id),
+    CONSTRAINT client_payment_methods_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) ON DELETE CASCADE,
+    CONSTRAINT client_payment_methods_method_check CHECK (method = ANY (ARRAY['gcash'::text, 'maya'::text, 'bank'::text, 'card'::text]))
+);
+ALTER TABLE public.client_payment_methods ENABLE ROW LEVEL SECURITY;
+
+-- Account deletion (migration 012): deleted accounts are anonymized, not removed.
+ALTER TABLE public.users ADD COLUMN deleted_at timestamp with time zone;

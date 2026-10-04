@@ -7,8 +7,8 @@ export default function Toaster() {
   return (
     <div
       key={toast.id}
-      role="status"
-      aria-live="polite"
+      role={toast.type === 'error' ? 'alert' : 'status'}
+      aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
       style={{
         position: 'fixed',
         bottom: '24px',
@@ -22,7 +22,7 @@ export default function Toaster() {
         className="card shadow-lg border-0 rounded-pill px-3 py-2 bg-dark text-white d-flex flex-row align-items-center gap-2"
         style={{
           boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          border: toast.type === 'error' ? '1px solid rgba(229, 72, 77, 0.85)' : '1px solid rgba(255, 255, 255, 0.1)',
         }}
       >
         {toast.loading ? (
@@ -32,6 +32,10 @@ export default function Toaster() {
             aria-hidden="true"
             style={{ width: '1rem', height: '1rem', color: '#FF5A1E', borderWidth: '2px' }}
           />
+        ) : toast.type === 'error' ? (
+          <i className="bi bi-exclamation-octagon-fill text-danger flex-shrink-0" style={{ fontSize: '1rem' }} />
+        ) : toast.type === 'info' ? (
+          <i className="bi bi-info-circle-fill text-info flex-shrink-0" style={{ fontSize: '1rem' }} />
         ) : (
           <i className="bi bi-check-circle-fill text-success flex-shrink-0" style={{ fontSize: '1rem' }} />
         )}

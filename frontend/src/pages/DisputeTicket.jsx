@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getContractById, createDispute } from '../services/api';
-import { formatCurrency } from '../utils/formatters';
+import Money from '../components/Money';
 
 const REASON_OPTIONS = ['Incomplete Work', 'Non-Payment', 'Unresponsive'];
 const MIN_EVIDENCE_LENGTH = 30;
@@ -139,7 +139,7 @@ export default function DisputeTicket() {
                       {contract?.jobs?.title || 'Contract'}
                     </h6>
                     <p className="text-muted small mb-0">
-                      {formatCurrency(contract?.agreed_amount, contract?.jobs?.currency)} in escrow
+                      <Money amount={contract?.agreed_amount} currency={contract?.jobs?.currency} /> in escrow
                       {otherParty && (
                         <>
                           {' · '}

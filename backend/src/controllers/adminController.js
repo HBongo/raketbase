@@ -1,4 +1,8 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
+const { maskPayout } = require('../utils/payout');
+const { maskPaymentMethod } = require('../utils/paymentMethod');
+const { notify } = require('../utils/notify');
 
 // GET /api/v1/admin/analytics - Platform-wide metrics for the admin dashboard
 exports.getAnalytics = async (req, res) => {
@@ -14,7 +18,7 @@ exports.getAnalytics = async (req, res) => {
         .from('contracts')
         .select('contract_id', { count: 'exact', head: true })
         .in('status', ['active', 'submitted']),
-      supabaseAdmin.from('contracts').select('agreed_amount').eq('status', 'completed'),
+      supabaseAdmin.from('contracts').select('*').eq('status', 'completed'),
       supabaseAdmin
         .from('disputes')
         .select('dispute_id', { count: 'exact', head: true })
@@ -27,7 +31,7 @@ exports.getAnalytics = async (req, res) => {
     if (disputesError) throw disputesError;
 
     const platformRevenue = (completedContracts || []).reduce(
-      (sum, c) => sum + Number(c.agreed_amount || 0),
+      (sum, c) => sum + Number(c.released_amount ?? c.agreed_amount ?? 0),
       0
     );
 
@@ -50,12 +54,35 @@ exports.getAllUsers = async (req, res) => {
   try {
     const { data: users, error } = await supabaseAdmin
       .from('users')
-      .select('user_id, email, first_name, last_name, role, active_role, status, created_at')
+      .select('*') // includes client_type once migration 010 has run
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    return res.status(200).json({ success: true, data: users || [] });
+    // Payout details, masked (•••• 1234). Skipped quietly if migration 010 hasn't been run.
+    const payoutByUser = {};
+    const { data: payouts, error: payoutError } = await supabaseAdmin.from('payout_details').select('*');
+    if (!payoutError) for (const p of payouts || []) payoutByUser[p.user_id] = maskPayout(p);
+    const paymentByUser = {};
+    const { data: payments, error: paymentError } = await supabaseAdmin.from('client_payment_methods').select('*');
+    if (!paymentError) for (const p of payments || []) paymentByUser[p.user_id] = maskPaymentMethod(p);
+
+    const rows = (users || []).map((u) => ({
+      user_id: u.user_id,
+      email: u.email,
+      first_name: u.first_name,
+      last_name: u.last_name,
+      role: u.role,
+      active_role: u.active_role,
+      status: u.status,
+      created_at: u.created_at,
+      client_type: u.client_type || null,
+      company_name: u.company_name || null,
+      payout: payoutByUser[u.user_id] || null,
+      payment_method: paymentByUser[u.user_id] || null,
+    }));
+
+    return res.status(200).json({ success: true, data: rows });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -89,6 +116,15 @@ exports.updateUserStatus = async (req, res) => {
     if (!updated) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'admin',
+      action: status === 'suspended' ? 'admin.user_suspended' : 'admin.user_reactivated',
+      description: `${status === 'suspended' ? 'Suspended' : 'Reactivated'} the account ${updated.email}`,
+      target_type: 'user',
+      target_id: updated.user_id,
+    });
 
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {
@@ -134,7 +170,7 @@ exports.takedownJob = async (req, res) => {
 
     const { data: job, error: fetchError } = await supabaseAdmin
       .from('jobs')
-      .select('job_id, status')
+      .select('job_id, status, client_id, title')
       .eq('job_id', job_id)
       .single();
 
@@ -157,13 +193,42 @@ exports.takedownJob = async (req, res) => {
 
     if (error) throw error;
 
-    const { error: rejectError } = await supabaseAdmin
+    const { data: rejectedProposals, error: rejectError } = await supabaseAdmin
       .from('proposals')
       .update({ status: 'rejected' })
       .eq('job_id', job_id)
-      .eq('status', 'pending');
+      .eq('status', 'pending')
+      .select('freelancer_id');
 
     if (rejectError) throw rejectError;
+
+    await notify([
+      {
+        user_id: job.client_id,
+        type: 'job_removed',
+        role: 'customer',
+        title: `Your job "${job.title}" was removed by an admin`,
+        body: `Reason: ${reason}`,
+        link: `/my-jobs/${job_id}`,
+      },
+      ...(rejectedProposals || []).map((p) => ({
+        user_id: p.freelancer_id,
+        type: 'job_removed',
+        role: 'freelancer',
+        title: `"${job.title}" is no longer available`,
+        body: 'This job was removed by an admin, so your proposal was closed.',
+        link: '/my-proposals',
+      })),
+    ]);
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'admin',
+      action: 'admin.job_removed',
+      description: `Took down the job "${job.title}" — ${reason}`,
+      target_type: 'job',
+      target_id: job_id,
+    });
 
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {

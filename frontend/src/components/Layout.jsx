@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams, Outlet } from 'react-router-dom';
 import { clearCached } from '../utils/cache';
-import { switchRole } from '../services/api';
+import { switchRole, getProfile } from '../services/api';
 import { showToast } from '../utils/toast';
+import NotificationBell from './NotificationBell';
+import CurrencySelector from './CurrencySelector';
 
 const FreelancerIcon = () => (
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -36,11 +38,7 @@ export default function Layout() {
   function handleSearchSubmit(e) {
     e.preventDefault();
     const q = navSearch.trim();
-    if (location.pathname.startsWith('/top-users')) {
-      navigate(q ? `/top-users?q=${encodeURIComponent(q)}` : '/top-users');
-    } else {
-      navigate(q ? `/explore?q=${encodeURIComponent(q)}` : '/explore');
-    }
+    navigate(q ? `/explore?q=${encodeURIComponent(q)}` : '/explore');
   }
 
   function handleSearchChange(e) {
@@ -48,10 +46,29 @@ export default function Layout() {
     setNavSearch(val);
     if (location.pathname.startsWith('/explore')) {
       navigate(val.trim() ? `/explore?q=${encodeURIComponent(val)}` : '/explore', { replace: true });
-    } else if (location.pathname.startsWith('/top-users')) {
-      navigate(val.trim() ? `/top-users?q=${encodeURIComponent(val)}` : '/top-users', { replace: true });
     }
   }
+
+  // Re-check the account when the user changes pages or comes back to the tab, so someone an admin
+  // suspends gets logged out even if they're idle. getProfile() logs out on a suspended response.
+  // At most once every 30 seconds.
+  const lastAccountCheck = useRef(0);
+  useEffect(() => {
+    function checkAccount() {
+      if (document.visibilityState === 'hidden' || !localStorage.getItem('token')) return;
+      const now = Date.now();
+      if (now - lastAccountCheck.current < 30000) return;
+      lastAccountCheck.current = now;
+      getProfile().catch(() => {});
+    }
+    checkAccount();
+    document.addEventListener('visibilitychange', checkAccount);
+    window.addEventListener('focus', checkAccount);
+    return () => {
+      document.removeEventListener('visibilitychange', checkAccount);
+      window.removeEventListener('focus', checkAccount);
+    };
+  }, [location.pathname]);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false);
@@ -140,7 +157,7 @@ export default function Layout() {
       }
     } catch (err) {
       console.error('Failed to switch role:', err);
-      showToast(err.message || 'Failed to switch role', 4000);
+      showToast(err.message || 'Failed to switch role', { type: 'error' });
       setIsSwitchingRole(false);
     }
   };
@@ -169,8 +186,8 @@ export default function Layout() {
                 </Link>
               </li>
               <li className="sidebar-menu-item">
-                <Link to="/top-users" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isActive('/top-users')}`}>
-                  <i className="bi bi-star"></i><span>Top Freelancers</span>
+                <Link to="/browse" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isActive('/browse')}`}>
+                  <i className="bi bi-people"></i><span>Browse Users</span>
                 </Link>
               </li>
               <li className="sidebar-menu-item">
@@ -253,7 +270,7 @@ export default function Layout() {
 
           <div className="navbar-search-wrapper mx-3">
             {!location.pathname.startsWith('/explore') &&
-             (location.pathname.includes('/top-users') || location.pathname.includes('/messages') || location.pathname.includes('/my-proposals')) && (
+             (location.pathname.includes('/messages') || location.pathname.includes('/my-proposals')) && (
               <form onSubmit={handleSearchSubmit} className="d-flex align-items-center w-100 position-relative">
                 <input
                   type="text"
@@ -270,6 +287,8 @@ export default function Layout() {
           </div>
 
           <div className="navbar-actions d-flex align-items-center gap-3">
+            <CurrencySelector />
+            <NotificationBell />
             <button
               type="button"
               className="navbar-action-btn d-flex align-items-center justify-content-center"
@@ -288,9 +307,19 @@ export default function Layout() {
               <i className={isFullscreen ? "bi bi-fullscreen-exit" : "bi bi-arrows-fullscreen"}></i>
             </button>
             
+            {/* Which mode you're in; switching still happens from the profile menu */}
+            <span
+              className="badge rounded-pill d-inline-flex align-items-center gap-1 me-2 px-2 py-1 fw-semibold"
+              style={{ backgroundColor: user?.active_role === 'customer' ? '#C2410C' : '#146C43', color: '#fff', fontSize: '0.72rem' }}
+              title={`You're in ${user?.active_role === 'customer' ? 'Client' : 'Freelancer'} mode`}
+            >
+              <i className={`bi ${user?.active_role === 'customer' ? 'bi-briefcase' : 'bi-person-workspace'}`}></i>
+              {user?.active_role === 'customer' ? 'Client' : 'Freelancer'}
+            </span>
+
             <div className="dropdown">
               <button className="navbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <img src={user?.avatar_url || "/default-avatar.png"} alt="Profile" className="navbar-profile-img" />
+                <img src={(user?.active_role === "customer" && user?.client_avatar_url) || user?.avatar_url || "/default-avatar.png"} alt="Profile" className="navbar-profile-img" />
                 <span className="navbar-profile-name d-none d-md-inline">{user?.first_name || 'User'}</span>
                 <i className="bi bi-chevron-down navbar-profile-caret"></i>
               </button>
@@ -351,7 +380,7 @@ export default function Layout() {
               <div className="d-flex gap-3 gap-md-4">
                 <Link to="/terms" className="text-decoration-none text-muted">Terms</Link>
                 <Link to="/privacy" className="text-decoration-none text-muted">Privacy</Link>
-                <Link to="/contact" className="text-decoration-none text-muted">Help & Support</Link>
+                <Link to="/help" className="text-decoration-none text-muted">Help & Support</Link>
               </div>
             </div>
           </footer>

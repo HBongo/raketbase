@@ -28,8 +28,12 @@ async function requireAuth(req, res, next) {
     return res.status(401).json({ status: 401, message: 'User profile not found' });
   }
   
+  if (profile.status === 'deleted') {
+    return res.status(403).json({ status: 403, code: 'ACCOUNT_DELETED', message: 'This account has been deleted.' });
+  }
+
   if (profile.status === 'suspended') {
-    return res.status(403).json({ status: 403, message: 'This account has been suspended.' });
+    return res.status(403).json({ status: 403, code: 'ACCOUNT_SUSPENDED', message: 'This account has been suspended.' });
   }
 
   req.user = {

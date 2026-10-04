@@ -7,32 +7,42 @@
 // 5. Spark Admin layout (sidebar + navbar)
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { getFreelancerProfile, updateProfile } from '../services/api';
+import { getFreelancerProfile, updateProfile, changePassword, getPayoutDetails, getPaymentMethodDetails } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
-import { supabase } from '../config/supabaseClient';
 import { showToast } from '../utils/toast';
+import Money from '../components/Money';
+import HireMeModal from '../components/HireMeModal';
+import ClientProfileView from '../components/ClientProfileView';
+import ProfileReviews from '../components/ProfileReviews';
+import PaymentDetailsCard from '../components/PaymentDetailsCard';
+import ActivityList from '../components/ActivityList';
+import DeleteAccountCard from '../components/DeleteAccountCard';
 
 function SecurityTab() {
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  const isFormValid = newPassword.length >= 6 && newPassword === confirmPassword;
+  // Same rule as sign-up: 8+ characters, 1 uppercase letter, 1 number
+  const meetsRule = /^(?=.*[A-Z])(?=.*\d).{8,}$/.test(newPassword);
+  const isFormValid = currentPassword && meetsRule && newPassword === confirmPassword;
 
   async function handleUpdatePassword(e) {
     e.preventDefault();
     if (!isFormValid || isSubmitting) return;
 
+    setFormError('');
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      
-      showToast('Password updated successfully', { type: 'success' });
+      await changePassword(currentPassword, newPassword);
+      showToast('Password updated successfully', 4000);
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
-      showToast(err.message || 'Failed to update password', { type: 'error' });
+      setFormError(err.message || 'Failed to update password');
     } finally {
       setIsSubmitting(false);
     }
@@ -45,16 +55,37 @@ function SecurityTab() {
       </div>
       <div className="card-body px-4 pb-4 mt-3">
         <form onSubmit={handleUpdatePassword}>
+          {formError && (
+            <div className="alert alert-danger py-2 small" role="alert">{formError}</div>
+          )}
           <div className="mb-3">
-            <label className="form-label small fw-medium text-dark">New Password</label>
-            <input 
-              type="password" 
-              className="form-control bg-light" 
-              placeholder="Enter new password (min. 6 characters)"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+            <label className="form-label small fw-medium text-dark" htmlFor="current-password">Current Password</label>
+            <input
+              id="current-password"
+              type="password"
+              className="form-control bg-light"
+              placeholder="Enter your current password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
               disabled={isSubmitting}
             />
+          </div>
+          <div className="mb-3">
+            <label className="form-label small fw-medium text-dark" htmlFor="new-password">New Password</label>
+            <input
+              id="new-password"
+              type="password"
+              className={`form-control bg-light ${newPassword && !meetsRule ? 'is-invalid border-danger' : ''}`}
+              placeholder="At least 8 characters, 1 uppercase letter, 1 number"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              disabled={isSubmitting}
+            />
+            {newPassword && !meetsRule && (
+              <div className="invalid-feedback">Use at least 8 characters, including 1 uppercase letter and 1 number</div>
+            )}
           </div>
           <div className="mb-4">
             <label className="form-label small fw-medium text-dark">Confirm New Password</label>
@@ -93,7 +124,6 @@ function buildFormFromProfile(p) {
     title: p.title || '',
     phone: p.phone || '',
     location: p.location || '',
-    hourly_rate: p.hourly_rate || '',
     bio: p.bio || '',
     skills: Array.isArray(p.skills) ? p.skills.join(', ') : (p.skills || ''),
     linkedin_url: p.linkedin_url || '',
@@ -101,6 +131,9 @@ function buildFormFromProfile(p) {
     website_url: p.website_url || '',
     experience: Array.isArray(p.experience) ? p.experience : [],
     education: Array.isArray(p.education) ? p.education : [],
+    client_bio: p.client_bio || '',
+    client_type: p.client_type || '',
+    company_name: p.company_name || '',
   };
 }
 
@@ -155,6 +188,7 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
     const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'about');
+  const [showHireModal, setShowHireModal] = useState(false);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -168,6 +202,45 @@ export default function Profile() {
   })();
 
   const isOwnProfile = (user.user_id || user.id) === id;
+
+  // Which side of the profile is showing. Links can ask for one (?as=client, e.g. from a job
+  // posting); otherwise your own profile opens on your current mode and others on Freelancer.
+  const asParam = searchParams.get('as');
+  const defaultSide = asParam === 'client' || asParam === 'freelancer'
+    ? asParam
+    : (isOwnProfile && user.active_role === 'customer' ? 'client' : 'freelancer');
+  const [side, setSide] = useState(defaultSide);
+
+  useEffect(() => {
+    setSide(defaultSide);
+    setEditing(false);
+  }, [id, defaultSide]);
+
+  // Your own payment details (masked), for each side's Payments tab and the reminder banners:
+  // payout details on the Freelancer side, the payment method for funding escrow on the Client side
+  const [payout, setPayout] = useState({ loading: true, data: null, key: null });
+  const [paymentMethod, setPaymentMethod] = useState({ loading: true, data: null, key: null });
+  useEffect(() => {
+    if (!isOwnProfile) return;
+    let cancelled = false;
+    // If one can't be read (e.g. its migration isn't run yet), data stays undefined: no reminder
+    getPayoutDetails()
+      .then((res) => { if (!cancelled) setPayout({ loading: false, data: res.data, key: id }); })
+      .catch(() => { if (!cancelled) setPayout({ loading: false, data: undefined, key: id }); });
+    getPaymentMethodDetails()
+      .then((res) => { if (!cancelled) setPaymentMethod({ loading: false, data: res.data, key: id }); })
+      .catch(() => { if (!cancelled) setPaymentMethod({ loading: false, data: undefined, key: id }); });
+    return () => { cancelled = true; };
+  }, [id, isOwnProfile]);
+  const payoutLoading = payout.loading || payout.key !== id;
+  const paymentMethodLoading = paymentMethod.loading || paymentMethod.key !== id;
+
+  function switchSide(next) {
+    if (next === side || editing) return;
+    setSide(next);
+    setSaveMsg(null);
+    if (!['about', 'reviews', 'activity', 'payments', 'security'].includes(activeTab)) setActiveTab('about');
+  }
 
   // Load profile data
   useEffect(() => {
@@ -266,9 +339,11 @@ export default function Profile() {
           const base64String = reader.result;
           
           // Send to backend
+          // The photo goes to the side being viewed: client photo or freelancer photo
           await updateProfile({
             avatar_base64: base64String,
-            avatar_ext: ext
+            avatar_ext: ext,
+            avatar_for: side === 'client' ? 'customer' : 'freelancer',
           });
 
           // Refresh the profile page data
@@ -276,16 +351,19 @@ export default function Profile() {
           if (refreshed.success) {
             setProfile(refreshed.data);
             setForm(buildFormFromProfile(refreshed.data));
-            
+            setCached(`profile_${id}`, refreshed.data);
+
             // Also update localStorage user info to show avatar in navbar
             const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
             localStorage.setItem('user', JSON.stringify({
               ...storedUser,
-              avatar_url: refreshed.data.avatar_url
+              avatar_url: refreshed.data.avatar_url,
+              client_avatar_url: refreshed.data.client_avatar_url,
             }));
-            
-            // Force reload window to update navbar instantly without React context
-            window.location.reload();
+
+            // Force reload window to update navbar instantly without React context,
+            // staying on the side whose photo was just changed
+            window.location.replace(`${window.location.pathname}?as=${side}`);
           }
         } catch (err) {
           console.error('Avatar upload error:', err);
@@ -306,13 +384,19 @@ export default function Profile() {
     setSaving(true);
     setSaveMsg(null);
     try {
-      const payload = {
+      // Each side only saves its own fields, so editing one never touches the other
+      const payload = side === 'client' ? {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        company_name: form.company_name.trim(),
+        ...(form.client_type ? { client_type: form.client_type } : {}),
+        client_bio: form.client_bio,
+      } : {
         first_name: form.first_name,
         last_name: form.last_name,
         title: form.title,
         phone: form.phone,
         location: form.location,
-        hourly_rate: form.hourly_rate ? Number(form.hourly_rate) : null,
         bio: form.bio,
         skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
         linkedin_url: form.linkedin_url,
@@ -328,6 +412,7 @@ export default function Profile() {
       if (refreshed.success) {
         setProfile(refreshed.data);
         setForm(buildFormFromProfile(refreshed.data));
+        setCached(`profile_${id}`, refreshed.data);
       }
       // Also update localStorage user info
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -360,6 +445,46 @@ export default function Profile() {
   const experienceArr = Array.isArray(f.experience) ? f.experience : [];
   const educationArr = Array.isArray(f.education) ? f.education : [];
 
+  const securityTab = (
+    <>
+      <SecurityTab />
+      {!['admin', 'staff'].includes(user.role) && <DeleteAccountCard />}
+    </>
+  );
+
+  const payoutTab = (
+    <PaymentDetailsCard
+      kind="payout"
+      details={payout.data || null}
+      loading={payoutLoading}
+      onSaved={(data) => setPayout({ loading: false, data, key: id })}
+    />
+  );
+  const paymentMethodTab = (
+    <PaymentDetailsCard
+      kind="payment"
+      details={paymentMethod.data || null}
+      loading={paymentMethodLoading}
+      onSaved={(data) => setPaymentMethod({ loading: false, data, key: id })}
+    />
+  );
+
+  // Camera button on the photo; uploads to whichever side is showing
+  const avatarControl = isOwnProfile && (
+    <>
+      <input type="file" ref={fileInputRef} className="d-none" accept=".jpg,.jpeg,.png" onChange={handleAvatarUpload} />
+      <button
+        className="btn btn-dark btn-sm rounded-circle position-absolute bottom-0 end-0 d-flex align-items-center justify-content-center"
+        style={{ width: '36px', height: '36px' }}
+        onClick={() => fileInputRef.current?.click()}
+        disabled={uploading}
+        title={side === 'client' ? 'Change client photo' : 'Change freelancer photo'}
+      >
+        {uploading ? <span className="spinner-border spinner-border-sm"></span> : <i className="bi bi-camera-fill"></i>}
+      </button>
+    </>
+  );
+
 
 
   return (
@@ -372,8 +497,33 @@ export default function Profile() {
 
       <div className="page-header">
         <div>
-          <h1 className="page-title">Freelancer Profile</h1>
-          <p className="page-subtitle">View skills, experience, and portfolio details.</p>
+          <h1 className="page-title">{side === 'client' ? 'Client Profile' : 'Freelancer Profile'}</h1>
+          <p className="page-subtitle">
+            {side === 'client'
+              ? 'See how this person hires and what freelancers say about working with them.'
+              : 'View skills, experience, and portfolio details.'}
+          </p>
+          <ul className="nav nav-pills gap-2 mt-2" role="tablist" aria-label="Profile side">
+            {[
+              { id: 'freelancer', label: 'Freelancer', icon: 'bi-person-workspace' },
+              { id: 'client', label: 'Client', icon: 'bi-briefcase' },
+            ].map((s) => (
+              <li className="nav-item" key={s.id}>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={side === s.id}
+                  className={`nav-link rounded-pill px-3 py-1 fw-medium small ${side === s.id ? 'active text-white' : 'text-dark border'}`}
+                  style={side === s.id ? { backgroundColor: '#072F1F' } : {}}
+                  onClick={() => switchSide(s.id)}
+                  disabled={editing && side !== s.id}
+                  title={editing && side !== s.id ? 'Save or cancel your edits first' : undefined}
+                >
+                  <i className={`bi ${s.icon} me-1`}></i>{s.label}
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
         {isOwnProfile && !editing && (
           <button className="btn btn-dark rounded-pill px-4 fw-medium" onClick={() => setEditing(true)}>
@@ -391,6 +541,26 @@ export default function Profile() {
       </div>
 
       {/* Save / Error Messages */}
+      {/* Reminders for details added after this account was created */}
+      {isOwnProfile && !loading && profile && side === 'freelancer' && !payoutLoading && payout.data === null && (
+        <div className="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 mx-3" role="status">
+          <span><i className="bi bi-wallet2 me-2"></i>Add your payout details so you can send proposals and get paid.</span>
+          <button type="button" className="btn btn-sm btn-dark rounded-pill px-3" onClick={() => setActiveTab('payments')}>Add payout details</button>
+        </div>
+      )}
+      {isOwnProfile && !loading && profile && side === 'client' && !paymentMethodLoading && paymentMethod.data === null && (
+        <div className="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 mx-3" role="status">
+          <span><i className="bi bi-credit-card me-2"></i>Add a payment method so you can accept proposals and send direct offers.</span>
+          <button type="button" className="btn btn-sm btn-dark rounded-pill px-3" onClick={() => setActiveTab('payments')}>Add payment method</button>
+        </div>
+      )}
+      {isOwnProfile && !loading && profile && side === 'client' && !profile.client_type && !editing && (
+        <div className="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 mx-3" role="status">
+          <span><i className="bi bi-building me-2"></i>Let freelancers know who they're working with: are you hiring as an individual, a small business, or a major contractor?</span>
+          <button type="button" className="btn btn-sm btn-dark rounded-pill px-3" onClick={() => setEditing(true)}>Add business type</button>
+        </div>
+      )}
+
       {saveMsg && (
         <div className={`alert ${saveMsg.type === 'success' ? 'alert-success' : 'alert-danger'} mx-3 alert-dismissible fade show`} role="alert">
           <i className={`bi ${saveMsg.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} me-2`}></i>
@@ -413,7 +583,24 @@ export default function Profile() {
         )}
 
         {/* ── Profile Layout ───────────────────────────────────────── */}
-        {!loading && !loadError && profile && (
+        {!loading && !loadError && profile && side === 'client' && (
+          <ClientProfileView
+            profile={profile}
+            form={form}
+            editing={editing}
+            onChange={handleChange}
+            onStartEdit={() => setEditing(true)}
+            isOwnProfile={isOwnProfile}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            avatarControl={avatarControl}
+            securityTab={securityTab}
+            activityTab={<ActivityList isAdmin={user.role === 'admin'} />}
+            paymentsTab={paymentMethodTab}
+          />
+        )}
+
+        {!loading && !loadError && profile && side !== 'client' && (
           <div className="row g-4 mb-4">
 
             {/* ── Left Column ───────────────────────────────────────── */}
@@ -428,20 +615,7 @@ export default function Profile() {
                       className="rounded-circle border border-3 border-light shadow-sm"
                       style={{ width: '140px', height: '140px', objectFit: 'cover' }}
                     />
-                    {isOwnProfile && (
-                      <>
-                        <input type="file" ref={fileInputRef} className="d-none" accept=".jpg,.jpeg,.png" onChange={handleAvatarUpload} />
-                        <button
-                          className="btn btn-dark btn-sm rounded-circle position-absolute bottom-0 end-0 d-flex align-items-center justify-content-center"
-                          style={{ width: '36px', height: '36px' }}
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={uploading}
-                          title="Change photo"
-                        >
-                          {uploading ? <span className="spinner-border spinner-border-sm"></span> : <i className="bi bi-camera-fill"></i>}
-                        </button>
-                      </>
-                    )}
+                    {avatarControl}
                   </div>
 
                   {/* Name & Title */}
@@ -495,19 +669,20 @@ export default function Profile() {
                       <div className="bg-light rounded-3 p-2">
                         <div className="fw-bold text-dark fs-5 d-flex align-items-center justify-content-center gap-1">
                           <i className="bi bi-star-fill text-warning" style={{ fontSize: '0.85rem' }}></i>
-                          {f.rating || '—'}
+                          {f.rating != null ? f.rating : '—'}
                         </div>
-                        <div className="text-muted" style={{ fontSize: '0.7rem' }}>Rating</div>
+                        <div className="text-muted" style={{ fontSize: '0.7rem' }}>
+                          {f.rating_count ? `Rating (${f.rating_count})` : 'No reviews'}
+                        </div>
                       </div>
                     </div>
                     <div className="col-4">
                       <div className="bg-light rounded-3 p-2">
-                        {editing ? (
-                          <input type="number" className="form-control form-control-sm bg-white text-center fw-bold" value={form.hourly_rate} onChange={(e) => handleChange('hourly_rate', e.target.value)} placeholder="0" />
-                        ) : (
-                          <div className="fw-bold text-success fs-6">₱{f.hourly_rate ? Number(f.hourly_rate).toLocaleString() : '—'}</div>
-                        )}
-                        <div className="text-muted" style={{ fontSize: '0.7rem' }}>/hour</div>
+                        {/* Average of their completed contracts, not something they type in */}
+                        <div className="fw-bold text-success fs-6" title="Average amount of this freelancer's completed contracts">
+                          {f.avg_price != null ? <Money amount={f.avg_price} currency="PHP" /> : '—'}
+                        </div>
+                        <div className="text-muted" style={{ fontSize: '0.7rem' }}>Avg rate</div>
                       </div>
                     </div>
                   </div>
@@ -586,7 +761,21 @@ export default function Profile() {
                     <>
                       <hr className="my-3" />
                       <div className="d-grid gap-2">
-                        <button className="btn btn-dark rounded-pill fw-medium py-2"><i className="bi bi-briefcase me-2"></i>Hire Me</button>
+                        <button
+                          type="button"
+                          className="btn btn-dark rounded-pill fw-medium py-2"
+                          onClick={() => {
+                            // Only clients can send offers
+                            if (user.active_role !== 'customer') {
+                              showToast('Switch to Client mode to hire this freelancer.', { type: 'info' });
+                              return;
+                            }
+                            setShowHireModal(true);
+                          }}
+                          title={user.active_role === 'customer' ? 'Send this freelancer a direct offer' : 'Switch to Client mode to hire'}
+                        >
+                          <i className="bi bi-briefcase me-2"></i>Hire Me
+                        </button>
                         <button className="btn btn-outline-dark rounded-pill fw-medium py-2"><i className="bi bi-chat-dots me-2"></i>Message</button>
                       </div>
                     </>
@@ -635,7 +824,12 @@ export default function Profile() {
                       { id: 'about', label: 'About Me', icon: 'bi-person' },
                       { id: 'experience', label: 'Experience', icon: 'bi-building' },
                       { id: 'education', label: 'Education', icon: 'bi-mortarboard' },
-                      ...(isOwnProfile ? [{ id: 'security', label: 'Security', icon: 'bi-shield-lock' }] : [])
+                      { id: 'reviews', label: `Reviews${f.rating_count ? ` (${f.rating_count})` : ''}`, icon: 'bi-star' },
+                      ...(isOwnProfile ? [
+                        { id: 'activity', label: 'Activity', icon: 'bi-clock-history' },
+                        { id: 'payments', label: 'Payments', icon: 'bi-wallet2' },
+                        { id: 'security', label: 'Security', icon: 'bi-shield-lock' },
+                      ] : [])
                     ].map((tab) => (
                       <li className="nav-item" key={tab.id}>
                         <button
@@ -718,7 +912,7 @@ export default function Profile() {
                                   <i className="bi bi-cash-stack text-warning"></i>
                                 </div>
                                 <div>
-                                  <div className="fw-bold text-dark">₱{(f.total_earnings || 0).toLocaleString()}</div>
+                                  <div className="fw-bold text-dark"><Money amount={f.total_earnings || 0} currency="PHP" /></div>
                                   <div className="text-muted small">Total earnings on RaketBase</div>
                                 </div>
                               </div>
@@ -863,11 +1057,37 @@ export default function Profile() {
                 </div>
               )}
 
-              {activeTab === 'security' && <SecurityTab />}
+              {activeTab === 'reviews' && (
+                <div className="card shadow-sm border-0 mb-4">
+                  <div className="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
+                    <h5 className="fw-bold text-dark mb-0"><i className="bi bi-star me-2 text-muted"></i>Reviews from Clients</h5>
+                  </div>
+                  <div className="card-body px-4 pb-4">
+                    <ProfileReviews userId={id} role="freelancer" />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'activity' && isOwnProfile && <ActivityList isAdmin={user.role === 'admin'} />}
+
+              {activeTab === 'payments' && isOwnProfile && payoutTab}
+
+              {activeTab === 'security' && securityTab}
             </div>
           </div>
         )}
-      
+
+      {showHireModal && (
+        <HireMeModal
+          freelancerId={id}
+          freelancerName={[f.first_name, f.last_name].filter(Boolean).join(' ') || 'this freelancer'}
+          onClose={() => setShowHireModal(false)}
+          onSent={() => {
+            setShowHireModal(false);
+            showToast('Offer sent! Track it under My Postings → Sent offers.', 5000);
+          }}
+        />
+      )}
     </>
   );
 }

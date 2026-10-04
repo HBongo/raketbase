@@ -32,7 +32,7 @@ async function getAverageAmountsByUser(role) {
   const rows = await fetchAllRows((from, to) =>
     supabaseAdmin
       .from('contracts')
-      .select('contract_id, client_id, freelancer_id, agreed_amount')
+      .select('*') // includes released_amount once migration 009 has run
       .eq('status', 'completed')
       .order('contract_id')
       .range(from, to)
@@ -41,7 +41,8 @@ async function getAverageAmountsByUser(role) {
   const totals = {};
   for (const row of rows) {
     const userId = row[column];
-    const amount = Number(row.agreed_amount);
+    // What the freelancer actually received (half after a split dispute); NULL = full amount
+    const amount = Number(row.released_amount ?? row.agreed_amount);
     if (!userId || !Number.isFinite(amount)) continue;
     const t = (totals[userId] = totals[userId] || { sum: 0, contracts: 0 });
     t.sum += amount;
@@ -66,13 +67,13 @@ async function getAverageAmountForUser(userId, role) {
     const rows = await fetchAllRows((from, to) =>
       supabaseAdmin
         .from('contracts')
-        .select('contract_id, agreed_amount')
+        .select('*')
         .eq(column, userId)
         .eq('status', 'completed')
         .order('contract_id')
         .range(from, to)
     );
-    const amounts = rows.map((r) => Number(r.agreed_amount)).filter((n) => Number.isFinite(n));
+    const amounts = rows.map((r) => Number(r.released_amount ?? r.agreed_amount)).filter((n) => Number.isFinite(n));
     if (amounts.length === 0) return empty;
     return {
       average: round2(amounts.reduce((sum, n) => sum + n, 0) / amounts.length),

@@ -1,6 +1,7 @@
 /**
  * formatters.js — Centralized formatting helpers for RaketBase
  */
+import { convertForDisplay, CURRENCY_SYMBOLS } from './currency';
 
 /**
  * Formats a monetary amount with the appropriate currency symbol.
@@ -9,13 +10,31 @@
  * @returns {string} Formatted currency string, e.g. "₱5,000" or "$100"
  */
 export function formatCurrency(amount, currency = 'PHP') {
+  // When the viewer picked another display currency in the top bar, show an
+  // estimate in that currency ("≈ €126"); the stored amount never changes.
+  const converted = amount === undefined || amount === null || isNaN(Number(amount))
+    ? null
+    : convertForDisplay(amount, currency);
+  if (converted) {
+    return `≈ ${formatInCurrency(converted.value, converted.currency)}`;
+  }
+  return formatOriginalCurrency(amount, currency);
+}
+
+/**
+ * Formats an amount in its own currency, ignoring the display-currency selector.
+ * @param {number|string} amount
+ * @param {string} [currency='PHP']
+ * @returns {string} e.g. "₱5,000" or "$100"
+ */
+export function formatOriginalCurrency(amount, currency = 'PHP') {
   const num = Number(amount);
   if (amount === undefined || amount === null || isNaN(num)) {
     return currency === 'USD' ? '$0' : '₱0';
   }
 
   const symbol = (currency || 'PHP').toUpperCase() === 'USD' ? '$' : '₱';
-  
+
   // Format with commas, omitting decimals if whole number
   const formatted = num.toLocaleString('en-US', {
     minimumFractionDigits: Number.isInteger(num) ? 0 : 2,
@@ -23,6 +42,16 @@ export function formatCurrency(amount, currency = 'PHP') {
   });
 
   return `${symbol}${formatted}`;
+}
+
+// Converted amounts: whole numbers for JPY, 2 decimals for large-unit currencies.
+function formatInCurrency(value, currency) {
+  const decimals = currency === 'JPY' || currency === 'PHP' ? 0 : 2;
+  const formatted = value.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  return `${CURRENCY_SYMBOLS[currency] || ''}${formatted}`;
 }
 
 /**

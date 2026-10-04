@@ -1,6 +1,8 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
 const { getRatingSummaries, emptySummary } = require('../utils/ratings');
 const { validateJobInput } = require('../utils/slopFilter');
+const { notify } = require('../utils/notify');
 
 // GET /api/v1/jobs - Fetch all jobs (with optional category filtering).
 // Open jobs come first (newest first); assigned/completed jobs follow so the
@@ -24,12 +26,25 @@ exports.getAllJobs = async (req, res) => {
 
     if (error) throw error;
 
+    // Jobs created from an accepted direct offer ("Hire Me") are private to the two people involved.
+    // Filtered here rather than in the query so Explore keeps working before migration 008 is run.
+    const listed = (jobs || []).filter((j) => !j.is_direct);
+
     // Stable sort: open jobs first, otherwise keep newest-first order
-    const sorted = [...jobs].sort(
+    const sorted = [...listed].sort(
       (a, b) => Number(b.status === 'open') - Number(a.status === 'open')
     );
 
-    return res.status(200).json({ success: true, data: sorted });
+    // Each poster's rating as a client (from freelancers' reviews), for the job cards and the rating filter
+    const clientIds = [...new Set(sorted.map((j) => j.client_id).filter(Boolean))];
+    const ratings = clientIds.length ? await getRatingSummaries(clientIds, 'customer') : {};
+    const withRatings = sorted.map((j) => ({
+      ...j,
+      client_rating: ratings[j.client_id]?.average ?? null,
+      client_rating_count: ratings[j.client_id]?.count ?? 0,
+    }));
+
+    return res.status(200).json({ success: true, data: withRatings });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -207,6 +222,16 @@ exports.createJob = async (req, res) => {
     if (insertRes.error) throw insertRes.error;
     job = insertRes.data;
 
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'job.posted',
+      description: `Posted the job "${job.title}"`,
+      target_type: 'job',
+      target_id: job.job_id,
+      link: `/my-jobs/${job.job_id}`,
+    });
+
     return res.status(201).json({ success: true, data: job });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -354,6 +379,16 @@ exports.updateJob = async (req, res) => {
 
     if (error) throw error;
 
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'job.edited',
+      description: `Edited the job "${updated.title}"`,
+      target_type: 'job',
+      target_id: updated.job_id,
+      link: `/my-jobs/${updated.job_id}`,
+    });
+
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -376,6 +411,16 @@ exports.pauseJob = async (req, res) => {
 
     if (error) throw error;
 
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'job.paused',
+      description: `Paused the job "${updated.title}"`,
+      target_type: 'job',
+      target_id: updated.job_id,
+      link: `/my-jobs/${updated.job_id}`,
+    });
+
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -396,6 +441,16 @@ exports.resumeJob = async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'job.resumed',
+      description: `Resumed the job "${updated.title}"`,
+      target_type: 'job',
+      target_id: updated.job_id,
+      link: `/my-jobs/${updated.job_id}`,
+    });
 
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {
@@ -420,13 +475,33 @@ exports.cancelJob = async (req, res) => {
 
     if (error) throw error;
 
-    const { error: rejectError } = await supabaseAdmin
+    const { data: rejectedProposals, error: rejectError } = await supabaseAdmin
       .from('proposals')
       .update({ status: 'rejected' })
       .eq('job_id', job.job_id)
-      .eq('status', 'pending');
+      .eq('status', 'pending')
+      .select('freelancer_id');
 
     if (rejectError) throw rejectError;
+
+    await notify((rejectedProposals || []).map((p) => ({
+      user_id: p.freelancer_id,
+      type: 'job_cancelled',
+      role: 'freelancer',
+      title: `"${job.title}" was cancelled`,
+      body: 'The client cancelled this job, so your proposal was closed.',
+      link: '/my-proposals',
+    })));
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'job.cancelled',
+      description: `Cancelled the job "${updated.title}"`,
+      target_type: 'job',
+      target_id: updated.job_id,
+      link: `/my-jobs/${updated.job_id}`,
+    });
 
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {

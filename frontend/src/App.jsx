@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Explore from './pages/Explore';
 import CreateJob from './pages/CreateJob';
@@ -12,9 +14,10 @@ import ProtectedRoute from './pages/ProtectedRoute';
 import AdminRoute from './pages/AdminRoute';
 import AdminDashboard from './pages/AdminDashboard';
 import Messages from './pages/Messages';
-import TopUsers from './pages/TopUsers';
+import BrowseUsers from './pages/BrowseUsers';
 import MyProposals from './pages/MyProposals';
 import LegalPage from './pages/LegalPage';
+import Help from './pages/Help';
 import LandingPage from './pages/landing/LandingPage';
 import Layout from './components/Layout';
 import Toaster from './components/Toaster';
@@ -76,6 +79,8 @@ function App() {
       />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/terms" element={<LegalPage defaultDoc="terms" />} />
       <Route path="/privacy" element={<LegalPage defaultDoc="privacy" />} />
       <Route path="/terms-of-service" element={<Navigate to="/terms" replace />} />
@@ -95,12 +100,16 @@ function App() {
           <Route path="/contracts/:id/dispute" element={<DisputeTicket />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:id" element={<Messages />} />
-          <Route path="/top-users" element={<TopUsers />} />
+          <Route path="/browse" element={<BrowseUsers />} />
+          {/* Top Users now lives inside Browse Users as its "Top users" view */}
+          <Route path="/top-users" element={<Navigate to="/browse?view=top" replace />} />
           <Route path="/my-proposals" element={<MyProposals />} /
           >
           <Route path="/profile/:id" element={<Profile />} />
           {/* If they just hit /profile, redirect to dashboard or read user from localstorage */}
           <Route path="/profile" element={<Profile />} />
+          <Route path="/help" element={<Help />} />
+          <Route path="/contact" element={<Navigate to="/help" replace />} />
 
           {/* Admin-only routes */}
           <Route element={<AdminRoute />}>

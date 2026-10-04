@@ -1,6 +1,10 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
 const { getRatingSummaries, emptySummary } = require('../utils/ratings');
 const { validateProposalInput } = require('../utils/slopFilter');
+const { notify, displayName } = require('../utils/notify');
+const { hasPayout, PAYOUT_REQUIRED_MESSAGE } = require('../utils/payout');
+const { hasPaymentMethod, PAYMENT_METHOD_REQUIRED_MESSAGE } = require('../utils/paymentMethod');
 
 // POST /api/v1/proposals - Submit a proposal for a job
 // For a 'milestone' budget_type job, `milestones` (an array of { title, amount })
@@ -27,10 +31,15 @@ exports.createProposal = async (req, res) => {
       });
     }
 
+    // An accepted bid becomes a contract, so there must be somewhere to pay the freelancer
+    if (!(await hasPayout(freelancer_id))) {
+      return res.status(409).json({ success: false, code: 'PAYOUT_REQUIRED', error: PAYOUT_REQUIRED_MESSAGE });
+    }
+
     // Nobody may bid on a job they posted themselves, regardless of mode.
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
-      .select('job_id, client_id, status, budget_type')
+      .select('job_id, client_id, status, budget_type, title')
       .eq('job_id', job_id)
       .single();
 
@@ -139,6 +148,25 @@ exports.createProposal = async (req, res) => {
       }
     }
 
+    await notify({
+      user_id: job.client_id,
+      type: 'proposal_received',
+      role: 'customer',
+      title: `New proposal on "${job.title}"`,
+      body: `${displayName(req.user, 'A freelancer')} sent a proposal.`,
+      link: `/my-jobs/${job.job_id}`,
+    });
+
+    await logActivity({
+      user_id: freelancer_id,
+      category: 'jobs',
+      action: 'proposal.sent',
+      description: `Sent a proposal for "${job.title}"`,
+      target_type: 'proposal',
+      target_id: proposal.proposal_id,
+      link: '/my-proposals',
+    });
+
     return res.status(201).json({ success: true, data: proposal });
   } catch (error) {
     // Catch Postgres error code 23505 (unique violation on job_id + freelancer_id)
@@ -221,9 +249,23 @@ exports.getProposalsForJob = async (req, res) => {
 
     // Attach each bidder's average freelancer rating so the client can compare them.
     const ratings = await getRatingSummaries((proposals || []).map((p) => p.freelancer_id), 'freelancer');
+    // The accepted freelancer's contract chat, so the client can message them from here.
+    const accepted = (proposals || []).find((p) => p.status === 'accepted');
+    let acceptedConversationId = null;
+    if (accepted) {
+      const { data: contract } = await supabaseAdmin
+        .from('contracts')
+        .select('contract_id, conversations ( conversation_id )')
+        .eq('job_id', job.job_id)
+        .eq('freelancer_id', accepted.freelancer_id)
+        .maybeSingle();
+      acceptedConversationId = contract?.conversations?.conversation_id || null;
+    }
+
     const proposalsWithRatings = (proposals || []).map((p) => ({
       ...p,
       freelancer_rating: ratings[p.freelancer_id] || emptySummary('freelancer'),
+      conversation_id: p.status === 'accepted' ? acceptedConversationId : null,
     }));
 
     return res.status(200).json({ success: true, data: { job, proposals: proposalsWithRatings } });
@@ -247,6 +289,27 @@ exports.acceptProposal = async (req, res) => {
         error: 'Switch to Client mode to accept proposals.'
       });
     }
+
+    // Accepting puts the agreed amount in escrow, so the client needs a way to pay
+    if (!(await hasPaymentMethod(client_id))) {
+      return res.status(409).json({ success: false, code: 'PAYMENT_METHOD_REQUIRED', error: PAYMENT_METHOD_REQUIRED_MESSAGE });
+    }
+
+    // The RPC rejects every other pending proposal on the job, so note who those
+    // freelancers are first to let them know they weren't selected.
+    const { data: acceptedProposal } = await supabaseAdmin
+      .from('proposals')
+      .select('job_id, freelancer_id, jobs(title)')
+      .eq('proposal_id', proposal_id)
+      .maybeSingle();
+    const { data: otherPending } = acceptedProposal
+      ? await supabaseAdmin
+          .from('proposals')
+          .select('freelancer_id')
+          .eq('job_id', acceptedProposal.job_id)
+          .eq('status', 'pending')
+          .neq('proposal_id', proposal_id)
+      : { data: [] };
 
     const { data: contract, error: rpcError } = await supabaseAdmin.rpc(
       'accept_proposal_and_create_contract',
@@ -320,6 +383,47 @@ exports.acceptProposal = async (req, res) => {
       console.error('Failed to copy milestones for contract', contract.contract_id, milestoneError);
     }
 
+    const jobTitle = acceptedProposal?.jobs?.title || 'a job';
+    await notify([
+      {
+        user_id: contract.freelancer_id,
+        type: 'proposal_accepted',
+        role: 'freelancer',
+        title: `Your proposal for "${jobTitle}" was accepted!`,
+        body: 'A contract has been created. You can start working and chat with the client.',
+        link: '/dashboard',
+      },
+      ...(otherPending || []).map((p) => ({
+        user_id: p.freelancer_id,
+        type: 'proposal_rejected',
+        role: 'freelancer',
+        title: `"${jobTitle}" went to another freelancer`,
+        body: 'The client accepted a different proposal for this job.',
+        link: '/my-proposals',
+      })),
+    ]);
+
+    await logActivity([
+      {
+        user_id: client_id,
+        category: 'contracts',
+        action: 'proposal.accepted',
+        description: `Accepted a proposal for "${jobTitle}" — contract started and payment held in escrow`,
+        target_type: 'contract',
+        target_id: contract?.contract_id,
+        link: '/dashboard',
+      },
+      ...(acceptedProposal?.freelancer_id ? [{
+        user_id: acceptedProposal.freelancer_id,
+        category: 'contracts',
+        action: 'contract.started',
+        description: `Your proposal for "${jobTitle}" was accepted — contract started`,
+        target_type: 'contract',
+        target_id: contract?.contract_id,
+        link: '/dashboard',
+      }] : []),
+    ]);
+
     return res.status(200).json({
       success: true,
       message: 'Proposal accepted and contract initiated.',
@@ -346,7 +450,7 @@ exports.rejectProposal = async (req, res) => {
 
     const { data: proposal, error: proposalError } = await supabaseAdmin
       .from('proposals')
-      .select('*, jobs(job_id, client_id)')
+      .select('*, jobs(job_id, client_id, title)')
       .eq('proposal_id', proposal_id)
       .single();
 
@@ -369,6 +473,25 @@ exports.rejectProposal = async (req, res) => {
 
     if (error) throw error;
 
+    await notify({
+      user_id: proposal.freelancer_id,
+      type: 'proposal_rejected',
+      role: 'freelancer',
+      title: `Your proposal for "${proposal.jobs.title}" was declined`,
+      body: 'The client decided not to move forward with your proposal.',
+      link: '/my-proposals',
+    });
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'proposal.declined',
+      description: `Declined a proposal for "${proposal.jobs.title}"`,
+      target_type: 'proposal',
+      target_id: proposal.proposal_id,
+      link: `/my-jobs/${proposal.jobs.job_id}`,
+    });
+
     return res.status(200).json({ success: true, data: rejected });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -385,7 +508,7 @@ exports.withdrawProposal = async (req, res) => {
 
     const { data: proposal, error: proposalError } = await supabaseAdmin
       .from('proposals')
-      .select('proposal_id, freelancer_id, status')
+      .select('proposal_id, freelancer_id, status, jobs(title)')
       .eq('proposal_id', proposal_id)
       .single();
 
@@ -411,6 +534,16 @@ exports.withdrawProposal = async (req, res) => {
 
     if (error) throw error;
 
+    await logActivity({
+      user_id: freelancer_id,
+      category: 'jobs',
+      action: 'proposal.withdrawn',
+      description: `Withdrew a proposal for "${proposal.jobs?.title || 'a job'}"`,
+      target_type: 'proposal',
+      target_id: proposal.proposal_id,
+      link: '/my-proposals',
+    });
+
     return res.status(200).json({ success: true, data: withdrawn });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -429,7 +562,7 @@ exports.unwithdrawProposal = async (req, res) => {
 
     const { data: proposal, error: proposalError } = await supabaseAdmin
       .from('proposals')
-      .select('proposal_id, freelancer_id, status, jobs(job_id, status)')
+      .select('proposal_id, freelancer_id, status, jobs(job_id, status, title)')
       .eq('proposal_id', proposal_id)
       .single();
 
@@ -477,6 +610,16 @@ exports.unwithdrawProposal = async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    await logActivity({
+      user_id: freelancer_id,
+      category: 'jobs',
+      action: 'proposal.restored',
+      description: `Re-submitted a proposal for "${proposal.jobs?.title || 'a job'}"`,
+      target_type: 'proposal',
+      target_id: proposal.proposal_id,
+      link: '/my-proposals',
+    });
 
     return res.status(200).json({ success: true, data: restored });
   } catch (error) {

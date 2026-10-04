@@ -1,5 +1,7 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
 const { postSystemMessage } = require('./contractsController');
+const { notify, displayName } = require('../utils/notify');
 
 // POST /api/v1/disputes - File a dispute against a contract (must be a participant)
 exports.createDispute = async (req, res) => {
@@ -29,7 +31,7 @@ exports.createDispute = async (req, res) => {
     // Confirm the contract exists and the caller is actually a participant
     const { data: contract, error: contractError } = await supabaseAdmin
       .from('contracts')
-      .select('contract_id, client_id, freelancer_id, status')
+      .select('contract_id, client_id, freelancer_id, status, jobs(title)')
       .eq('contract_id', contract_id)
       .single();
 
@@ -39,6 +41,17 @@ exports.createDispute = async (req, res) => {
 
     if (contract.client_id !== userId && contract.freelancer_id !== userId) {
       return res.status(403).json({ success: false, error: 'You are not a participant in this contract' });
+    }
+
+    // Only work that's still in progress can be disputed; finished or already-disputed
+    // contracts can't be reopened this way.
+    if (!['active', 'submitted'].includes(contract.status)) {
+      return res.status(409).json({
+        success: false,
+        error: contract.status === 'disputed'
+          ? 'This contract already has an open dispute.'
+          : `Disputes can only be filed on contracts that are in progress (this one is '${contract.status}').`,
+      });
     }
 
     // Fold category + evidence into the single `reason` column until schema adds a
@@ -65,6 +78,27 @@ exports.createDispute = async (req, res) => {
       .from('contracts')
       .update({ status: 'disputed' })
       .eq('contract_id', contract_id);
+
+    // Tell the other side of the contract that a dispute was filed.
+    const filedByClient = contract.client_id === userId;
+    await notify({
+      user_id: filedByClient ? contract.freelancer_id : contract.client_id,
+      type: 'dispute_filed',
+      role: filedByClient ? 'freelancer' : 'customer',
+      title: `A dispute was filed on "${contract.jobs?.title || 'your contract'}"`,
+      body: `${displayName(req.user, filedByClient ? 'The client' : 'The freelancer')} raised a ${reason_category} dispute. RaketBase staff will review it.`,
+      link: '/dashboard',
+    });
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'contracts',
+      action: 'dispute.filed',
+      description: `Filed a dispute on "${contract.jobs?.title || 'a contract'}"`,
+      target_type: 'dispute',
+      target_id: dispute.dispute_id,
+      link: `/contracts/${contract.contract_id}/dispute`,
+    });
 
     return res.status(201).json({ success: true, data: dispute });
   } catch (error) {
@@ -171,7 +205,7 @@ exports.resolveDispute = async (req, res) => {
 
     const { data: dispute, error: fetchError } = await supabaseAdmin
       .from('disputes')
-      .select('dispute_id, contract_id, status')
+      .select('dispute_id, contract_id, status, contracts(client_id, freelancer_id, job_id, agreed_amount, jobs(title))')
       .eq('dispute_id', dispute_id)
       .single();
 
@@ -194,6 +228,36 @@ exports.resolveDispute = async (req, res) => {
     }
     const resolutionNotes = `${resolutionLabels[resolution]}${trimmedNotes ? ` — ${trimmedNotes}` : ''}`;
 
+    // Apply the outcome to the contract and job first, so a failure (e.g. migration 009
+    // not run yet) leaves the dispute open instead of half-resolved.
+    //   release -> completed, full amount        job completed
+    //   split   -> completed, half released      job completed
+    //   refund  -> refunded, nothing released    job cancelled
+    if (dispute.contract_id && dispute.contracts) {
+      const agreed = Number(dispute.contracts.agreed_amount) || 0;
+      const outcome = {
+        release_freelancer: { contract: { status: 'completed', released_amount: null }, job: 'completed' },
+        split: { contract: { status: 'completed', released_amount: Math.round((agreed / 2) * 100) / 100 }, job: 'completed' },
+        refund_client: { contract: { status: 'refunded', released_amount: 0 }, job: 'cancelled' },
+      }[resolution];
+
+      const { error: contractError } = await supabaseAdmin
+        .from('contracts')
+        .update(outcome.contract)
+        .eq('contract_id', dispute.contract_id);
+      if (contractError) {
+        console.error('Dispute outcome could not be applied to the contract:', contractError.message);
+        return res.status(500).json({
+          success: false,
+          error: 'Could not update the contract for this outcome. Make sure migration 009 has been run, then try again.',
+        });
+      }
+
+      if (dispute.contracts.job_id) {
+        await supabaseAdmin.from('jobs').update({ status: outcome.job }).eq('job_id', dispute.contracts.job_id);
+      }
+    }
+
     const { data: updatedDispute, error: updateError } = await supabaseAdmin
       .from('disputes')
       .update({
@@ -207,16 +271,30 @@ exports.resolveDispute = async (req, res) => {
 
     if (updateError) throw updateError;
 
-    // Move the underlying contract out of 'disputed' once resolved.
     if (dispute.contract_id) {
-      await supabaseAdmin
-        .from('contracts')
-        .update({ status: 'completed' })
-        .eq('contract_id', dispute.contract_id);
-
       // Let both parties know the outcome in their contract chat.
       await postSystemMessage(dispute.contract_id, staffId, `Dispute resolved by admin: ${resolutionNotes}`);
+
+      const parties = dispute.contracts;
+      if (parties) {
+        const title = `Dispute resolved on "${parties.jobs?.title || 'your contract'}" — you can now rate each other`;
+        await notify([
+          { user_id: parties.client_id, type: 'dispute_resolved', role: 'customer', title, body: resolutionNotes, link: '/dashboard' },
+          { user_id: parties.freelancer_id, type: 'dispute_resolved', role: 'freelancer', title, body: resolutionNotes, link: '/dashboard' },
+        ]);
+      }
     }
+
+    await logActivity({
+      user_id: staffId,
+      category: 'admin',
+      action: 'dispute.resolved',
+      description: `Resolved a dispute on "${dispute.contracts?.jobs?.title || 'a contract'}": ${resolutionNotes}`,
+      target_type: 'dispute',
+      target_id: dispute_id,
+      link: '/admin',
+      metadata: { resolution },
+    });
 
     return res.status(200).json({ success: true, data: updatedDispute });
   } catch (error) {

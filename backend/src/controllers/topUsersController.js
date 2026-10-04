@@ -75,7 +75,7 @@ exports.getTopUsers = async (req, res) => {
     const { data: suspendedRows, error: suspendedError } = await supabaseAdmin
       .from('users')
       .select('user_id')
-      .eq('status', 'suspended');
+      .in('status', ['suspended', 'deleted']);
     if (suspendedError) throw suspendedError;
     const suspended = new Set((suspendedRows || []).map((u) => u.user_id));
 
@@ -142,7 +142,7 @@ exports.getTopUsers = async (req, res) => {
       return {
         user_id: u.user_id,
         name: fullName(p),
-        avatar_url: (isFreelancer ? p.avatar_url : p.client_avatar_url) || null,
+        avatar_url: (isFreelancer ? p.avatar_url : p.client_avatar_url || p.avatar_url) || null,
         ...(isFreelancer
           ? { skills: (p.skills || []).slice(0, 3) }
           : { company_name: p.company_name || '' }),

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { formatCurrency, getCurrencySymbol } from '../utils/formatters';
+import { getCurrencySymbol } from '../utils/formatters';
+import Money from '../components/Money';
 import { showToast } from '../utils/toast';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
@@ -211,6 +212,9 @@ export default function JobDetail() {
     }
   }
 
+  const isJobOwner = Boolean(job?.client_id) && [user?.user_id, user?.id].includes(job.client_id);
+  const showsProposalForm = Boolean(job) && !isJobOwner && (job.status === 'open' || alreadyApplied);
+
   return (
     <>
 
@@ -271,7 +275,7 @@ export default function JobDetail() {
                         <>
                           <span className="mx-1">by</span>
                           <Link
-                            to={`/profile/${job.client_id || job.users.user_id}`}
+                            to={`/profile/${job.client_id || job.users.user_id}?as=client`}
                             className="text-dark fw-semibold text-decoration-none d-inline-flex align-items-center gap-1.5"
                             title={`View ${job.users.first_name}'s profile`}
                           >
@@ -314,7 +318,7 @@ export default function JobDetail() {
                         <h6 className="fw-bold text-dark text-uppercase small tracking-wider mb-3">About the Client</h6>
                         <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 p-3 bg-light rounded-3 border">
                           <Link
-                            to={`/profile/${job.client_id || job.users.user_id}`}
+                            to={`/profile/${job.client_id || job.users.user_id}?as=client`}
                             className="d-flex align-items-center gap-3 text-decoration-none text-dark"
                           >
                             {job.users.client_avatar_url || job.users.avatar_url ? (
@@ -350,7 +354,7 @@ export default function JobDetail() {
                             </div>
                           </Link>
                           <Link
-                            to={`/profile/${job.client_id || job.users.user_id}`}
+                            to={`/profile/${job.client_id || job.users.user_id}?as=client`}
                             className="btn btn-outline-dark btn-sm rounded-pill px-3"
                           >
                             View Profile
@@ -363,11 +367,16 @@ export default function JobDetail() {
               </div>
 
               <div className="col-xl-4 col-lg-4">
-                <div className="card border sticky-top" style={{ top: "90px" }}>
+                {/* Only the short budget card follows the page while scrolling; with the proposal form
+                    open it's taller than the screen and would run into the footer */}
+                <div
+                  className={`card border ${showsProposalForm ? '' : 'sticky-lg-top'}`}
+                  style={showsProposalForm ? undefined : { top: '90px', zIndex: 1 }}
+                >
                   <div className="card-body p-4">
                     <p className="text-muted small fw-medium text-uppercase mb-1">Budget</p>
                     <h3 className="fw-bold text-success mb-4">
-                      {job.budget ? formatCurrency(job.budget, job.currency) : '—'}
+                      {job.budget ? <Money amount={job.budget} currency={job.currency} /> : '—'}
                     </h3>
                     
                     {alreadyApplied && (
@@ -520,7 +529,7 @@ export default function JobDetail() {
                                 </button>
                                 <div className="text-end">
                                   <span className="small text-muted me-2">Total Bid:</span>
-                                  <span className="fw-bold text-success">{formatCurrency(milestoneTotal, job?.currency)}</span>
+                                  <span className="fw-bold text-success"><Money amount={milestoneTotal} currency={job?.currency} /></span>
                                 </div>
                               </div>
 

@@ -1,6 +1,8 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
 const { CRITERIA, ROLES, summarize } = require('../utils/ratings');
 const { getAverageAmountForUser } = require('../utils/userStats');
+const { notify, displayName } = require('../utils/notify');
 
 const COMMENT_MAX = 1000;
 const REVIEW_LIST_LIMIT = 50;
@@ -24,7 +26,7 @@ exports.createReview = async (req, res) => {
 
     const { data: contract, error: contractError } = await supabaseAdmin
       .from('contracts')
-      .select('contract_id, client_id, freelancer_id, status')
+      .select('contract_id, client_id, freelancer_id, status, jobs(title)')
       .eq('contract_id', contract_id)
       .single();
 
@@ -39,16 +41,8 @@ exports.createReview = async (req, res) => {
       return res.status(403).json({ success: false, error: 'You are not a participant in this contract' });
     }
 
-    // Auto-align active_role if caller is in opposite mode
-    if (isClient && req.user.active_role !== 'customer') {
-      await supabaseAdmin.from('users').update({ active_role: 'customer' }).eq('user_id', userId);
-      req.user.active_role = 'customer';
-    } else if (isFreelancer && req.user.active_role !== 'freelancer') {
-      await supabaseAdmin.from('users').update({ active_role: 'freelancer' }).eq('user_id', userId);
-      req.user.active_role = 'freelancer';
-    }
 
-    if (contract.status !== 'completed') {
+    if (!['completed', 'refunded'].includes(contract.status)) {
       return res.status(409).json({
         success: false,
         error: 'You can only rate once the contract is completed.',
@@ -102,6 +96,25 @@ exports.createReview = async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    await notify({
+      user_id: revieweeId,
+      type: 'review_received',
+      role: revieweeRole,
+      title: `${displayName(req.user, isClient ? 'Your client' : 'Your freelancer')} rated you ${rating}★`,
+      body: `On "${contract.jobs?.title || 'your contract'}". Rate them back from your Dashboard if you haven't yet.`,
+      link: `/profile/${revieweeId}`,
+    });
+
+    await logActivity({
+      user_id: userId,
+      category: 'contracts',
+      action: 'review.left',
+      description: `Rated ${isClient ? 'the freelancer' : 'the client'} ${rating}★ on "${contract.jobs?.title || 'a contract'}"`,
+      target_type: 'review',
+      target_id: review.review_id,
+      link: `/profile/${revieweeId}`,
+    });
 
     return res.status(201).json({ success: true, data: review });
   } catch (error) {
@@ -181,7 +194,7 @@ exports.getUserReviews = async (req, res) => {
         reviewer: {
           user_id: reviewer.user_id || r.reviewer_id,
           name: [reviewer.first_name, reviewer.last_name].filter(Boolean).join(' ') || 'RaketBase user',
-          avatar_url: (reviewerIsClient ? reviewer.client_avatar_url : reviewer.avatar_url) || null,
+          avatar_url: (reviewerIsClient ? reviewer.client_avatar_url || reviewer.avatar_url : reviewer.avatar_url) || null,
           role: reviewerIsClient ? 'customer' : 'freelancer',
         },
       };

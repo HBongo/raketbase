@@ -71,11 +71,35 @@ async function request(path, options = {}) {
     throw new Error('Your session has expired. Please log in again.');
   }
 
+  // An admin suspended this account while it was logged in: sign out right away
+  if (res.status === 403 && data.code === 'ACCOUNT_SUSPENDED') {
+    forceLogout('suspended');
+    throw new Error('This account has been suspended.');
+  }
+  if (res.status === 403 && data.code === 'ACCOUNT_DELETED') {
+    forceLogout('deleted');
+    throw new Error('This account has been deleted.');
+  }
+
   if (!res.ok) {
-    throw new Error(data.message || data.error || 'Something went wrong');
+    // Keep the server's error code and details (e.g. which contracts block an action)
+    const err = new Error(data.message || data.error || 'Something went wrong');
+    err.code = data.code;
+    err.data = data.data;
+    throw err;
   }
 
   return data;
+}
+
+// Clears the saved session and sends the user to the login page with a reason (?suspended=1)
+export function forceLogout(reason) {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+    window.location.href = `/login?${reason}=1`;
+  }
 }
 
 // Authentication & Profile API
@@ -90,6 +114,28 @@ export function loginUser(payload) {
   return request('/auth/login', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export function forgotPassword(email) {
+  return request('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+// accessToken comes from the emailed reset link
+export function resetPassword(accessToken, password) {
+  return request('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ access_token: accessToken, password }),
+  });
+}
+
+export function changePassword(currentPassword, newPassword) {
+  return request('/auth/password', {
+    method: 'PATCH',
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
   });
 }
 
@@ -296,6 +342,62 @@ export function cancelDeleteConversation(id) {
   return request(`/conversations/${id}/delete-cancel`, { method: "POST" });
 }
 
+// Direct offers ("Hire Me"). payload: { freelancer_id, title, description, amount, currency, deadline?, files?: File[] }
+export function createOffer(payload) {
+  const formData = new FormData();
+  for (const key of ['freelancer_id', 'title', 'description', 'amount', 'currency', 'deadline']) {
+    if (payload[key] !== undefined && payload[key] !== null && payload[key] !== '') formData.append(key, payload[key]);
+  }
+  for (const file of payload.files || []) formData.append('files', file);
+  const token = localStorage.getItem('token');
+  return fetch(`${API_URL}/offers`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  }).then(async (r) => {
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.message || data.error || 'Could not send the offer');
+    return data;
+  });
+}
+
+export function getReceivedOffers() {
+  return request('/offers/received');
+}
+
+export function getSentOffers() {
+  return request('/offers/sent');
+}
+
+export function acceptOffer(offerId) {
+  return request(`/offers/${offerId}/accept`, { method: 'PATCH' });
+}
+
+export function declineOffer(offerId) {
+  return request(`/offers/${offerId}/decline`, { method: 'PATCH' });
+}
+
+export function withdrawOffer(offerId) {
+  return request(`/offers/${offerId}/withdraw`, { method: 'PATCH' });
+}
+
+export function getOfferFileUrl(offerId, fileId) {
+  return request(`/offers/${offerId}/files/${fileId}/download`);
+}
+
+// Notifications API
+export function getNotifications() {
+  return request('/notifications');
+}
+
+export function markNotificationRead(notificationId) {
+  return request(`/notifications/${notificationId}/read`, { method: 'PATCH' });
+}
+
+export function markAllNotificationsRead() {
+  return request('/notifications/read-all', { method: 'PATCH' });
+}
+
 // Top Users API
 export function getTopUsers(params = {}) {
   const q = new URLSearchParams();
@@ -307,6 +409,25 @@ export function getTopUsers(params = {}) {
   if (params.offset !== undefined) q.set('offset', params.offset);
   const qs = q.toString();
   return request(`/top-users${qs ? '?' + qs : ''}`);
+}
+
+// Rate the other side of a completed contract (once per contract)
+export function createReview(payload) {
+  return request('/reviews', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+// Browse Users page: everyone active in a role, with ratings and their latest 3 reviews
+export function browseUsers(params = {}) {
+  const q = new URLSearchParams();
+  if (params.role) q.set('role', params.role);
+  if (params.q) q.set('q', params.q);
+  if (params.sort) q.set('sort', params.sort);
+  if (params.limit) q.set('limit', params.limit);
+  if (params.offset !== undefined) q.set('offset', params.offset);
+  return request(`/users/browse?${q.toString()}`);
 }
 
 // Profile & Ratings API
@@ -355,3 +476,40 @@ export async function logout() {
   }
 }
 
+
+// Payout details (freelancers). Only ever returned masked: account_last4.
+export function getPayoutDetails() {
+  return request('/auth/payout');
+}
+export function updatePayoutDetails(payload) {
+  return request('/auth/payout', { method: 'PUT', body: JSON.stringify(payload) });
+}
+
+// Delete your own account (anonymized). Needs your password; the UI also asks for "DELETE".
+export function deleteAccount(password) {
+  return request('/auth/account', { method: 'DELETE', body: JSON.stringify({ password, confirm: 'DELETE' }) });
+}
+
+// Client payment method for funding escrow. Only ever returned masked.
+export function getPaymentMethodDetails() {
+  return request('/auth/payment-method');
+}
+export function updatePaymentMethodDetails(payload) {
+  return request('/auth/payment-method', { method: 'PUT', body: JSON.stringify(payload) });
+}
+
+// Activity log: your own (Profile → Activity) and everyone's (admin)
+function activityQuery(params = {}) {
+  const q = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') q.set(key, value);
+  }
+  const s = q.toString();
+  return s ? `?${s}` : '';
+}
+export function getMyActivity(params) {
+  return request(`/activity/me${activityQuery(params)}`);
+}
+export function getAdminActivity(params) {
+  return request(`/admin/activity${activityQuery(params)}`);
+}

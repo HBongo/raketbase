@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { getCached, setCached } from '../utils/cache';
 import BackToTop from '../components/BackToTop';
-import { formatCurrency } from '../utils/formatters';
+import Money from '../components/Money';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -60,9 +60,10 @@ export default function Explore() {
   const [loadError, setLoadError] = useState(null);
 
   const [activeCategory, setActiveCategory] = useState('all');
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [budget, setBudget] = useState(null);
   const [minRating, setMinRating] = useState(0);
+  const [hideTaken, setHideTaken] = useState(false);
 
   const user = (() => {
     try {
@@ -161,6 +162,7 @@ export default function Explore() {
 
   const visibleJobs = useMemo(() => {
         return jobs.filter((j) => {
+      if (hideTaken && isTakenJob(j)) return false;
       if (activeCategory !== 'all') {
         const catName = (j.categories?.category_name || 'Others').toLowerCase().replace(/\s+/g, '-');
         if (activeCategory === 'others-all') {
@@ -179,21 +181,24 @@ export default function Explore() {
         if (!t.includes(q) && !d.includes(q) && !cn.includes(q)) return false;
       }
       if (budget) {
-        if (j.budget < budget[0] || j.budget > budget[1]) return false;
+        const amount = Number(j.budget) || 0;
+        if (amount < budget.min || amount > budget.max) return false;
       }
       if (minRating > 0) {
-        const rating = j.users?.client_rating || j.users?.rating || 0;
+        // Unrated clients are left out once a minimum rating is picked
+        const rating = j.client_rating ?? 0;
         if (rating < minRating) return false;
       }
       return true;
     });
-  }, [jobs, activeCategory, query, budget, otherCategoryIds, minRating]);
+  }, [jobs, activeCategory, query, budget, otherCategoryIds, minRating, hideTaken]);
 
     function resetFilters() {
     setActiveCategory('all');
     setQuery('');
     setBudget(budgetBounds);
     setMinRating(0);
+    setHideTaken(false);
   }
 
 
@@ -261,8 +266,8 @@ export default function Explore() {
                 <button
                   key={c.id}
                   onClick={() => setActiveCategory(c.id)}
-                  className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium category-filter-btn ${isActive ? 'text-white' : 'btn-outline-secondary'}`}
-                  style={isActive ? { backgroundColor: '#FF5A1E', borderColor: '#FF5A1E', color: '#fff' } : {}}
+                  className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium category-filter-btn ${isActive ? 'is-active' : ''}`}
+                  aria-pressed={isActive}
                 >
                   {c.label} <span className="small opacity-75">({c.count})</span>
                 </button>
@@ -273,8 +278,7 @@ export default function Explore() {
             <div className="dropdown d-inline-block flex-shrink-0">
               <button
                 type="button"
-                className={`btn rounded-pill px-4 py-2 fw-medium dropdown-toggle category-filter-btn ${isOthersActive ? 'text-white' : 'btn-outline-secondary'}`}
-                style={isOthersActive ? { backgroundColor: '#FF5A1E', borderColor: '#FF5A1E', color: '#fff' } : {}}
+                className={`btn rounded-pill px-4 py-2 fw-medium dropdown-toggle category-filter-btn ${isOthersActive ? 'is-active' : ''}`}
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
               >
@@ -347,7 +351,7 @@ export default function Explore() {
             )}
           </div>
 
-                      <div className={"col-xl-3 col-lg-4 order-1 sticky-filter ${!filtersOpen ? 'd-none d-lg-block' : 'd-block'}"}>
+                      <div className={`col-xl-3 col-lg-4 order-1 sticky-filter ${!filtersOpen ? 'd-none d-lg-block' : 'd-block'}`}>
               {budget && (
                 <FiltersSidebar
                   budget={budget}
@@ -355,6 +359,8 @@ export default function Explore() {
                   budgetBounds={budgetBounds}
                   minRating={minRating}
                   setMinRating={setMinRating}
+                  hideTaken={hideTaken}
+                  setHideTaken={setHideTaken}
                   resetFilters={resetFilters}
                   resultCount={visibleJobs.length}
                   onClose={() => setFiltersOpen(false)}
@@ -367,7 +373,7 @@ export default function Explore() {
   );
 }
 
-function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRating, resetFilters, resultCount, onClose }) {
+function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRating, hideTaken, setHideTaken, resetFilters, resultCount, onClose }) {
   return (
     <div className="card h-100">
       <div className="card-header d-flex justify-content-between align-items-center">
@@ -384,6 +390,18 @@ function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRati
             <option value={3}>3 Stars & Up</option>
           </select>
         </div>
+        <div className="form-check mb-4">
+          <input
+            id="hideTakenJobs"
+            type="checkbox"
+            className="form-check-input"
+            checked={hideTaken}
+            onChange={(e) => setHideTaken(e.target.checked)}
+          />
+          <label htmlFor="hideTakenJobs" className="form-check-label small fw-medium text-dark">
+            Hide taken jobs
+          </label>
+        </div>
         <RangeField
           label="Budget"
           unit="₱"
@@ -393,7 +411,7 @@ function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRati
           onReset={() => setBudget(budgetBounds)}
         />
         <hr className="my-4" />
-        <button className="btn btn-dark w-100 mb-2 fw-medium rounded-pill">Show {resultCount} results</button>
+        <button onClick={onClose} className="btn btn-dark w-100 mb-2 fw-medium rounded-pill">Show {resultCount} results</button>
         <button onClick={resetFilters} className="btn btn-outline-secondary w-100 fw-medium rounded-pill">Reset all</button>
       </div>
     </div>
@@ -439,7 +457,13 @@ function RangeField({ label, unit, value, onChange, bounds, onReset }) {
   );
 }
 
+// A freelancer has already been hired (or the work is done), so it's no longer accepting proposals.
+function isTakenJob(job) {
+  return job.status === 'assigned' || job.status === 'completed';
+}
+
 function JobCard({ job, onOpen }) {
+  const isTaken = isTakenJob(job);
   const categoryName = job.categories?.category_name || 'Uncategorized';
   const posted = formatDate(job.created_at);
   const clientName = [job.users?.first_name, job.users?.last_name].filter(Boolean).join(' ') || 'customer';
@@ -447,7 +471,7 @@ function JobCard({ job, onOpen }) {
   const avatarUrl = job.users?.client_avatar_url || job.users?.avatar_url;
 
   return (
-    <div className="card h-100 border transition-all" style={{ cursor: 'pointer' }} onClick={onOpen}>
+    <div className="card h-100 border transition-all" style={{ cursor: 'pointer', opacity: isTaken ? 0.75 : 1 }} onClick={onOpen}>
       <div className="card-body d-flex flex-column p-3">
         <div className="mb-3">
           <div className="d-flex justify-content-between align-items-start mb-2 gap-2">
@@ -468,7 +492,7 @@ function JobCard({ job, onOpen }) {
 
           <div className="d-flex align-items-center gap-2 mt-2 pt-2 border-top">
             <Link
-              to={`/profile/${job.client_id || job.users?.user_id}`}
+              to={`/profile/${job.client_id || job.users?.user_id}?as=client`}
               onClick={(e) => e.stopPropagation()}
               className="d-inline-flex align-items-center gap-2 text-decoration-none text-muted text-truncate"
               title={`View ${clientName}'s profile`}
@@ -493,19 +517,38 @@ function JobCard({ job, onOpen }) {
                 Posted by <strong className="text-dark fw-medium" style={{ textDecoration: 'underline' }}>{clientName}</strong>
               </span>
             </Link>
+            {job.client_rating != null && (
+              <span
+                className="small text-muted text-nowrap flex-shrink-0"
+                title={`Client rating from ${job.client_rating_count} ${job.client_rating_count === 1 ? 'review' : 'reviews'}`}
+              >
+                <i className="bi bi-star-fill text-warning me-1"></i>{job.client_rating}
+              </span>
+            )}
           </div>
         </div>
+        {isTaken && (
+          <span className="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle align-self-start mb-2 px-3 py-2">
+            <i className="bi bi-lock-fill me-1"></i>Job taken
+          </span>
+        )}
         <h5 className="card-title text-dark fw-bold mb-3" style={{ fontSize: "1.15rem", lineHeight: "1.4" }}>
           {job.title || 'Untitled job'}
         </h5>
         <div className="mb-3">
           <span className="small text-muted">Budget: </span>
-          <span className="fw-bold text-success fs-6">{job.budget ? formatCurrency(job.budget, job.currency) : '—'}</span>
+          <span className="fw-bold text-success fs-6">{job.budget ? <Money amount={job.budget} currency={job.currency} /> : '—'}</span>
         </div>
         <p className="card-text small text-muted flex-grow-1" style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {job.description || 'No description provided.'}
         </p>
-        <button onClick={(e) => { e.stopPropagation(); onOpen(); }} className="btn btn-outline-dark w-100 mt-3 rounded-pill fw-medium">View & Apply</button>
+        {isTaken ? (
+          <button type="button" disabled className="btn btn-outline-secondary w-100 mt-3 rounded-pill fw-medium">
+            No longer accepting proposals
+          </button>
+        ) : (
+          <button onClick={(e) => { e.stopPropagation(); onOpen(); }} className="btn btn-outline-dark w-100 mt-3 rounded-pill fw-medium">View & Apply</button>
+        )}
       </div>
     </div>
   );
