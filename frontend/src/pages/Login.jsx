@@ -15,6 +15,10 @@ export default function Login() {
     localStorage.setItem('darkMode', isDarkMode);
   }, [isDarkMode]);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const [searchParams] = useSearchParams();
   const justRegistered = searchParams.get('registered') === '1';
   const sessionExpired = searchParams.get('expired') === '1';
