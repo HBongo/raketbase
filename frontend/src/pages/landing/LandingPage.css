@@ -203,9 +203,9 @@
 .lp .lp-no-results { text-align: center; padding: 3rem; color: var(--lp-muted) !important; }
 
 .lp .lp-why { }
-.lp .lp-why-card { background: var(--lp-bg); border: 1px solid var(--lp-border); border-radius: var(--lp-radius); padding: 2rem 1.5rem; transition: 0.25s; }
+.lp .lp-why-card { background: var(--lp-bg); border: 1px solid var(--lp-border); border-radius: var(--lp-radius); padding: 2rem 1.5rem; transition: 0.25s; text-align: center; }
 .lp .lp-why-card:hover { transform: translateY(-8px); box-shadow: 0 12px 24px rgba(0,0,0,0.08); }
-.lp .lp-why-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(255,90,30,0.1); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; color: var(--lp-primary); }
+.lp .lp-why-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(255,90,30,0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto; color: var(--lp-primary); }
 .lp .lp-why-card h3 { font-size: 1.05rem; margin-bottom: 0.5rem; }
 .lp .lp-why-card p { font-size: 0.9rem; margin: 0; }
 
@@ -295,7 +295,7 @@
 .lp .lp-footer-logo { height: 64px; width: auto; display: block; flex-shrink: 0; }
 .lp .lp-footer-brand-text { line-height: 1; font-family: 'Montserrat', sans-serif; font-size: 1.4rem; font-weight: 800; letter-spacing: 0.5px; white-space: nowrap; transform: translateY(6px); }
 .lp .lp-footer p { font-size: 0.9rem; color: #7a9488; margin: 0; }
-.lp .lp-footer h4 { color: #fff; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; font-weight: 600; }
+.lp .lp-footer h4 { color: #ffffff !important; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; font-weight: 600; }
 .lp .lp-footer a { display: block; padding: 0.3rem 0; font-size: 0.9rem; color: #7a9488 !important; text-decoration: none; transition: 0.2s; }
 .lp .lp-footer a:hover { color: #fff !important; }
 .lp .lp-social-links { display: flex; gap: 0.75rem; margin-top: 1.25rem; }

@@ -50,6 +50,12 @@ const IconMenu = () => (
   </svg>
 );
 
+const IconChevronUp = ({ className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
+    <polyline points="18 15 12 9 6 15"></polyline>
+  </svg>
+);
+
 const IconChevronDown = ({ className = "" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
     <polyline points="6 9 12 15 18 9"></polyline>
@@ -378,7 +384,7 @@ export default function LandingPage() {
               </p>
 
               <div className="lp-hero__ctas">
-                <button className="lp-btn-primary lp-btn-large" onClick={() => navigate('/register')}>Hire a Freelancer</button>
+                <button className="lp-btn-outline lp-btn-large" onClick={() => navigate('/register')}>Hire a Freelancer</button>
                 <button className="lp-btn-outline lp-btn-large" onClick={() => navigate('/register')}>Become a Freelancer</button>
               </div>
 
@@ -401,18 +407,6 @@ export default function LandingPage() {
                     <span className="lp-hero__float-rate">${f.rate}/hr</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* 5. Trusted By */}
-        <section className="lp-trusted">
-          <div className="lp-container">
-            <p className="lp-trusted__text">Trusted by teams at</p>
-            <div className="lp-trusted__logos">
-              {TRUSTED_BY.map((company, i) => (
-                <span key={i} className="lp-trusted__logo-text">{company}</span>
               ))}
             </div>
           </div>
@@ -617,7 +611,7 @@ export default function LandingPage() {
         <section className="lp-split-cta"><div className="lp-split-cta__inner lp-container"><div className="lp-split-pane lp-split-left lp-reveal">
             <h2>Looking to hire?</h2>
             <p>Connect with top talent from around the world and build your dream team.</p>
-            <button className="lp-btn-primary lp-btn-large" onClick={() => navigate('/register')}>Post a Job</button>
+            <button className="lp-btn-outline lp-btn-large" onClick={() => navigate('/register')}>Post a Job</button>
           </div>
           <div className="lp-split-pane lp-split-right lp-reveal">
             <h2>Ready to earn?</h2>
@@ -773,7 +767,7 @@ export default function LandingPage() {
           onClick={scrollToTop}
           aria-label="Back to top"
         >
-          <IconChevronDown className="lp-back-top-icon" />
+          <IconChevronUp className="lp-back-top-icon" />
         </button>
       )}
     </div>
