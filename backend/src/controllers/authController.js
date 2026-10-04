@@ -311,8 +311,11 @@ async function updateProfile(req, res) {
     bio, skills, portfolio_url,
     first_name, last_name, title, avatar_url, avatar_base64, avatar_ext, phone, location,
     hourly_rate, linkedin_url, github_url, website_url,
-    experience, education, client_bio, company_name
+    experience, education, client_bio, company_name, avatar_for
   } = req.body;
+
+  // Which side's photo an upload replaces: the client photo or the freelancer photo (default)
+  const avatarTarget = avatar_for === 'customer' ? AVATAR_TARGETS.customer : AVATAR_TARGETS.freelancer;
 
   if (bio && bio.length > 2000) {
     return res.status(400).json({ status: 400, message: 'Bio must be 2000 characters or less' });
@@ -331,7 +334,7 @@ async function updateProfile(req, res) {
       // Strip out the data:image/png;base64, part if present
       const base64Data = avatar_base64.replace(/^data:image\/\w+;base64,/, '');
       const buffer = Buffer.from(base64Data, 'base64');
-      const filePath = `${req.user.id}/avatar-${Date.now()}.${avatar_ext}`;
+      const filePath = `${req.user.id}/${avatarTarget.filePrefix}-${Date.now()}.${avatar_ext}`;
 
       // Determine mime type
       const mimeType = avatar_ext === 'png' ? 'image/png' : (avatar_ext === 'webp' ? 'image/webp' : 'image/jpeg');
@@ -364,7 +367,7 @@ async function updateProfile(req, res) {
   if (portfolio_url !== undefined) userUpdates.portfolio_url = portfolio_url;
   if (client_bio !== undefined) userUpdates.client_bio = client_bio;
   if (company_name !== undefined) userUpdates.company_name = company_name;
-  if (finalAvatarUrl !== undefined) userUpdates.avatar_url = finalAvatarUrl;
+  if (finalAvatarUrl !== undefined) userUpdates[avatarTarget.column] = finalAvatarUrl;
 
   // Build update payload for auth metadata
   const metaUpdates = {};

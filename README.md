@@ -195,6 +195,14 @@ Changes 8
 - Both sides are notified when an offer is accepted, declined, or withdrawn
 - Added the direct offers tables and a private file bucket for offer attachments (008_add_direct_offers.sql)
 
+[Client Profiles]
+- Profiles now have a Client side as well as a Freelancer side, with a Freelancer | Client switch at the top of the page
+- Profile links from job postings and offers open the Client side, links from Browse Users / Top Users open the matching side, and your own profile opens on your current mode
+- The Client side shows the person's company name, client bio, jobs posted, hires, client rating, average budget, member since date, and the full list of reviews freelancers left about them
+- Owners can edit their company name and client bio from the Client side; editing one side never changes the other side's details
+- Each side has its own photo: the camera button changes the photo for the side you're viewing, and the Client side uses the freelancer photo until a client photo is set
+- The navbar photo, Browse Users, and Top Users now show the client photo for clients
+
 [Fixes]
 - Error pop-ups now look like errors (red icon and outline, shown for 6 seconds) instead of showing a green check like a success; screen readers announce them right away
 - Dispute outcomes now match what happened to the money: "Release to freelancer" completes the contract as normal, "Split" completes it but only half the amount counts toward earnings, average price, and revenue, and "Refund client" marks the contract as Refunded so it no longer counts as a completed job or earnings, and the job is closed as cancelled

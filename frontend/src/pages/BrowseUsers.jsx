@@ -243,7 +243,7 @@ function UserCard({ user, isFreelancer }) {
             </div>
           )}
           <div style={{ minWidth: 0 }}>
-            <Link to={`/profile/${user.user_id}`} className="text-decoration-none text-dark">
+            <Link to={`/profile/${user.user_id}${isFreelancer ? '' : '?as=client'}`} className="text-decoration-none text-dark">
               <h5 className="fw-bold mb-0 text-truncate">{user.name}</h5>
             </Link>
             {subtitle && <p className="small text-muted mb-0 text-truncate">{subtitle}</p>}
@@ -302,7 +302,7 @@ function UserCard({ user, isFreelancer }) {
           </ul>
         )}
 
-        <Link to={`/profile/${user.user_id}`} className="btn btn-outline-dark btn-sm w-100 rounded-pill mt-auto">
+        <Link to={`/profile/${user.user_id}${isFreelancer ? '' : '?as=client'}`} className="btn btn-outline-dark btn-sm w-100 rounded-pill mt-auto">
           View profile
         </Link>
       </div>

@@ -491,7 +491,7 @@ function JobCard({ job, onOpen }) {
 
           <div className="d-flex align-items-center gap-2 mt-2 pt-2 border-top">
             <Link
-              to={`/profile/${job.client_id || job.users?.user_id}`}
+              to={`/profile/${job.client_id || job.users?.user_id}?as=client`}
               onClick={(e) => e.stopPropagation()}
               className="d-inline-flex align-items-center gap-2 text-decoration-none text-muted text-truncate"
               title={`View ${clientName}'s profile`}

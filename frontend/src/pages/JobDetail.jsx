@@ -272,7 +272,7 @@ export default function JobDetail() {
                         <>
                           <span className="mx-1">by</span>
                           <Link
-                            to={`/profile/${job.client_id || job.users.user_id}`}
+                            to={`/profile/${job.client_id || job.users.user_id}?as=client`}
                             className="text-dark fw-semibold text-decoration-none d-inline-flex align-items-center gap-1.5"
                             title={`View ${job.users.first_name}'s profile`}
                           >
@@ -315,7 +315,7 @@ export default function JobDetail() {
                         <h6 className="fw-bold text-dark text-uppercase small tracking-wider mb-3">About the Client</h6>
                         <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 p-3 bg-light rounded-3 border">
                           <Link
-                            to={`/profile/${job.client_id || job.users.user_id}`}
+                            to={`/profile/${job.client_id || job.users.user_id}?as=client`}
                             className="d-flex align-items-center gap-3 text-decoration-none text-dark"
                           >
                             {job.users.client_avatar_url || job.users.avatar_url ? (
@@ -351,7 +351,7 @@ export default function JobDetail() {
                             </div>
                           </Link>
                           <Link
-                            to={`/profile/${job.client_id || job.users.user_id}`}
+                            to={`/profile/${job.client_id || job.users.user_id}?as=client`}
                             className="btn btn-outline-dark btn-sm rounded-pill px-3"
                           >
                             View Profile

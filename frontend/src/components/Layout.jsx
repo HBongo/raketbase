@@ -288,7 +288,7 @@ export default function Layout() {
             
             <div className="dropdown">
               <button className="navbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <img src={user?.avatar_url || "/default-avatar.png"} alt="Profile" className="navbar-profile-img" />
+                <img src={(user?.active_role === "customer" && user?.client_avatar_url) || user?.avatar_url || "/default-avatar.png"} alt="Profile" className="navbar-profile-img" />
                 <span className="navbar-profile-name d-none d-md-inline">{user?.first_name || 'User'}</span>
                 <i className="bi bi-chevron-down navbar-profile-caret"></i>
               </button>

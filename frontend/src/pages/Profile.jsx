@@ -12,6 +12,7 @@ import { getCached, setCached } from '../utils/cache';
 import { showToast } from '../utils/toast';
 import Money from '../components/Money';
 import HireMeModal from '../components/HireMeModal';
+import ClientProfileView from '../components/ClientProfileView';
 
 function SecurityTab() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -127,6 +128,8 @@ function buildFormFromProfile(p) {
     website_url: p.website_url || '',
     experience: Array.isArray(p.experience) ? p.experience : [],
     education: Array.isArray(p.education) ? p.education : [],
+    client_bio: p.client_bio || '',
+    company_name: p.company_name || '',
   };
 }
 
@@ -195,6 +198,26 @@ export default function Profile() {
   })();
 
   const isOwnProfile = (user.user_id || user.id) === id;
+
+  // Which side of the profile is showing. Links can ask for one (?as=client, e.g. from a job
+  // posting); otherwise your own profile opens on your current mode and others on Freelancer.
+  const asParam = searchParams.get('as');
+  const defaultSide = asParam === 'client' || asParam === 'freelancer'
+    ? asParam
+    : (isOwnProfile && user.active_role === 'customer' ? 'client' : 'freelancer');
+  const [side, setSide] = useState(defaultSide);
+
+  useEffect(() => {
+    setSide(defaultSide);
+    setEditing(false);
+  }, [id, defaultSide]);
+
+  function switchSide(next) {
+    if (next === side || editing) return;
+    setSide(next);
+    setSaveMsg(null);
+    if (!['about', 'security'].includes(activeTab)) setActiveTab('about');
+  }
 
   // Load profile data
   useEffect(() => {
@@ -293,9 +316,11 @@ export default function Profile() {
           const base64String = reader.result;
           
           // Send to backend
+          // The photo goes to the side being viewed: client photo or freelancer photo
           await updateProfile({
             avatar_base64: base64String,
-            avatar_ext: ext
+            avatar_ext: ext,
+            avatar_for: side === 'client' ? 'customer' : 'freelancer',
           });
 
           // Refresh the profile page data
@@ -303,16 +328,19 @@ export default function Profile() {
           if (refreshed.success) {
             setProfile(refreshed.data);
             setForm(buildFormFromProfile(refreshed.data));
-            
+            setCached(`profile_${id}`, refreshed.data);
+
             // Also update localStorage user info to show avatar in navbar
             const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
             localStorage.setItem('user', JSON.stringify({
               ...storedUser,
-              avatar_url: refreshed.data.avatar_url
+              avatar_url: refreshed.data.avatar_url,
+              client_avatar_url: refreshed.data.client_avatar_url,
             }));
-            
-            // Force reload window to update navbar instantly without React context
-            window.location.reload();
+
+            // Force reload window to update navbar instantly without React context,
+            // staying on the side whose photo was just changed
+            window.location.replace(`${window.location.pathname}?as=${side}`);
           }
         } catch (err) {
           console.error('Avatar upload error:', err);
@@ -333,7 +361,13 @@ export default function Profile() {
     setSaving(true);
     setSaveMsg(null);
     try {
-      const payload = {
+      // Each side only saves its own fields, so editing one never touches the other
+      const payload = side === 'client' ? {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        company_name: form.company_name.trim(),
+        client_bio: form.client_bio,
+      } : {
         first_name: form.first_name,
         last_name: form.last_name,
         title: form.title,
@@ -355,6 +389,7 @@ export default function Profile() {
       if (refreshed.success) {
         setProfile(refreshed.data);
         setForm(buildFormFromProfile(refreshed.data));
+        setCached(`profile_${id}`, refreshed.data);
       }
       // Also update localStorage user info
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -387,6 +422,22 @@ export default function Profile() {
   const experienceArr = Array.isArray(f.experience) ? f.experience : [];
   const educationArr = Array.isArray(f.education) ? f.education : [];
 
+  // Camera button on the photo; uploads to whichever side is showing
+  const avatarControl = isOwnProfile && (
+    <>
+      <input type="file" ref={fileInputRef} className="d-none" accept=".jpg,.jpeg,.png" onChange={handleAvatarUpload} />
+      <button
+        className="btn btn-dark btn-sm rounded-circle position-absolute bottom-0 end-0 d-flex align-items-center justify-content-center"
+        style={{ width: '36px', height: '36px' }}
+        onClick={() => fileInputRef.current?.click()}
+        disabled={uploading}
+        title={side === 'client' ? 'Change client photo' : 'Change freelancer photo'}
+      >
+        {uploading ? <span className="spinner-border spinner-border-sm"></span> : <i className="bi bi-camera-fill"></i>}
+      </button>
+    </>
+  );
+
 
 
   return (
@@ -399,8 +450,33 @@ export default function Profile() {
 
       <div className="page-header">
         <div>
-          <h1 className="page-title">Freelancer Profile</h1>
-          <p className="page-subtitle">View skills, experience, and portfolio details.</p>
+          <h1 className="page-title">{side === 'client' ? 'Client Profile' : 'Freelancer Profile'}</h1>
+          <p className="page-subtitle">
+            {side === 'client'
+              ? 'See how this person hires and what freelancers say about working with them.'
+              : 'View skills, experience, and portfolio details.'}
+          </p>
+          <ul className="nav nav-pills gap-2 mt-2" role="tablist" aria-label="Profile side">
+            {[
+              { id: 'freelancer', label: 'Freelancer', icon: 'bi-person-workspace' },
+              { id: 'client', label: 'Client', icon: 'bi-briefcase' },
+            ].map((s) => (
+              <li className="nav-item" key={s.id}>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={side === s.id}
+                  className={`nav-link rounded-pill px-3 py-1 fw-medium small ${side === s.id ? 'active text-white' : 'text-dark border'}`}
+                  style={side === s.id ? { backgroundColor: '#072F1F' } : {}}
+                  onClick={() => switchSide(s.id)}
+                  disabled={editing && side !== s.id}
+                  title={editing && side !== s.id ? 'Save or cancel your edits first' : undefined}
+                >
+                  <i className={`bi ${s.icon} me-1`}></i>{s.label}
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
         {isOwnProfile && !editing && (
           <button className="btn btn-dark rounded-pill px-4 fw-medium" onClick={() => setEditing(true)}>
@@ -440,7 +516,22 @@ export default function Profile() {
         )}
 
         {/* ── Profile Layout ───────────────────────────────────────── */}
-        {!loading && !loadError && profile && (
+        {!loading && !loadError && profile && side === 'client' && (
+          <ClientProfileView
+            profile={profile}
+            form={form}
+            editing={editing}
+            onChange={handleChange}
+            onStartEdit={() => setEditing(true)}
+            isOwnProfile={isOwnProfile}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            avatarControl={avatarControl}
+            securityTab={<SecurityTab />}
+          />
+        )}
+
+        {!loading && !loadError && profile && side !== 'client' && (
           <div className="row g-4 mb-4">
 
             {/* ── Left Column ───────────────────────────────────────── */}
@@ -455,20 +546,7 @@ export default function Profile() {
                       className="rounded-circle border border-3 border-light shadow-sm"
                       style={{ width: '140px', height: '140px', objectFit: 'cover' }}
                     />
-                    {isOwnProfile && (
-                      <>
-                        <input type="file" ref={fileInputRef} className="d-none" accept=".jpg,.jpeg,.png" onChange={handleAvatarUpload} />
-                        <button
-                          className="btn btn-dark btn-sm rounded-circle position-absolute bottom-0 end-0 d-flex align-items-center justify-content-center"
-                          style={{ width: '36px', height: '36px' }}
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={uploading}
-                          title="Change photo"
-                        >
-                          {uploading ? <span className="spinner-border spinner-border-sm"></span> : <i className="bi bi-camera-fill"></i>}
-                        </button>
-                      </>
-                    )}
+                    {avatarControl}
                   </div>
 
                   {/* Name & Title */}

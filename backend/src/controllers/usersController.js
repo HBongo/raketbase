@@ -1,12 +1,39 @@
 // usersController.js — Public user profile endpoint
 const { supabaseAdmin } = require('../config/supabase');
 const { getRatingSummaries, emptySummary, ROLES } = require('../utils/ratings');
-const { fetchAllRows, getAverageAmountsByUser } = require('../utils/userStats');
+const { fetchAllRows, getAverageAmountsByUser, getAverageAmountForUser } = require('../utils/userStats');
 
 const PROFILE_COLUMNS = `
   user_id, email, first_name, last_name, role, active_role,
-  bio, skills, portfolio_url, avatar_url, created_at
+  bio, skills, portfolio_url, avatar_url, created_at,
+  client_bio, client_avatar_url, company_name
 `.replace(/\s+/g, ' ').trim();
+
+// The client side of a profile: how this person behaves when hiring.
+// Never throws; a failed count just shows as 0.
+async function getClientSide(id) {
+  const [{ count: jobsPosted }, { count: hires }, ratings, budget] = await Promise.all([
+    supabaseAdmin
+      .from('jobs')
+      .select('*', { count: 'exact', head: true })
+      .eq('client_id', id)
+      .neq('status', 'removed'),
+    supabaseAdmin
+      .from('contracts')
+      .select('*', { count: 'exact', head: true })
+      .eq('client_id', id),
+    getRatingSummaries([id], 'customer'),
+    getAverageAmountForUser(id, 'customer'),
+  ]);
+  const rating = ratings[id] || emptySummary('customer');
+  return {
+    jobs_posted: jobsPosted || 0,
+    hires: hires || 0,
+    rating: rating.average,
+    rating_count: rating.count,
+    avg_budget: budget.average,
+  };
+}
 
 // GET /api/v1/users/:id — Fetch any user's public profile
 async function getPublicProfile(req, res) {
@@ -55,6 +82,8 @@ async function getPublicProfile(req, res) {
     const ratings = await getRatingSummaries([id], 'freelancer');
     const freelancerRating = ratings[id] || emptySummary('freelancer');
 
+    const client = await getClientSide(id);
+
     // Strip sensitive fields
     const { role, status, ...publicProfile } = profile;
 
@@ -75,6 +104,7 @@ async function getPublicProfile(req, res) {
         total_earnings: totalEarnings,
         rating: freelancerRating.average,
         rating_count: freelancerRating.count,
+        client,
       },
     });
   } catch (err) {
@@ -108,7 +138,7 @@ async function browseUsers(req, res) {
       fetchAllRows((from, to) =>
         supabaseAdmin
           .from('users')
-          .select('user_id, first_name, last_name, avatar_url, company_name, skills, active_role, status, created_at')
+          .select('user_id, first_name, last_name, avatar_url, client_avatar_url, company_name, skills, active_role, status, created_at')
           .order('user_id')
           .range(from, to)
       ),
@@ -177,7 +207,7 @@ async function browseUsers(req, res) {
       return {
         user_id: u.user_id,
         name: fullName(u),
-        avatar_url: u.avatar_url || null,
+        avatar_url: (isFreelancer ? u.avatar_url : u.client_avatar_url || u.avatar_url) || null,
         ...(isFreelancer ? { skills: (u.skills || []).slice(0, 3) } : { company_name: u.company_name || '' }),
         average: entry.exactAverage === null ? null : Math.round(entry.exactAverage * 10) / 10,
         count: entry.count,

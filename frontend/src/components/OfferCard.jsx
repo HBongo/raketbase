@@ -49,7 +49,7 @@ export default function OfferCard({ offer, side, busy, onAccept, onDecline, onWi
             <h5 className="fw-bold mb-1">{offer.title}</h5>
             <p className="small text-muted mb-0">
               {side === 'received' ? 'From ' : 'To '}
-              <Link to={`/profile/${other?.user_id}`} className="text-decoration-none fw-medium">{otherName}</Link>
+              <Link to={`/profile/${other?.user_id}${side === 'received' ? '?as=client' : ''}`} className="text-decoration-none fw-medium">{otherName}</Link>
               {side === 'received' && offer.client?.company_name ? ` · ${offer.client.company_name}` : ''}
               {offer.deadline ? ` · Deadline ${formatDate(offer.deadline)}` : ''}
             </p>

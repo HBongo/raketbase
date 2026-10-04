@@ -451,7 +451,7 @@ function TopUserCard({ user, role, rank }) {
             {user.avg_price != null ? <Money amount={Number(user.avg_price)} currency="PHP" /> : '—'}
           </span>
         </div>
-        <Link to={`/profile/${user.user_id || user.id}`} className="btn btn-outline-dark btn-sm w-100 rounded-pill">
+        <Link to={`/profile/${user.user_id || user.id}${isFreelancer ? '' : '?as=client'}`} className="btn btn-outline-dark btn-sm w-100 rounded-pill">
           View Profile
         </Link>
       </div>
