@@ -194,31 +194,31 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      // Step-2 onboarding details go in the same request; the backend stores them on the new account.
-      const payload = {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        email: email.trim(),
-        password,
-        role: role === 'both' ? 'freelancer' : role,
-      };
-      if (role === 'freelancer' || role === 'both') {
-        payload.title = professionalTitle.trim();
-        payload.location = [city, region].filter(Boolean).join(', ');
-        payload.phone = phone.trim();
-        payload.payoutMethod = payoutMethod;
-        payload.payoutProvider = payoutProvider.trim();
-        payload.accountName = accountName.trim();
-        payload.accountNumber = accountNumber.trim();
-      } else if (role === 'customer') {
-        payload.clientType = clientType;
-        payload.companyName = companyName.trim();
-        payload.paymentMethod = paymentMethod;
-        payload.paymentProvider = paymentProvider.trim();
-        payload.paymentAccountName = paymentAccountName.trim();
-        payload.paymentAccountNumber = paymentAccountNumber.trim();
-        payload.cardExpiry = cardExpiry.trim();
+      const res = await registerUser({ 
+        firstName: firstName.trim(), 
+        lastName: lastName.trim(), 
+        email: email.trim(), 
+        password, 
+        role 
+      });
+      
+      if (res.token) {
+        localStorage.setItem('token', res.token);
+        const updates = {};
+        if (role === 'freelancer') {
+          if (professionalTitle) updates.professional_title = professionalTitle;
+          if (hourlyRate) updates.hourly_rate = Number(hourlyRate);
+          if (region) updates.region = region;
+          if (city) updates.city = city;
+        } else if (role === 'customer') {
+          if (companyName) updates.company_name = companyName;
+        }
+        if (Object.keys(updates).length > 0) {
+          try { await updateProfile(updates); } catch (e) { console.error(e); }
+        }
+        localStorage.removeItem('token');
       }
+
       navigate('/login?registered=1');
     } catch (err) {
       setError(err.message);

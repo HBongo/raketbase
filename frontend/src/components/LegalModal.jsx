@@ -6,9 +6,8 @@ export default function LegalModal({ isOpen, onClose, initialDoc = 'terms', isDa
   const [activeDoc, setActiveDoc] = useState(initialDoc);
 
   useEffect(() => {
-    const nextDoc = defaultTab || initialDoc || 'terms';
-    setActiveDoc(nextDoc);
-  }, [initialDoc, defaultTab]);
+    setActiveDoc(initialDoc || 'terms');
+  }, [initialDoc]);
 
   // Handle escape key
   useEffect(() => {
