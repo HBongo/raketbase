@@ -1311,6 +1311,12 @@ function RecentActivityWidget({ isCustomer }) {
           </div>
         )}
       </div>
+
+      <div className="card-footer bg-transparent border-top pt-2 pb-2 text-center">
+        <Link to="/profile?tab=activity" className="small text-decoration-none fw-medium text-primary">
+          View full activity history &rarr;
+        </Link>
+      </div>
     </div>
   );
 }
