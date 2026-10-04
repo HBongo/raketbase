@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getCurrencySymbol } from '../utils/formatters';
+import { getCurrencySymbol, parseJobCategory, cleanJobDescription } from '../utils/formatters';
 import Money from '../components/Money';
 import { showToast } from '../utils/toast';
 import { withdrawProposal } from '../services/api';
@@ -390,7 +390,7 @@ export default function JobDetail() {
                   <div className="card-body p-4 p-md-5" style={{ minHeight: "400px" }}>
                     <div className="d-flex flex-wrap items-center gap-2 mb-3">
                       <span className="badge bg-light border text-dark fw-semibold px-3 py-2 rounded-pill" style={{ fontSize: '0.85rem' }}>
-                        {job.categories?.category_name || 'Uncategorized'}
+                        {parseJobCategory(job)}
                       </span>
                       {job.budget_type === 'milestone' ? (
                         <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 fw-medium px-3 py-2 rounded-pill" style={{ fontSize: '0.85rem' }}>
@@ -454,7 +454,7 @@ export default function JobDetail() {
                     
                     <h5 className="fw-bold text-dark mb-3">Description</h5>
                     <p className="text-muted" style={{ whiteSpace: 'pre-line', lineHeight: '1.8' }}>
-                      {job.description || 'No description provided.'}
+                      {cleanJobDescription(job.description) || 'No description provided.'}
                     </p>
 
                     {job.users && (

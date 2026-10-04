@@ -62,3 +62,24 @@ function formatInCurrency(value, currency) {
 export function getCurrencySymbol(currency = 'PHP') {
   return (currency || 'PHP').toUpperCase() === 'USD' ? '$' : '₱';
 }
+
+/**
+ * Extracts display category from a job, parsing [Category: CustomName] if present.
+ */
+export function parseJobCategory(job) {
+  if (!job) return 'Others';
+  const desc = job.description || '';
+  const match = desc.match(/^\[Category:\s*([^\]]+)\]/i);
+  if (match) {
+    return match[1].trim();
+  }
+  return job.categories?.category_name || 'Others';
+}
+
+/**
+ * Strips [Category: CustomName] prefix from the job description for clean reading.
+ */
+export function cleanJobDescription(desc) {
+  if (!desc) return '';
+  return desc.replace(/^\[Category:\s*([^\]]+)\]\s*/i, '').trim();
+}

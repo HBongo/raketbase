@@ -5,6 +5,7 @@ import BackToTop from '../components/BackToTop';
 import Money from '../components/Money';
 import { useLive } from '../utils/useLive';
 import { getMyProposals } from '../services/api';
+import { parseJobCategory, cleanJobDescription } from '../utils/formatters';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -191,7 +192,7 @@ export default function Explore() {
   const { coreCategories, otherCategories, otherCategoryIds, othersTotalCount } = useMemo(() => {
     const counts = {};
     for (const j of jobs) {
-      const name = j.categories?.category_name || 'Others';
+      const name = parseJobCategory(j);
       counts[name] = (counts[name] || 0) + 1;
     }
 
@@ -237,7 +238,7 @@ export default function Explore() {
         if (bt !== budgetType) return false;
       }
       if (activeCategory !== 'all') {
-        const catName = (j.categories?.category_name || 'Others').toLowerCase().replace(/\s+/g, '-');
+        const catName = parseJobCategory(j).toLowerCase().replace(/\s+/g, '-');
         if (activeCategory === 'others-all') {
           if (coreCategories.some(c => c.id === catName)) return false;
         } else if (otherCategoryIds.has(activeCategory)) {
@@ -251,7 +252,7 @@ export default function Explore() {
         const tokens = q.split(/\s+/).filter(Boolean);
         const t = (j.title || '').toLowerCase();
         const d = (j.description || '').toLowerCase();
-        const cn = (j.categories?.category_name || '').toLowerCase();
+        const cn = parseJobCategory(j).toLowerCase();
         const bt = (j.budget_type || 'fixed').toLowerCase();
 
         const matchesAll = tokens.every((token) => {
@@ -617,7 +618,7 @@ const RELATION_BADGES = {
 
 function JobCard({ job, relation, onOpen }) {
   const isTaken = isTakenJob(job);
-  const categoryName = job.categories?.category_name || 'Uncategorized';
+  const categoryName = parseJobCategory(job);
   const posted = formatDate(job.created_at);
   const clientName = [job.users?.first_name, job.users?.last_name].filter(Boolean).join(' ') || 'customer';
   const clientInitial = (job.users?.first_name?.[0] || 'C').toUpperCase();
@@ -714,7 +715,7 @@ function JobCard({ job, relation, onOpen }) {
           )}
         </div>
         <p className="card-text small text-muted flex-grow-1" style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-          {job.description || 'No description provided.'}
+          {cleanJobDescription(job.description) || 'No description provided.'}
         </p>
         {relation ? (
           <button onClick={(e) => { e.stopPropagation(); onOpen(); }} className="btn btn-outline-dark w-100 mt-3 rounded-pill fw-medium">
