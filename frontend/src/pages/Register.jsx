@@ -124,7 +124,12 @@ export default function Register() {
   
   // Step 2 freelancer fields
   const [professionalTitle, setProfessionalTitle] = useState('');
-  const [hourlyRate, setHourlyRate] = useState('');
+  const [phone, setPhone] = useState('');
+  // Where released escrow is paid out
+  const [payoutMethod, setPayoutMethod] = useState('');
+  const [payoutProvider, setPayoutProvider] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
   const [region, setRegion] = useState('');
   const [city, setCity] = useState('');
   
@@ -135,6 +140,13 @@ export default function Register() {
   
   // Step 2 client fields
   const [companyName, setCompanyName] = useState('');
+  const [clientType, setClientType] = useState('');
+  // How the client funds escrow (separate from a freelancer's payout details)
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentProvider, setPaymentProvider] = useState('');
+  const [paymentAccountName, setPaymentAccountName] = useState('');
+  const [paymentAccountNumber, setPaymentAccountNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
 
   // UI state
   const [error, setError] = useState('');
@@ -217,7 +229,27 @@ export default function Register() {
   const isPasswordValid = (p) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/.test(p);
 
   const isStep1Complete = isNameValid(firstName) && isNameValid(lastName) && isEmailFormatValid(email) && isLegitEmailDomain(email) && Boolean(role);
-  const isStep2Complete = isPasswordValid(password) && password === confirmPassword && over18;
+  // Same rules as the backend (utils/payout.js)
+  const digitsOnly = (v) => v.replace(/[\s-]/g, '');
+  const isMobileValid = (v) => /^(09\d{9}|\+639\d{9})$/.test(digitsOnly(v));
+  const isPayoutValid =
+    Boolean(payoutMethod) &&
+    (payoutMethod !== 'bank' || payoutProvider.trim().length >= 2) &&
+    accountName.trim().length >= 2 &&
+    (payoutMethod === 'bank' ? /^\d{6,20}$/.test(digitsOnly(accountNumber)) : isMobileValid(accountNumber));
+  const isPaymentMethodValid =
+    Boolean(paymentMethod) &&
+    paymentAccountName.trim().length >= 2 &&
+    (paymentMethod === 'card'
+      ? /^\d{13,19}$/.test(digitsOnly(paymentAccountNumber)) && /^\d{1,2}\/\d{2}$/.test(cardExpiry.trim())
+      : paymentMethod === 'bank'
+        ? paymentProvider.trim().length >= 2 && /^\d{6,20}$/.test(digitsOnly(paymentAccountNumber))
+        : isMobileValid(paymentAccountNumber));
+  const isRoleDetailsValid = role === 'freelancer'
+    ? isMobileValid(phone) && isPayoutValid
+    : Boolean(clientType) && (clientType === 'individual' || companyName.trim().length >= 2) && isPaymentMethodValid;
+
+  const isStep2Complete = isPasswordValid(password) && password === confirmPassword && over18 && isRoleDetailsValid;
 
   function handleNext(e) {
     e.preventDefault();
@@ -247,10 +279,20 @@ export default function Register() {
       };
       if (role === 'freelancer' || role === 'both') {
         payload.title = professionalTitle.trim();
-        payload.hourlyRate = hourlyRate;
         payload.location = [city, region].filter(Boolean).join(', ');
+        payload.phone = phone.trim();
+        payload.payoutMethod = payoutMethod;
+        payload.payoutProvider = payoutProvider.trim();
+        payload.accountName = accountName.trim();
+        payload.accountNumber = accountNumber.trim();
       } else if (role === 'customer') {
+        payload.clientType = clientType;
         payload.companyName = companyName.trim();
+        payload.paymentMethod = paymentMethod;
+        payload.paymentProvider = paymentProvider.trim();
+        payload.paymentAccountName = paymentAccountName.trim();
+        payload.paymentAccountNumber = paymentAccountNumber.trim();
+        payload.cardExpiry = cardExpiry.trim();
       }
 
       await registerUser(payload);
@@ -464,17 +506,22 @@ export default function Register() {
                       />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="rate">
-                        Rate (₱) <span style={{ color: 'var(--auth-subtle)', fontSize: '11px' }}>(Optional)</span>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="phone">
+                        Mobile number
                       </label>
                       <input
-                        id="rate"
-                        type="number"
-                        placeholder="0.00"
-                        value={hourlyRate}
-                        onChange={(e) => setHourlyRate(e.target.value)}
+                        id="phone"
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        placeholder="09171234567"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
                         className="auth-input"
                       />
+                      {phone && !isMobileValid(phone) && (
+                        <div style={{ color: '#E5484D', fontSize: '11px', marginTop: '0.25rem' }}>Use a PH mobile number like 09171234567.</div>
+                      )}
                     </div>
                   </div>
 
@@ -504,21 +551,191 @@ export default function Register() {
                       />
                     </div>
                   </div>
+
+                  {/* Payout details: where released escrow goes */}
+                  <div style={{ fontSize: '12px', color: 'var(--auth-muted)', fontWeight: 600, margin: '0.25rem 0 0.5rem' }}>
+                    Payout details <span style={{ color: 'var(--auth-subtle)', fontWeight: 400 }}>· where your earnings are sent; only the last 4 digits are ever shown</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="payoutMethod">Payout method</label>
+                      <select
+                        id="payoutMethod"
+                        value={payoutMethod}
+                        onChange={(e) => setPayoutMethod(e.target.value)}
+                        className="auth-input"
+                      >
+                        <option value="">Choose...</option>
+                        <option value="gcash">GCash</option>
+                        <option value="maya">Maya</option>
+                        <option value="bank">Bank account</option>
+                      </select>
+                    </div>
+                    {payoutMethod === 'bank' && (
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="payoutProvider">Bank name</label>
+                        <input
+                          id="payoutProvider"
+                          type="text"
+                          placeholder="e.g. BDO, BPI"
+                          maxLength={60}
+                          value={payoutProvider}
+                          onChange={(e) => setPayoutProvider(e.target.value)}
+                          className="auth-input"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {payoutMethod && (
+                    <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="accountName">Account name</label>
+                        <input
+                          id="accountName"
+                          type="text"
+                          placeholder="Name on the account"
+                          maxLength={100}
+                          value={accountName}
+                          onChange={(e) => setAccountName(e.target.value)}
+                          className="auth-input"
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="accountNumber">
+                          {payoutMethod === 'bank' ? 'Account number' : `${payoutMethod === 'gcash' ? 'GCash' : 'Maya'} number`}
+                        </label>
+                        <input
+                          id="accountNumber"
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          placeholder={payoutMethod === 'bank' ? '6 to 20 digits' : '09171234567'}
+                          value={accountNumber}
+                          onChange={(e) => setAccountNumber(e.target.value)}
+                          className="auth-input"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
-                <div style={{ marginBottom: '0.85rem' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="company">
-                    Company Name <span style={{ color: 'var(--auth-subtle)', fontSize: '11px' }}>(Optional)</span>
-                  </label>
-                  <input
-                    id="company"
-                    type="text"
-                    placeholder="Your Company Inc."
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    className="auth-input"
-                  />
+                <>
+                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="clientType">
+                      Hiring as
+                    </label>
+                    <select
+                      id="clientType"
+                      value={clientType}
+                      onChange={(e) => setClientType(e.target.value)}
+                      className="auth-input"
+                    >
+                      <option value="">Choose...</option>
+                      <option value="individual">Individual</option>
+                      <option value="small_business">Small Business</option>
+                      <option value="major_contractor">Major Contractor</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="company">
+                      Business name{' '}
+                      {clientType === 'individual' && <span style={{ color: 'var(--auth-subtle)', fontSize: '11px' }}>(Optional)</span>}
+                    </label>
+                    <input
+                      id="company"
+                      type="text"
+                      placeholder={clientType === 'individual' ? 'Leave blank if none' : 'Your Company Inc.'}
+                      maxLength={100}
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      className="auth-input"
+                    />
+                  </div>
                 </div>
+
+                {/* Payment method: how escrow is funded when hiring */}
+                <div style={{ fontSize: '12px', color: 'var(--auth-muted)', fontWeight: 600, margin: '0.25rem 0 0.5rem' }}>
+                  Payment method <span style={{ color: 'var(--auth-subtle)', fontWeight: 400 }}>· used to fund escrow when you hire; only the last 4 digits are ever shown</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="paymentMethod">Pay with</label>
+                    <select
+                      id="paymentMethod"
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="auth-input"
+                    >
+                      <option value="">Choose...</option>
+                      <option value="gcash">GCash</option>
+                      <option value="maya">Maya</option>
+                      <option value="bank">Bank account</option>
+                      <option value="card">Debit / credit card</option>
+                    </select>
+                  </div>
+                  {paymentMethod === 'bank' && (
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="paymentProvider">Bank name</label>
+                      <input
+                        id="paymentProvider"
+                        type="text"
+                        placeholder="e.g. BDO, BPI"
+                        maxLength={60}
+                        value={paymentProvider}
+                        onChange={(e) => setPaymentProvider(e.target.value)}
+                        className="auth-input"
+                      />
+                    </div>
+                  )}
+                </div>
+                {paymentMethod && (
+                  <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="paymentAccountName">{paymentMethod === 'card' ? 'Name on card' : 'Account name'}</label>
+                      <input
+                        id="paymentAccountName"
+                        type="text"
+                        maxLength={100}
+                        value={paymentAccountName}
+                        onChange={(e) => setPaymentAccountName(e.target.value)}
+                        className="auth-input"
+                      />
+                    </div>
+                    <div style={{ flex: paymentMethod === 'card' ? 1.4 : 1 }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="paymentAccountNumber">
+                        {paymentMethod === 'card' ? 'Card number' : paymentMethod === 'bank' ? 'Account number' : `${paymentMethod === 'gcash' ? 'GCash' : 'Maya'} number`}
+                      </label>
+                      <input
+                        id="paymentAccountNumber"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete={paymentMethod === 'card' ? 'cc-number' : 'off'}
+                        placeholder={paymentMethod === 'card' ? '4242 4242 4242 4242' : paymentMethod === 'bank' ? '6 to 20 digits' : '09171234567'}
+                        value={paymentAccountNumber}
+                        onChange={(e) => setPaymentAccountNumber(e.target.value)}
+                        className="auth-input"
+                      />
+                    </div>
+                    {paymentMethod === 'card' && (
+                      <div style={{ flex: 0.6 }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="cardExpiry">Expiry</label>
+                        <input
+                          id="cardExpiry"
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="cc-exp"
+                          placeholder="MM/YY"
+                          maxLength={5}
+                          value={cardExpiry}
+                          onChange={(e) => setCardExpiry(e.target.value)}
+                          className="auth-input"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+                </>
               )}
 
               <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>

@@ -13,8 +13,13 @@ const {
   resetPassword,
   changePassword,
   getActivityLogs,
+  getPayoutDetails,
+  updatePayoutDetails,
+  getPaymentMethodDetails,
+  updatePaymentMethodDetails,
 } = require('../controllers/authController');
 const { requireAuth } = require('../middleware/auth');
+const { deleteAccount } = require('../controllers/accountController');
 const { uploadAvatarImage } = require('../middleware/upload');
 const { createRateLimiter } = require('../middleware/rateLimiter');
 
@@ -37,6 +42,14 @@ router.patch('/switch-role', requireAuth, switchRole);
 router.get('/profile', requireAuth, getProfile);
 router.get('/activity', requireAuth, getActivityLogs);
 router.put('/profile', requireAuth, updateProfile);
+// Freelancer payout details (only ever returned masked)
+router.get('/payout', requireAuth, getPayoutDetails);
+router.put('/payout', requireAuth, updatePayoutDetails);
+// Client payment method for funding escrow (only ever returned masked)
+router.get('/payment-method', requireAuth, getPaymentMethodDetails);
+router.put('/payment-method', requireAuth, updatePaymentMethodDetails);
+// Delete your own account (anonymized; needs your password and "DELETE")
+router.delete('/account', requireAuth, deleteAccount);
 // Profile photo: multipart form-data with a single "avatar" file field.
 // requireAuth runs first so unauthenticated requests never get to stream a file.
 router.post('/profile/avatar', requireAuth, uploadAvatarImage, uploadAvatar);

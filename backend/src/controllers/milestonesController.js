@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
 const { notify } = require('../utils/notify');
 
 async function loadContract(contract_id) {
@@ -190,6 +191,16 @@ exports.submitMilestone = async (req, res) => {
       link: '/dashboard',
     });
 
+    await logActivity({
+      user_id: userId,
+      category: 'contracts',
+      action: 'milestone.submitted',
+      description: `Submitted stage "${milestone.title}" on "${contract.jobs?.title || 'a contract'}"`,
+      target_type: 'contract',
+      target_id: contract.contract_id,
+      link: '/dashboard',
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Milestone submitted for client review.',
@@ -276,6 +287,17 @@ exports.approveMilestone = async (req, res) => {
       title: `Stage "${milestone.title}" approved on "${contract.jobs?.title || 'your contract'}"`,
       body: `₱${Number(milestone.amount).toLocaleString()} was released to you.${contractCompleted ? ' All stages are done, so the contract is now complete.' : ' The next stage is now active.'}`,
       link: '/dashboard',
+    });
+
+    await logActivity({
+      user_id: userId,
+      category: 'contracts',
+      action: 'milestone.payment_released',
+      description: `Approved stage "${milestone.title}" and released ₱${Number(milestone.amount).toLocaleString()} on "${contract.jobs?.title || 'a contract'}"`,
+      target_type: 'contract',
+      target_id: contract.contract_id,
+      link: '/dashboard',
+      metadata: { amount: milestone.amount },
     });
 
     return res.status(200).json({

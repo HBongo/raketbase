@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
 const { postSystemMessage } = require('./contractsController');
 const { notify, displayName } = require('../utils/notify');
 
@@ -88,6 +89,16 @@ exports.createDispute = async (req, res) => {
       title: `A dispute was filed on "${contract.jobs?.title || 'your contract'}"`,
       body: `${displayName(req.user, filedByClient ? 'The client' : 'The freelancer')} raised a ${reason_category} dispute. RaketBase staff will review it.`,
       link: '/dashboard',
+    });
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'contracts',
+      action: 'dispute.filed',
+      description: `Filed a dispute on "${contract.jobs?.title || 'a contract'}"`,
+      target_type: 'dispute',
+      target_id: dispute.dispute_id,
+      link: `/contracts/${contract.contract_id}/dispute`,
     });
 
     return res.status(201).json({ success: true, data: dispute });
@@ -274,6 +285,17 @@ exports.resolveDispute = async (req, res) => {
         ]);
       }
     }
+
+    await logActivity({
+      user_id: staffId,
+      category: 'admin',
+      action: 'dispute.resolved',
+      description: `Resolved a dispute on "${dispute.contracts?.jobs?.title || 'a contract'}": ${resolutionNotes}`,
+      target_type: 'dispute',
+      target_id: dispute_id,
+      link: '/admin',
+      metadata: { resolution },
+    });
 
     return res.status(200).json({ success: true, data: updatedDispute });
   } catch (error) {

@@ -1,8 +1,9 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
 const { getRatingSummaries, emptySummary } = require('../utils/ratings');
 const { validateJobInput } = require('../utils/slopFilter');
 const { notify } = require('../utils/notify');
-const { logActivity } = require('../utils/activityLogger');
+const { logActivity: logAuditActivity } = require('../utils/activityLogger');
 
 // GET /api/v1/jobs - Fetch all jobs (with optional category filtering).
 // Open jobs come first (newest first); assigned/completed jobs follow so the
@@ -222,12 +223,22 @@ exports.createJob = async (req, res) => {
     if (insertRes.error) throw insertRes.error;
     job = insertRes.data;
 
-    logActivity({
+    logAuditActivity({
       userId: client_id,
       action: 'CREATE_JOB',
       details: { job_id: job.job_id, title: job.title, budget: job.budget },
       ip: req.ip || req.headers['x-forwarded-for'] || null,
     }).catch(() => {});
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'job.posted',
+      description: `Posted the job "${job.title}"`,
+      target_type: 'job',
+      target_id: job.job_id,
+      link: `/my-jobs/${job.job_id}`,
+    });
 
     return res.status(201).json({ success: true, data: job });
   } catch (error) {
@@ -376,6 +387,16 @@ exports.updateJob = async (req, res) => {
 
     if (error) throw error;
 
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'job.edited',
+      description: `Edited the job "${updated.title}"`,
+      target_type: 'job',
+      target_id: updated.job_id,
+      link: `/my-jobs/${updated.job_id}`,
+    });
+
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -398,6 +419,16 @@ exports.pauseJob = async (req, res) => {
 
     if (error) throw error;
 
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'job.paused',
+      description: `Paused the job "${updated.title}"`,
+      target_type: 'job',
+      target_id: updated.job_id,
+      link: `/my-jobs/${updated.job_id}`,
+    });
+
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -418,6 +449,16 @@ exports.resumeJob = async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'job.resumed',
+      description: `Resumed the job "${updated.title}"`,
+      target_type: 'job',
+      target_id: updated.job_id,
+      link: `/my-jobs/${updated.job_id}`,
+    });
 
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {
@@ -459,6 +500,16 @@ exports.cancelJob = async (req, res) => {
       body: 'The client cancelled this job, so your proposal was closed.',
       link: '/my-proposals',
     })));
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'job.cancelled',
+      description: `Cancelled the job "${updated.title}"`,
+      target_type: 'job',
+      target_id: updated.job_id,
+      link: `/my-jobs/${updated.job_id}`,
+    });
 
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {

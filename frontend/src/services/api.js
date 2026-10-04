@@ -76,9 +76,17 @@ async function request(path, options = {}) {
     forceLogout('suspended');
     throw new Error('This account has been suspended.');
   }
+  if (res.status === 403 && data.code === 'ACCOUNT_DELETED') {
+    forceLogout('deleted');
+    throw new Error('This account has been deleted.');
+  }
 
   if (!res.ok) {
-    throw new Error(data.message || data.error || 'Something went wrong');
+    // Keep the server's error code and details (e.g. which contracts block an action)
+    const err = new Error(data.message || data.error || 'Something went wrong');
+    err.code = data.code;
+    err.data = data.data;
+    throw err;
   }
 
   return data;
@@ -474,3 +482,40 @@ export async function logout() {
   }
 }
 
+
+// Payout details (freelancers). Only ever returned masked: account_last4.
+export function getPayoutDetails() {
+  return request('/auth/payout');
+}
+export function updatePayoutDetails(payload) {
+  return request('/auth/payout', { method: 'PUT', body: JSON.stringify(payload) });
+}
+
+// Delete your own account (anonymized). Needs your password; the UI also asks for "DELETE".
+export function deleteAccount(password) {
+  return request('/auth/account', { method: 'DELETE', body: JSON.stringify({ password, confirm: 'DELETE' }) });
+}
+
+// Client payment method for funding escrow. Only ever returned masked.
+export function getPaymentMethodDetails() {
+  return request('/auth/payment-method');
+}
+export function updatePaymentMethodDetails(payload) {
+  return request('/auth/payment-method', { method: 'PUT', body: JSON.stringify(payload) });
+}
+
+// Activity log: your own (Profile → Activity) and everyone's (admin)
+function activityQuery(params = {}) {
+  const q = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') q.set(key, value);
+  }
+  const s = q.toString();
+  return s ? `?${s}` : '';
+}
+export function getMyActivity(params) {
+  return request(`/activity/me${activityQuery(params)}`);
+}
+export function getAdminActivity(params) {
+  return request(`/admin/activity${activityQuery(params)}`);
+}

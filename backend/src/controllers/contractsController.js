@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
 const { notify } = require('../utils/notify');
 
 // Best-effort: posts a system message into the contract's conversation. A failure
@@ -423,6 +424,16 @@ exports.submitWork = async (req, res) => {
       link: '/dashboard',
     });
 
+    await logActivity({
+      user_id: userId,
+      category: 'contracts',
+      action: 'contract.work_submitted',
+      description: `Submitted work on "${contract.jobs?.title || 'a contract'}"`,
+      target_type: 'contract',
+      target_id: contract.contract_id,
+      link: '/dashboard',
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Work successfully submitted for client review and escrow release.',
@@ -492,6 +503,17 @@ exports.completeContract = async (req, res) => {
       title: `Payment released for "${contract.jobs?.title || 'your contract'}"`,
       body: `The client approved your work and released ₱${Number(contract.agreed_amount).toLocaleString()}.`,
       link: '/dashboard',
+    });
+
+    await logActivity({
+      user_id: userId,
+      category: 'contracts',
+      action: 'contract.payment_released',
+      description: `Approved the work and released ₱${Number(contract.agreed_amount || 0).toLocaleString()} for "${contract.jobs?.title || 'a contract'}"`,
+      target_type: 'contract',
+      target_id: contract.contract_id,
+      link: '/dashboard',
+      metadata: { amount: contract.agreed_amount },
     });
 
     return res.status(200).json({
