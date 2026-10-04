@@ -191,8 +191,8 @@ export default function Layout() {
                 </Link>
               </li>
               <li className="sidebar-menu-item">
-                <Link to={`/profile/${user.user_id || user.id}?tab=security`} onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isProfileActive ? 'active' : ''}`}>
-                  <i className="bi bi-gear"></i><span>Settings</span>
+                <Link to={`/profile/${user.user_id || user.id}`} onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isProfileActive ? 'active' : ''}`}>
+                  <i className="bi bi-person"></i><span>My Account</span>
                 </Link>
               </li>
             </ul>
