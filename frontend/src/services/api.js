@@ -271,6 +271,13 @@ export function approveMilestoneWork(contractId, milestoneId) {
   });
 }
 
+export function requestMilestoneRevision(contractId, milestoneId, payload = {}) {
+  return request(`/contracts/${contractId}/milestones/${milestoneId}/request-revision`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
 // Admin API (Part 4)
 export function getAdminAnalytics() {
   return request('/admin/analytics');

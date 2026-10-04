@@ -54,10 +54,52 @@ function findOffPlatformContacts(text) {
 }
 
 /**
- * Validates job input fields (title, description, budget).
+ * Detects keyboard smashing, home-row letter cycling, and unbroken gibberish.
+ * Returns error string if detected, or null if clean.
+ */
+function findKeyboardMash(text, fieldName = 'Text') {
+  if (!text || typeof text !== 'string') return null;
+
+  // Split into tokens, ignoring URLs
+  const cleanedText = text.replace(/https?:\/\/[^\s]+/gi, ' ');
+  const tokens = cleanedText.match(/[a-zA-Z]+/g) || [];
+
+  for (const word of tokens) {
+    const clean = word.toLowerCase();
+
+    // Ignore acronyms and short words (<= 4 chars: HTML, AWS, PHP)
+    if (clean.length < 5) continue;
+
+    // Rule 1: Non-URL words exceeding 25 characters (unbroken keyboard mashing)
+    if (clean.length > 25) {
+      return `${fieldName} contains an unbroken word that is too long ('${word.slice(0, 18)}...') and appears to be keyboard-mashed.`;
+    }
+
+    // Rule 2: 5 or more consecutive consonants (e.g., "dfghjkl", "zxcvbnm", "qwrtyp")
+    if (/[bcdfghjklmnpqrstvwxyz]{5,}/i.test(clean) && clean !== 'strengths') {
+      return `${fieldName} contains an unnatural consonant sequence in word '${word}'.`;
+    }
+
+    // Rule 3: Repeating 2-3 key loops (e.g., "asdasdasd", "qweqweqwe")
+    if (/([a-z]{2,3})\1{2,}/i.test(clean)) {
+      return `${fieldName} contains repetitive keyboard patterns in word '${word}'.`;
+    }
+
+    // Rule 4: Home-row character diversity test for words >= 7 letters (e.g., "ahdhsadhasdh", "asdsaddsadsadasasd")
+    const uniqueLetters = new Set(clean).size;
+    if (clean.length >= 7 && (uniqueLetters / clean.length) < 0.45) {
+      return `${fieldName} contains keyboard-mashed word '${word}' with low character variety.`;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Validates job input fields (title, description, custom_category, budget).
  * Returns { valid: boolean, errors: string[] }
  */
-function validateJobInput({ title, description, budget, currency = 'PHP' }) {
+function validateJobInput({ title, description, custom_category, budget, currency = 'PHP' }) {
   const errors = [];
 
   // Title validation
@@ -69,6 +111,20 @@ function validateJobInput({ title, description, budget, currency = 'PHP' }) {
     if (t.length > 150) errors.push('Job title must be 150 characters or less.');
     if (hasHtmlOrScript(t)) errors.push('Job title cannot contain HTML or script tags.');
     if (isShouting(t)) errors.push('Job title cannot be in ALL CAPS (anti-shouting rule).');
+
+    const mash = findKeyboardMash(t, 'Job title');
+    if (mash) errors.push(mash);
+  }
+
+  // Custom Category validation (if selected under "Others")
+  if (custom_category !== undefined && custom_category !== null && String(custom_category).trim()) {
+    const cc = String(custom_category).trim();
+    if (cc.length < 2) errors.push('Custom category must be at least 2 characters long.');
+    if (cc.length > 50) errors.push('Custom category must be 50 characters or less.');
+    if (hasHtmlOrScript(cc)) errors.push('Custom category cannot contain HTML or script tags.');
+
+    const mash = findKeyboardMash(cc, 'Custom category');
+    if (mash) errors.push(mash);
   }
 
   // Description validation
@@ -79,7 +135,15 @@ function validateJobInput({ title, description, budget, currency = 'PHP' }) {
     if (d.length < 30) errors.push('Job description must be at least 30 characters long.');
     if (hasHtmlOrScript(d)) errors.push('Job description cannot contain HTML or script tags.');
 
-    const diversity = getLexicalDiversity(d, 10);
+    const words = (d.match(/\b[a-zA-Z0-9']+\b/g) || []);
+    if (words.length < 5) {
+      errors.push('Job description must contain at least 5 words.');
+    }
+
+    const mash = findKeyboardMash(d, 'Job description');
+    if (mash) errors.push(mash);
+
+    const diversity = getLexicalDiversity(d, 5);
     if (diversity !== null && diversity < 0.45) {
       errors.push('Job description contains repetitive or low-quality text (lexical diversity below 45%).');
     }
@@ -123,7 +187,15 @@ function validateProposalInput({ cover_letter, bid_amount }) {
     if (cl.length < 30) errors.push('Cover letter must be at least 30 characters long.');
     if (hasHtmlOrScript(cl)) errors.push('Cover letter cannot contain HTML or script tags.');
 
-    const diversity = getLexicalDiversity(cl, 10);
+    const words = (cl.match(/\b[a-zA-Z0-9']+\b/g) || []);
+    if (words.length < 5) {
+      errors.push('Cover letter must contain at least 5 words.');
+    }
+
+    const mash = findKeyboardMash(cl, 'Cover letter');
+    if (mash) errors.push(mash);
+
+    const diversity = getLexicalDiversity(cl, 5);
     if (diversity !== null && diversity < 0.45) {
       errors.push('Cover letter contains repetitive or low-quality text (lexical diversity below 45%).');
     }
@@ -153,6 +225,7 @@ module.exports = {
   isShouting,
   getLexicalDiversity,
   findOffPlatformContacts,
+  findKeyboardMash,
   validateJobInput,
   validateProposalInput,
 };

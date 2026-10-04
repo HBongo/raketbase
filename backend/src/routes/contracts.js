@@ -24,5 +24,6 @@ router.patch('/:id/complete', contractsController.completeContract);
 router.get('/:id/milestones', milestonesController.listMilestones);
 router.patch('/:id/milestones/:milestoneId/submit', milestonesController.submitMilestone);
 router.patch('/:id/milestones/:milestoneId/approve', milestonesController.approveMilestone);
+router.patch('/:id/milestones/:milestoneId/request-revision', milestonesController.requestRevision);
 
 module.exports = router;

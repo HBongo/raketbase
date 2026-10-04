@@ -17,6 +17,7 @@ import {
   completeContract,
   submitMilestoneWork,
   approveMilestoneWork,
+  requestMilestoneRevision,
   switchRole,
   getMyActivity,
 } from '../services/api';
@@ -25,6 +26,7 @@ import { formatCurrency } from '../utils/formatters';
 import { toPhp, useDisplayCurrency } from '../utils/currency';
 import Money from '../components/Money';
 import RateContractModal from '../components/RateContractModal';
+import MilestoneStepper from '../components/MilestoneStepper';
 
 import { useLive } from '../utils/useLive';
 export default function Dashboard() {
@@ -71,6 +73,9 @@ export default function Dashboard() {
   const [reviewModalMilestone, setReviewModalMilestone] = useState(null);
   const [reviewError, setReviewError] = useState('');
   const [isApproving, setIsApproving] = useState(false);
+  const [isRequestingRevision, setIsRequestingRevision] = useState(false);
+  const [showRevisionForm, setShowRevisionForm] = useState(false);
+  const [revisionFeedback, setRevisionFeedback] = useState('');
 
   // Milestone stages accordion state
   const [expandedContractId, setExpandedContractId] = useState(null);
@@ -196,6 +201,34 @@ export default function Dashboard() {
     setReviewModalMilestone(null);
     setReviewError('');
     setIsApproving(false);
+    setIsRequestingRevision(false);
+    setShowRevisionForm(false);
+    setRevisionFeedback('');
+  }
+
+  // Client requests revision on a submitted milestone
+  async function handleConfirmRevision() {
+    if (!reviewModalContract || !reviewModalMilestone) return;
+    if (!revisionFeedback.trim() || revisionFeedback.trim().length < 5) {
+      setReviewError('Please provide at least 5 characters explaining what needs to be changed.');
+      return;
+    }
+    setReviewError('');
+    setIsRequestingRevision(true);
+    try {
+      await requestMilestoneRevision(
+        reviewModalContract.contract_id,
+        reviewModalMilestone.milestone_id,
+        { revision_notes: revisionFeedback.trim() }
+      );
+      setActionSuccess(`Revision requested for Stage ${reviewModalMilestone.sequence}: "${reviewModalMilestone.title}". The freelancer has been notified.`);
+      closeReviewModal();
+      await loadData(true);
+    } catch (err) {
+      setReviewError(err.message || 'Failed to request revision. Please try again.');
+    } finally {
+      setIsRequestingRevision(false);
+    }
   }
 
   // Client approves deliverables and releases escrow funds
@@ -623,6 +656,16 @@ export default function Dashboard() {
                                     onClick={() => setExpandedContractId(null)}
                                   ></button>
                                 </div>
+
+                                {/* Visual Milestone Stepper */}
+                                <MilestoneStepper
+                                  milestones={c.milestones}
+                                  currency={c.jobs?.currency || 'PHP'}
+                                  isClient={isClient}
+                                  onReview={(m) => openReviewModal(c, m)}
+                                  onSubmit={(m) => openSubmitModal(c, m)}
+                                />
+
                                 <div className="table-responsive">
                                   <table className="table table-sm align-middle mb-0 bg-white rounded border">
                                     <thead className="bg-light">
@@ -1103,8 +1146,52 @@ export default function Dashboard() {
                       </div>
                     )}
 
+                    {/* Revision Feedback Form for Milestone */}
+                    {canApprove && isMilestone && showRevisionForm && (
+                      <div className="card border-warning border-2 bg-warning bg-opacity-10 rounded-3 p-3 mt-3">
+                        <label className="form-label fw-bold text-dark small mb-1">
+                          <i className="bi bi-pencil-square me-1"></i> Explain Required Changes to Freelancer:
+                        </label>
+                        <textarea
+                          className="form-control form-control-sm mb-2"
+                          rows="3"
+                          placeholder="e.g. Please update the button styles, fix alignment on mobile, and provide the Figma asset link..."
+                          value={revisionFeedback}
+                          onChange={(e) => setRevisionFeedback(e.target.value)}
+                          disabled={isRequestingRevision}
+                        ></textarea>
+                        <div className="d-flex justify-content-end gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                            onClick={() => setShowRevisionForm(false)}
+                            disabled={isRequestingRevision}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-warning rounded-pill px-3 fw-semibold text-dark"
+                            onClick={handleConfirmRevision}
+                            disabled={isRequestingRevision || !revisionFeedback.trim()}
+                          >
+                            {isRequestingRevision ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Sending Request...
+                              </>
+                            ) : (
+                              <>
+                                <i className="bi bi-send me-1"></i> Submit Changes Request
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Simulated Escrow Warning Notice for Client */}
-                    {canApprove && (
+                    {canApprove && !showRevisionForm && (
                       <div className="alert alert-warning escrow-notice-alert border-0 d-flex align-items-start gap-2 mb-0 mt-3 p-3 rounded-3">
                         <i className="bi bi-shield-exclamation text-warning flex-shrink-0 fs-5 mt-1 notice-icon"></i>
                         <div className="small notice-text">
@@ -1122,17 +1209,27 @@ export default function Dashboard() {
                       <>
                         <button
                           type="button"
-                          className="btn btn-outline-secondary rounded-pill px-4"
+                          className="btn btn-outline-secondary rounded-pill px-3"
                           onClick={closeReviewModal}
-                          disabled={isApproving}
+                          disabled={isApproving || isRequestingRevision}
                         >
                           Keep Reviewing
                         </button>
+                        {isMilestone && (
+                          <button
+                            type="button"
+                            className={`btn rounded-pill px-3 ${showRevisionForm ? 'btn-secondary' : 'btn-outline-warning text-dark fw-medium'}`}
+                            onClick={() => setShowRevisionForm(!showRevisionForm)}
+                            disabled={isApproving || isRequestingRevision}
+                          >
+                            <i className="bi bi-arrow-repeat me-1"></i> {showRevisionForm ? 'Hide Form' : 'Request Changes'}
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="btn btn-success rounded-pill px-4 fw-semibold"
                           onClick={handleConfirmApprove}
-                          disabled={isApproving}
+                          disabled={isApproving || isRequestingRevision}
                         >
                           {isApproving ? (
                             <>
