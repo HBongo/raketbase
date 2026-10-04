@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getCurrencySymbol } from '../utils/formatters';
 import Money from '../components/Money';
 import { showToast } from '../utils/toast';
+import { withdrawProposal } from '../services/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -30,6 +31,8 @@ export default function JobDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
   const [alreadyApplied, setAlreadyApplied] = useState(false);
+  const [userProposal, setUserProposal] = useState(null);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   const [touched, setTouched] = useState({ bidAmount: false, coverLetter: false });
   const [submitted, setSubmitted] = useState(false);
@@ -67,8 +70,16 @@ export default function JobDetail() {
         });
         const body = await res.json();
         if (!cancelled && res.ok && body.success && Array.isArray(body.data)) {
-          const hasApplied = body.data.some((p) => String(p.job_id) === String(id));
-          if (hasApplied) setAlreadyApplied(true);
+          const existing = body.data.find(
+            (p) => String(p.job_id) === String(id) && (p.status || '').toLowerCase() !== 'withdrawn'
+          );
+          if (existing) {
+            setAlreadyApplied(true);
+            setUserProposal(existing);
+          } else {
+            setAlreadyApplied(false);
+            setUserProposal(null);
+          }
         }
       } catch {
         // ignore error checking existing proposal
@@ -226,6 +237,7 @@ export default function JobDetail() {
         throw new Error(body.error || body.message || 'Could not submit your proposal.');
       }
       setAlreadyApplied(true);
+      if (body.data) setUserProposal(body.data);
       showToast('Proposal sent! The client will review it soon.', { type: 'success' });
       setBidAmount('');
       setCoverLetter('');
@@ -235,6 +247,31 @@ export default function JobDetail() {
       setSubmitResult({ type: 'error', message: err.message || 'Something went wrong while submitting.' });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleWithdrawProposal() {
+    if (!userProposal?.proposal_id) return;
+    if (!window.confirm('Withdraw this proposal? You can edit your bid/cover letter and re-submit it.')) return;
+    setWithdrawing(true);
+    try {
+      await withdrawProposal(userProposal.proposal_id);
+      // Pre-fill form fields with previous submission so they can edit easily
+      if (userProposal.bid_amount) setBidAmount(String(userProposal.bid_amount));
+      if (userProposal.cover_letter) setCoverLetter(userProposal.cover_letter);
+      if (userProposal.portfolio_url) setPortfolioLink(userProposal.portfolio_url);
+      if (userProposal.milestones && userProposal.milestones.length > 0) {
+        setMilestones(userProposal.milestones.map((m) => ({ title: m.title, amount: String(m.amount), description: m.description || '' })));
+      }
+      setAlreadyApplied(false);
+      setUserProposal(null);
+      setTouched({ bidAmount: false, coverLetter: false });
+      setSubmitResult({ type: 'info', message: 'Proposal withdrawn. Your previous answers are kept below so you can make changes and re-submit.' });
+      showToast('Proposal withdrawn. You can now edit and re-submit.', { type: 'info' });
+    } catch (err) {
+      showToast(err.message || 'Could not withdraw proposal', { type: 'error' });
+    } finally {
+      setWithdrawing(false);
     }
   }
 
@@ -405,16 +442,6 @@ export default function JobDetail() {
                       {job.budget ? <Money amount={job.budget} currency={job.currency} /> : '—'}
                     </h3>
                     
-                    {alreadyApplied && (
-                      <div className="alert alert-success d-flex align-items-center mb-4" role="alert">
-                        <i className="bi bi-check-circle-fill me-2 fs-5"></i>
-                        <div>
-                          <strong>Already Applied</strong>
-                          <div className="small">You have already submitted a proposal for this job.</div>
-                        </div>
-                      </div>
-                    )}
-                    
                     <hr className="my-4" />
                     
                     {job && ((user?.user_id && user.user_id === job.client_id) || (user?.id && user.id === job.client_id)) ? (
@@ -466,6 +493,116 @@ export default function JobDetail() {
                         >
                           Browse other jobs
                         </button>
+                      </div>
+                    ) : alreadyApplied ? (
+                      <div className="your-proposal-details">
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                          <h5 className="fw-bold text-dark mb-0">
+                            <i className="bi bi-file-earmark-check me-2 text-success"></i>Your Proposal
+                          </h5>
+                          <span className={`badge rounded-pill px-3 py-1.5 fw-semibold ${
+                            (userProposal?.status || '').toLowerCase() === 'accepted'
+                              ? 'bg-success text-white'
+                              : (userProposal?.status || '').toLowerCase() === 'rejected'
+                              ? 'bg-danger text-white'
+                              : (userProposal?.status || '').toLowerCase() === 'withdrawn'
+                              ? 'bg-secondary text-white'
+                              : 'bg-warning text-dark'
+                          }`}>
+                            ● {userProposal?.status ? userProposal.status.charAt(0).toUpperCase() + userProposal.status.slice(1) : 'Pending Review'}
+                          </span>
+                        </div>
+
+                        <div className="p-3 rounded-3 bg-light border mb-3">
+                          <div className="text-muted small fw-medium text-uppercase mb-1" style={{ fontSize: '11px' }}>Your Bid</div>
+                          <div className="h4 fw-bold text-success mb-0">
+                            <Money amount={userProposal?.bid_amount || 0} currency={job.currency} />
+                          </div>
+                        </div>
+
+                        {userProposal?.milestones && userProposal.milestones.length > 0 && (
+                          <div className="p-3 rounded-3 bg-light border mb-3">
+                            <div className="text-muted small fw-medium text-uppercase mb-2" style={{ fontSize: '11px' }}>Milestone Stages</div>
+                            <div className="d-flex flex-column gap-2">
+                              {userProposal.milestones.map((m, idx) => (
+                                <div key={idx} className="d-flex justify-content-between align-items-center small">
+                                  <span className="text-dark fw-medium">Stage {idx + 1}: {m.title}</span>
+                                  <span className="text-success fw-bold"><Money amount={m.amount} currency={job.currency} /></span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="mb-3">
+                          <label className="form-label text-muted small fw-medium text-uppercase mb-1" style={{ fontSize: '11px' }}>Cover Letter</label>
+                          <div className="p-3 rounded-3 bg-light border text-dark small" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: '200px', overflowY: 'auto' }}>
+                            {userProposal?.cover_letter || 'No cover letter provided.'}
+                          </div>
+                        </div>
+
+                        {(userProposal?.portfolio_url || userProposal?.sample_file_url) && (
+                          <div className="p-3 rounded-3 bg-light border mb-3">
+                            <label className="text-muted small fw-medium text-uppercase mb-2 d-block" style={{ fontSize: '11px' }}>Portfolio & Samples</label>
+                            {userProposal?.portfolio_url && (
+                              <div className="mb-2">
+                                <a
+                                  href={userProposal.portfolio_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary text-decoration-none small d-inline-flex align-items-center gap-1 text-break"
+                                >
+                                  <i className="bi bi-link-45deg fs-6"></i>
+                                  <span>{userProposal.portfolio_url}</span>
+                                  <i className="bi bi-box-arrow-up-right ms-1" style={{ fontSize: '10px' }}></i>
+                                </a>
+                              </div>
+                            )}
+                            {userProposal?.sample_file_url && (
+                              <div>
+                                <a
+                                  href={userProposal.sample_file_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1"
+                                >
+                                  <i className="bi bi-paperclip"></i>
+                                  <span>{userProposal.sample_file_name || 'Download Sample File'}</span>
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {submitResult && (
+                          <div className={`alert ${submitResult.type === 'success' || submitResult.type === 'info' ? 'alert-info' : 'alert-danger'} mb-3 small py-2`} role="alert">
+                            {submitResult.message}
+                          </div>
+                        )}
+
+                        <div className="d-flex flex-column gap-2 mt-4">
+                          {(!userProposal?.status || (userProposal?.status || '').toLowerCase() === 'pending') && (
+                            <button
+                              type="button"
+                              onClick={handleWithdrawProposal}
+                              disabled={withdrawing}
+                              className="btn btn-outline-warning text-dark rounded-pill fw-medium py-2 d-flex align-items-center justify-content-center gap-2"
+                            >
+                              {withdrawing ? (
+                                <span className="spinner-border spinner-border-sm" role="status"></span>
+                              ) : (
+                                <i className="bi bi-pencil-square"></i>
+                              )}
+                              Withdraw & Edit Proposal
+                            </button>
+                          )}
+                          <Link
+                            to="/my-proposals"
+                            className="btn btn-dark rounded-pill fw-medium py-2 text-center text-decoration-none"
+                          >
+                            <i className="bi bi-file-earmark-text me-2"></i>View in My Proposals
+                          </Link>
+                        </div>
                       </div>
                     ) : (
                       <>
@@ -673,10 +810,10 @@ export default function JobDetail() {
                           
                           <button
                             type="submit"
-                            disabled={submitting || alreadyApplied}
+                            disabled={submitting}
                             className="btn btn-dark w-100 rounded-pill fw-medium py-2"
                           >
-                            {alreadyApplied ? 'Already Applied' : submitting ? 'Submitting...' : 'Submit proposal'}
+                            {submitting ? 'Submitting...' : 'Submit proposal'}
                           </button>
                           
                           {submitResult && (

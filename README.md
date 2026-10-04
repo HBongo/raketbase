@@ -238,6 +238,8 @@ Changes 9
 - Freelancers can now add a portfolio link and upload a sample file attachment (PDF, DOCX, TXT, PNG, JPEG up to 5 MB) when submitting a job proposal
 - Clients can view the submitted portfolio link and download the attached sample file directly from the proposal card alongside the milestone breakdown
 - Added a private proposal-attachments Supabase storage bucket and database columns for portfolio and file attachments (010_add_proposal_attachments.sql)
+- Replaced the empty proposal form and red validation errors on already-applied jobs with a clean "Your Proposal" summary card showing the submitted bid, milestones, cover letter, work samples, and a "Withdraw & Edit Proposal" action button
+- Cleaned up Dashboard "My Proposals": the "Active" tab now strictly shows pending bids awaiting client review, eliminating duplicate contract listings, and upgraded Quick Actions with contextual shortcuts (Find Open Projects, Contract Messages, Recent Activity Log, and Proposal Tracker)
 
 [Messaging & Grace Period]
 - Added a 1-week messaging grace period after a contract ends (completed, refunded, or cancelled) with an alert banner showing the remaining time

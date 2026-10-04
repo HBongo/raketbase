@@ -777,45 +777,65 @@ export default function Dashboard() {
                 </div>
               )
             ) : (() => {
-              const isPast = (status) => ['completed', 'rejected', 'withdrawn', 'cancelled'].includes((status || '').toLowerCase());
-              const filteredProposals = proposals.filter(p => proposalTab === 'past' ? isPast(p.status) : !isPast(p.status));
+              const isPast = (status) => ['completed', 'rejected', 'withdrawn', 'cancelled', 'accepted'].includes((status || '').toLowerCase());
+              const isPending = (status) => (status || 'pending').toLowerCase() === 'pending';
+              const filteredProposals = proposals.filter(p => proposalTab === 'past' ? isPast(p.status) : isPending(p.status));
               if (filteredProposals.length === 0) {
-                return <div className="text-center p-5 text-muted">No {proposalTab} proposals.</div>;
+                return (
+                  <div className="text-center p-5 text-muted">
+                    {proposalTab === 'active' ? (
+                      <>
+                        <i className="bi bi-check2-circle fs-3 text-success d-block mb-2"></i>
+                        <p className="mb-2 small">No active bids awaiting review.</p>
+                        <Link to="/explore" className="btn btn-outline-dark btn-sm rounded-pill px-3">
+                          Browse Open Jobs
+                        </Link>
+                      </>
+                    ) : (
+                      'No past proposals.'
+                    )}
+                  </div>
+                );
               }
               return (
                 <div className="transaction-list mt-2">
                   {[...filteredProposals].sort((a, b) => {
                     const statusA = (a.status || 'pending').toLowerCase();
                     const statusB = (b.status || 'pending').toLowerCase();
-                    const rank = { 'accepted': 1, 'pending': 2, 'rejected': 3 };
-                    return (rank[statusA] || 4) - (rank[statusB] || 4);
+                    const rank = { 'pending': 1, 'accepted': 2, 'rejected': 3, 'withdrawn': 4 };
+                    return (rank[statusA] || 5) - (rank[statusB] || 5);
                   }).map((p) => {
                     const status = (p.status || 'pending').toLowerCase();
                     let statusClass = 'btn btn-warning btn-sm text-dark';
-                    let displayStatus = 'Submitted';
+                    let displayStatus = 'Pending Review';
                     if (status === 'accepted') {
                       statusClass = 'btn btn-success btn-sm text-white';
                       displayStatus = 'Accepted';
                     } else if (status === 'rejected') {
                       statusClass = 'btn btn-danger btn-sm text-white';
                       displayStatus = 'Rejected';
+                    } else if (status === 'withdrawn') {
+                      statusClass = 'btn btn-secondary btn-sm text-white';
+                      displayStatus = 'Withdrawn';
                     }
 
                     return (
-                      <div className="transaction-item align-items-center" key={p.proposal_id}>
-                        <div className="transaction-icon bg-forest-light text-lime">
-                          <i className="bi bi-file-earmark-text"></i>
+                      <Link to={`/jobs/${p.job_id}`} className="text-decoration-none" key={p.proposal_id}>
+                        <div className="transaction-item align-items-center">
+                          <div className="transaction-icon bg-forest-light text-lime">
+                            <i className="bi bi-file-earmark-text"></i>
+                          </div>
+                          <div className="transaction-info flex-grow-1 min-w-0 me-2">
+                            <div className="transaction-name text-dark fw-semibold mb-1 text-truncate">{p.jobs?.title || 'Job Posting'}</div>
+                            <div className="transaction-amount text-success fw-bold small"><Money amount={p.bid_amount || 0} currency={p.jobs?.currency} /></div>
+                          </div>
+                          <div className="ms-auto text-end flex-shrink-0">
+                            <span className={`${statusClass} rounded-pill px-3 fw-medium`} style={{ pointerEvents: 'none' }}>
+                              {displayStatus}
+                            </span>
+                          </div>
                         </div>
-                        <div className="transaction-info flex-grow-1">
-                          <div className="transaction-name text-dark fw-semibold mb-1">{p.jobs?.title || 'Job Posting'}</div>
-                          <div className="transaction-amount text-success fw-bold small"><Money amount={p.bid_amount || 0} currency={p.jobs?.currency} /></div>
-                        </div>
-                        <div className="ms-3 text-end">
-                          <span className={`${statusClass} rounded-pill px-3 fw-medium`} style={{ pointerEvents: 'none' }}>
-                            {displayStatus}
-                          </span>
-                        </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>
@@ -844,8 +864,8 @@ export default function Dashboard() {
                             <i className="bi bi-plus-circle fs-5"></i>
                           </div>
                           <div>
-                            <div className="fw-bold text-dark mb-1">Post a Job</div>
-                            <div className="small text-muted">Create a fixed or milestone-based project listing</div>
+                            <div className="fw-bold text-dark mb-1">Post a New Project</div>
+                            <div className="small text-muted">Create a fixed-price or milestone job listing</div>
                           </div>
                         </div>
                       </Link>
@@ -858,33 +878,33 @@ export default function Dashboard() {
                           </div>
                           <div>
                             <div className="fw-bold text-dark mb-1">Browse Freelancers</div>
-                            <div className="small text-muted">Search top-rated talent by skills and ratings</div>
+                            <div className="small text-muted">Hire top-rated talent by skills and ratings</div>
                           </div>
                         </div>
                       </Link>
                     </div>
                     <div className="col-12 col-sm-6">
-                      <Link to="/my-jobs" className="text-decoration-none">
+                      <Link to="/messages" className="text-decoration-none">
                         <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
                           <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-briefcase fs-5"></i>
+                            <i className="bi bi-chat-dots fs-5"></i>
                           </div>
                           <div>
-                            <div className="fw-bold text-dark mb-1">Manage Postings</div>
-                            <div className="small text-muted">Review proposals, pause or edit your jobs</div>
+                            <div className="fw-bold text-dark mb-1">Conversations & Chats</div>
+                            <div className="small text-muted">Open direct message threads with your contractors</div>
                           </div>
                         </div>
                       </Link>
                     </div>
                     <div className="col-12 col-sm-6">
-                      <Link to="/contact" className="text-decoration-none">
+                      <Link to="/profile?tab=activity" className="text-decoration-none">
                         <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
                           <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-question-circle fs-5"></i>
+                            <i className="bi bi-clock-history fs-5"></i>
                           </div>
                           <div>
-                            <div className="fw-bold text-dark mb-1">Help & Support</div>
-                            <div className="small text-muted">Get assistance with contracts, escrow, and FAQs</div>
+                            <div className="fw-bold text-dark mb-1">Account Activity Log</div>
+                            <div className="small text-muted">Audit logins, proposal decisions, and milestones</div>
                           </div>
                         </div>
                       </Link>
@@ -896,11 +916,37 @@ export default function Dashboard() {
                       <Link to="/explore" className="text-decoration-none">
                         <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
                           <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-search fs-5"></i>
+                            <i className="bi bi-compass fs-5"></i>
                           </div>
                           <div>
-                            <div className="fw-bold text-dark mb-1">Explore Jobs</div>
-                            <div className="small text-muted">Browse open projects matching your skillset</div>
+                            <div className="fw-bold text-dark mb-1">Find Open Projects</div>
+                            <div className="small text-muted">Browse recently posted jobs and submit bids</div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                    <div className="col-12 col-sm-6">
+                      <Link to="/messages" className="text-decoration-none">
+                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
+                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="bi bi-chat-dots fs-5"></i>
+                          </div>
+                          <div>
+                            <div className="fw-bold text-dark mb-1">Contract Messages</div>
+                            <div className="small text-muted">Open chats to discuss project deliverables</div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                    <div className="col-12 col-sm-6">
+                      <Link to="/profile?tab=activity" className="text-decoration-none">
+                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
+                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <i className="bi bi-clock-history fs-5"></i>
+                          </div>
+                          <div>
+                            <div className="fw-bold text-dark mb-1">Recent Activity Log</div>
+                            <div className="small text-muted">Review bid submissions, milestone updates & logins</div>
                           </div>
                         </div>
                       </Link>
@@ -909,37 +955,11 @@ export default function Dashboard() {
                       <Link to="/my-proposals" className="text-decoration-none">
                         <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
                           <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-file-earmark-text fs-5"></i>
+                            <i className="bi bi-file-earmark-check fs-5"></i>
                           </div>
                           <div>
-                            <div className="fw-bold text-dark mb-1">My Proposals</div>
-                            <div className="small text-muted">Track status of bids and active discussions</div>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-                    <div className="col-12 col-sm-6">
-                      <Link to={`/profile/${user.user_id || user.id}`} className="text-decoration-none">
-                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
-                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-person fs-5"></i>
-                          </div>
-                          <div>
-                            <div className="fw-bold text-dark mb-1">Profile & Skills</div>
-                            <div className="small text-muted">Keep your bio, skills, and portfolio updated</div>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-                    <div className="col-12 col-sm-6">
-                      <Link to="/contact" className="text-decoration-none">
-                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
-                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-question-circle fs-5"></i>
-                          </div>
-                          <div>
-                            <div className="fw-bold text-dark mb-1">Help & Support</div>
-                            <div className="small text-muted">Learn about milestones, payments, and safety</div>
+                            <div className="fw-bold text-dark mb-1">Proposal Tracker</div>
+                            <div className="small text-muted">Manage active bids, edit proposals & view offers</div>
                           </div>
                         </div>
                       </Link>
