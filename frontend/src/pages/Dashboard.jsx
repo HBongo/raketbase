@@ -297,8 +297,8 @@ export default function Dashboard() {
                   <div className="stat-value">
                     {loading ? <div className="skeleton-box mt-1" style={{ width: 60, height: 32 }} /> : activeContracts.length}
                   </div>
-                  <div className="trend-badge trend-up">
-                    <span>In progress or submitted</span>
+                  <div className="text-muted small mt-1">
+                    In progress or submitted
                   </div>
                 </div>
               </div>
@@ -313,8 +313,8 @@ export default function Dashboard() {
                   <div className="stat-value">
                     {loading ? <div className="skeleton-box mt-1" style={{ width: 120, height: 32 }} /> : <Money amount={totalAgreedEscrow} currency="PHP" />}
                   </div>
-                  <div className="trend-badge trend-up">
-                    <i className="bi bi-shield-check"></i>
+                  <div className="text-muted small mt-1 d-flex align-items-center gap-1">
+                    <i className="bi bi-shield-check text-success"></i>
                     <span>Secured via Supabase</span>
                   </div>
                 </div>
@@ -1180,11 +1180,25 @@ function RecentActivityWidget({ isCustomer, userId }) {
     getActivityLogs()
       .then((res) => {
         if (!mounted) return;
-        if (res && res.data && Array.isArray(res.data)) {
-          setLogs(res.data.slice(0, 5));
-        } else if (Array.isArray(res)) {
-          setLogs(res.slice(0, 5));
-        }
+        const rawList = (res && res.data && Array.isArray(res.data))
+          ? res.data
+          : (Array.isArray(res) ? res : []);
+
+        // Filter out redundant repeat login entries so at most 1 recent login is shown,
+        // leaving space for contracts, proposals, and project milestones
+        let seenLogin = false;
+        const filtered = rawList.filter((log) => {
+          const act = (log.action || '').toUpperCase();
+          const isLogin = act.includes('LOGIN');
+          if (isLogin) {
+            if (seenLogin) return false;
+            seenLogin = true;
+            return true;
+          }
+          return true;
+        });
+
+        setLogs(filtered.slice(0, 5));
       })
       .catch((err) => {
         console.warn('Could not load activity logs:', err);
@@ -1509,18 +1523,11 @@ function ActionItemsWidget({
               <i className="bi bi-check2-circle fs-4"></i>
             </div>
             <div className="fw-semibold text-dark small mb-1">All caught up!</div>
-            <div className="text-muted small mb-3" style={{ fontSize: '0.8rem' }}>
+            <div className="text-muted small mb-0" style={{ fontSize: '0.8rem' }}>
               {isCustomer
                 ? 'No pending client reviews or urgent contract items right now.'
                 : 'No pending milestone submissions or contract deliverables waiting.'}
             </div>
-            <Link
-              to={isCustomer ? '/jobs/create' : '/explore'}
-              className="btn btn-sm btn-outline-success rounded-pill px-3 py-1 fw-medium"
-              style={{ fontSize: '0.8rem' }}
-            >
-              {isCustomer ? '+ Post a New Job' : 'Browse Matching Jobs'}
-            </Link>
           </div>
         ) : (
           <div className="d-flex flex-column gap-2.5">
