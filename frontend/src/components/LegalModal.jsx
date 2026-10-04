@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import LegalDocViewer from './LegalDocViewer';
+import '../styles/legal.css';
 
-export default function LegalModal({ isOpen, onClose, initialDoc = 'terms' }) {
+export default function LegalModal({ isOpen, onClose, initialDoc = 'terms', isDarkMode = false }) {
   const [activeDoc, setActiveDoc] = useState(initialDoc);
 
   useEffect(() => {
@@ -36,61 +37,46 @@ export default function LegalModal({ isOpen, onClose, initialDoc = 'terms' }) {
 
   return (
     <div 
-      className="modal fade show d-block" 
-      tabIndex="-1" 
+      className={`legal-modal-overlay ${isDarkMode ? 'legal-dark' : ''}`} 
       role="dialog" 
       aria-modal="true" 
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1055 }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-        <div className="modal-content">
-          
-          {/* Simple Standard Header with Clean Tabs */}
-          <div className="modal-header d-flex justify-content-between align-items-center py-2 px-3">
-            <div className="d-flex gap-2">
-              <button
-                type="button"
-                className={`btn btn-sm ${activeDoc === 'terms' ? 'btn-dark' : 'btn-light border'}`}
-                onClick={() => setActiveDoc('terms')}
-              >
-                Terms of Service
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${activeDoc === 'privacy' ? 'btn-dark' : 'btn-light border'}`}
-                onClick={() => setActiveDoc('privacy')}
-              >
-                Privacy Notice
-              </button>
-            </div>
-            <button 
-              type="button" 
-              className="btn-close" 
-              aria-label="Close" 
-              onClick={onClose}
-            ></button>
-          </div>
-
-          {/* Clean Scrollable Body */}
-          <div className="modal-body p-4">
-            <LegalDocViewer docType={activeDoc} />
-          </div>
-
-          {/* Simple Standard Footer */}
-          <div className="modal-footer py-2 px-3">
-            <button 
-              type="button" 
-              className="btn btn-secondary btn-sm" 
-              onClick={onClose}
+      <div className="legal-modal-dialog">
+        <div className="legal-modal-header" style={{ position: 'relative', justifyContent: 'center' }}>
+          <div className="legal-tabs">
+            <button
+              type="button"
+              className={`legal-tab ${activeDoc === 'terms' ? 'legal-tab--active' : ''}`}
+              onClick={() => setActiveDoc('terms')}
             >
-              Close
+              Terms of Service
+            </button>
+            <button
+              type="button"
+              className={`legal-tab ${activeDoc === 'privacy' ? 'legal-tab--active' : ''}`}
+              onClick={() => setActiveDoc('privacy')}
+            >
+              Privacy Notice
             </button>
           </div>
-
+          <button 
+            type="button" 
+            className="legal-close-btn" 
+            aria-label="Close" 
+            onClick={onClose}
+            style={{ position: 'absolute', right: '2rem' }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
         </div>
+
+        <div className="legal-modal-body">
+          <LegalDocViewer docType={activeDoc} />
+        </div>
+
       </div>
     </div>
   );

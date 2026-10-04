@@ -24,6 +24,26 @@ import Toaster from './components/Toaster';
 
 import { useState, useEffect } from 'react';
 
+function isTokenValid() {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return false;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (payload.exp && Date.now() / 1000 > payload.exp) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      return false;
+    }
+    return true;
+  } catch {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    return false;
+  }
+}
+
 function GlobalLoader() {
   const [loading, setLoading] = useState(false);
 
@@ -70,7 +90,7 @@ function App() {
       <Route
         path="/"
         element={
-          localStorage.getItem('token') ? (
+          isTokenValid() ? (
             <Navigate to="/dashboard" replace />
           ) : (
             <LandingPage />
@@ -121,7 +141,7 @@ function App() {
       <Route
         path="*"
         element={
-          localStorage.getItem('token') ? (
+          isTokenValid() ? (
             <Navigate to="/dashboard" replace />
           ) : (
             <Navigate to="/login" replace />

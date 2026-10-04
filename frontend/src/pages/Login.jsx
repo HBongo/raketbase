@@ -282,7 +282,9 @@ export default function Login() {
       <LegalModal
         isOpen={legalModalOpen}
         onClose={() => setLegalModalOpen(false)}
-        defaultTab={legalModalDoc}
+        initialDoc={legalModalDoc}
+        isDarkMode={isDarkMode}
+        onThemeToggle={() => setIsDarkMode(!isDarkMode)}
       />
     </div>
   );

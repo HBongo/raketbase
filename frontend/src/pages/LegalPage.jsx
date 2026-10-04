@@ -1,15 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import LegalDocViewer from '../components/LegalDocViewer';
+import '../styles/legal.css';
 
 export default function LegalPage({ defaultDoc = 'terms' }) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('darkMode') === 'true' || localStorage.getItem('theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.body.classList.add('dark-mode');
+      localStorage.setItem('darkMode', 'true');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.body.classList.remove('dark-mode');
+      localStorage.setItem('darkMode', 'false');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
   const isLoggedIn = !!localStorage.getItem('token');
   const backLink = isLoggedIn ? '/dashboard' : '/register';
   const backText = isLoggedIn ? 'Back to RaketBase' : 'Back to Register';
-  // Logged-in users usually arrive from the footer, so take them back to the page they were on
+  
   const goBack = (e) => {
     if (isLoggedIn && window.history.length > 1) {
       e.preventDefault();
@@ -36,54 +53,52 @@ export default function LegalPage({ defaultDoc = 'terms' }) {
   };
 
   return (
-    <div className="min-vh-100 bg-light">
-      {/* Basic Navbar */}
-      <nav className="navbar navbar-light bg-white border-bottom py-2">
-        <div className="container-lg d-flex align-items-center justify-content-between">
-          <Link to={isLoggedIn ? '/dashboard' : '/'} className="navbar-brand text-dark fw-bold mb-0">
-            RaketBase
+    <div className={`legal-page ${isDarkMode ? 'legal-dark' : ''}`}>
+      <nav className="legal-navbar">
+        <div className="legal-nav-content">
+          <Link to={isLoggedIn ? '/dashboard' : '/'} className="legal-brand">
+            <img src="/raketbase-icon.svg" alt="RaketBase Logo" />
+            <div className="legal-brand-text">
+              <span className="legal-brand-bold">RAKET</span>
+              <span className="legal-brand-light">BASE</span>
+            </div>
           </Link>
-          <div className="d-flex align-items-center gap-2">
-            <Link to={backLink} onClick={goBack} className="btn btn-outline-secondary btn-sm">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              style={{ background: 'none', border: 'none', color: 'var(--legal-text)', cursor: 'pointer', fontSize: '1.25rem' }}
+              aria-label="Toggle dark mode"
+              title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              <i className={isDarkMode ? 'bi bi-sun-fill' : 'bi bi-moon-fill'} />
+            </button>
+            <Link to={backLink} onClick={goBack} className="legal-back-btn">
               &larr; {backText}
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* Main Container */}
-      <div className="container-lg py-4">
-        <div className="row justify-content-center">
-          <div className="col-12 col-md-10 col-lg-8">
-            {/* Simple Tab Switcher */}
-            <div className="d-flex gap-2 mb-3">
-              <button
-                type="button"
-                className={`btn btn-sm ${docType === 'terms' ? 'btn-dark' : 'btn-light border'}`}
-                onClick={() => handleTabChange('terms')}
-              >
-                Terms of Service
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${docType === 'privacy' ? 'btn-dark' : 'btn-light border'}`}
-                onClick={() => handleTabChange('privacy')}
-              >
-                Privacy Notice
-              </button>
-            </div>
+      <div style={{ maxWidth: '900px', margin: '3rem auto', padding: '0 1.5rem' }}>
+        <div className="legal-tabs" style={{ display: 'inline-flex', marginBottom: '2rem' }}>
+          <button
+            type="button"
+            className={`legal-tab ${docType === 'terms' ? 'legal-tab--active' : ''}`}
+            onClick={() => handleTabChange('terms')}
+          >
+            Terms of Service
+          </button>
+          <button
+            type="button"
+            className={`legal-tab ${docType === 'privacy' ? 'legal-tab--active' : ''}`}
+            onClick={() => handleTabChange('privacy')}
+          >
+            Privacy Notice
+          </button>
+        </div>
 
-            {/* Document Content */}
-            <div className="card border bg-white p-4 p-md-5">
-              <LegalDocViewer docType={docType} />
-            </div>
-
-            <div className="text-center mt-3">
-              <Link to={backLink} onClick={goBack} className="text-muted small">
-                {backText}
-              </Link>
-            </div>
-          </div>
+        <div className="legal-page-container">
+          <LegalDocViewer docType={docType} />
         </div>
       </div>
     </div>

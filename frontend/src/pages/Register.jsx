@@ -550,7 +550,9 @@ export default function Register() {
       <LegalModal 
         isOpen={legalModalOpen} 
         onClose={() => setLegalModalOpen(false)} 
-        docType={legalModalDoc} 
+        initialDoc={legalModalDoc} 
+        isDarkMode={isDarkMode}
+        onThemeToggle={() => setIsDarkMode(!isDarkMode)}
       />
     </div>
   );
