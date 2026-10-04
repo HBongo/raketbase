@@ -159,6 +159,52 @@ Changes 7
 - The bell checks for new notifications every 30 seconds and whenever the user changes pages
 - Added a notifications table, only accessible through the backend (007_add_notifications.sql)
 
+[Fixes after the UI redesign]
+- Fixed the login and register pages turning completely white (the new dark mode toggle was using a value that didn't exist)
+- Fixed light mode on the login and register pages, where text and the RaketBase logo blended into the background; both pages now have proper light and dark colors
+- Brought back rating after a contract: completed contracts on the Dashboard have a Rate button that opens a pop-up with overall stars, three role-specific criteria, and an optional comment, and shows "You rated X" afterwards
+- The person being rated now gets a notification
+- Fixed live chat: new messages appear instantly again instead of only after refreshing
+- Brought back the currency selector in the top bar (PHP, USD, EUR, JPY, GBP, SGD) using live exchange rates from the external rates API
+- All displayed amounts across the site convert to the chosen currency, shown as an estimate (for example "≈ €126") with the original amount on hover; posting jobs and bidding still use the job's own currency
+- Brought back "Job taken" on Explore: assigned and completed jobs show a "Job taken" badge and can no longer be applied to from the card, with a "Hide taken jobs" filter
+- Brought back freelancer ratings on proposals: clients see each applicant's star rating and number of reviews, or "No reviews yet"
+- Replaced "Top Freelancers" in the sidebar with "Browse Users", a page for browsing every freelancer and client
+- Browse Users has Freelancers and Clients tabs (anyone active in that role can appear in either), search by name, company, or skill, and sorting by top rated, most reviews, or newest members
+- Each profile card shows the person's average star rating and number of reviews, their average rate (average amount of their completed contracts), and their latest 3 reviews
+- A "Top users" button on the same page switches to the ranked leaderboard; old Top Users links now open this view
+- Fixed the Top Users leaderboard showing 0.0 stars, 0 reviews, and ₱0 for everyone
+
+
+Changes 8
+
+[Forgot Password & Account Security]
+- "Forgot password?" on the login page now works: users enter their email and receive a password reset link (it previously only showed a fake alert)
+- The reset link opens a new "Set a new password" page with the same password rules as sign-up (8+ characters, 1 uppercase letter, 1 number)
+- The forgot password form always gives the same answer, so it can't be used to find out which emails have accounts
+- Reset links only work for password resets; expired or used links show a clear message with a way to request a new one
+- Fixed changing your password in Settings: it now asks for your current password and uses the same rules as sign-up (it previously failed and allowed 6-character passwords)
+
+[Hire Me / Direct Offers]
+- The "Hire Me" button on a freelancer's profile now works for clients (in Client mode)
+- It opens a form for the offer details: project title, description, the price the client is willing to pay (PHP or USD), an optional deadline, and up to 3 optional files (10 MB each)
+- Freelancers get a notification and see the offer under My Proposals → Offers received, where they can open attachments and Accept or Decline
+- Accepting an offer turns it into a normal contract with its own chat, so submitting work, releasing escrow, disputes, and ratings work the same as any other contract
+- Jobs created from offers are private and never appear on Explore
+- Clients see their offers and their status under My Postings → Sent offers, and can withdraw an offer while it's still pending
+- Both sides are notified when an offer is accepted, declined, or withdrawn
+- Added the direct offers tables and a private file bucket for offer attachments (008_add_direct_offers.sql)
+
+[Fixes]
+- Error pop-ups now look like errors (red icon and outline, shown for 6 seconds) instead of showing a green check like a success; screen readers announce them right away
+- Dispute outcomes now match what happened to the money: "Release to freelancer" completes the contract as normal, "Split" completes it but only half the amount counts toward earnings, average price, and revenue, and "Refund client" marks the contract as Refunded so it no longer counts as a completed job or earnings, and the job is closed as cancelled
+- Both sides can rate each other after a dispute is resolved, whatever the outcome, and the Dashboard shows "Refunded" or "Completed (split)" on those contracts
+- Disputes can only be filed on contracts that are still in progress, and only once at a time (finished or already-disputed contracts are rejected)
+- Submitting work, approving work, and leaving a review no longer secretly switch your Client/Freelancer mode; your mode only changes when you use the toggle
+- The Message button on Dashboard contracts now opens that contract's chat instead of the general inbox
+- After accepting a proposal, the accepted freelancer's card shows a "Message" button that opens your contract chat with them
+- Added a Refunded contract status and the amount actually released after a split (009_dispute_outcomes.sql)
+
 
 
 Roadmap

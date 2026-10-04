@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { getCached, setCached } from '../utils/cache';
 import BackToTop from '../components/BackToTop';
-import { formatCurrency } from '../utils/formatters';
+import Money from '../components/Money';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -63,6 +63,7 @@ export default function Explore() {
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [budget, setBudget] = useState(null);
   const [minRating, setMinRating] = useState(0);
+  const [hideTaken, setHideTaken] = useState(false);
 
   const user = (() => {
     try {
@@ -161,6 +162,7 @@ export default function Explore() {
 
   const visibleJobs = useMemo(() => {
         return jobs.filter((j) => {
+      if (hideTaken && isTakenJob(j)) return false;
       if (activeCategory !== 'all') {
         const catName = (j.categories?.category_name || 'Others').toLowerCase().replace(/\s+/g, '-');
         if (activeCategory === 'others-all') {
@@ -187,13 +189,14 @@ export default function Explore() {
       }
       return true;
     });
-  }, [jobs, activeCategory, query, budget, otherCategoryIds, minRating]);
+  }, [jobs, activeCategory, query, budget, otherCategoryIds, minRating, hideTaken]);
 
     function resetFilters() {
     setActiveCategory('all');
     setQuery('');
     setBudget(budgetBounds);
     setMinRating(0);
+    setHideTaken(false);
   }
 
 
@@ -355,6 +358,8 @@ export default function Explore() {
                   budgetBounds={budgetBounds}
                   minRating={minRating}
                   setMinRating={setMinRating}
+                  hideTaken={hideTaken}
+                  setHideTaken={setHideTaken}
                   resetFilters={resetFilters}
                   resultCount={visibleJobs.length}
                   onClose={() => setFiltersOpen(false)}
@@ -367,7 +372,7 @@ export default function Explore() {
   );
 }
 
-function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRating, resetFilters, resultCount, onClose }) {
+function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRating, hideTaken, setHideTaken, resetFilters, resultCount, onClose }) {
   return (
     <div className="card h-100">
       <div className="card-header d-flex justify-content-between align-items-center">
@@ -383,6 +388,18 @@ function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRati
             <option value={4}>4 Stars & Up</option>
             <option value={3}>3 Stars & Up</option>
           </select>
+        </div>
+        <div className="form-check mb-4">
+          <input
+            id="hideTakenJobs"
+            type="checkbox"
+            className="form-check-input"
+            checked={hideTaken}
+            onChange={(e) => setHideTaken(e.target.checked)}
+          />
+          <label htmlFor="hideTakenJobs" className="form-check-label small fw-medium text-dark">
+            Hide taken jobs
+          </label>
         </div>
         <RangeField
           label="Budget"
@@ -439,7 +456,13 @@ function RangeField({ label, unit, value, onChange, bounds, onReset }) {
   );
 }
 
+// A freelancer has already been hired (or the work is done), so it's no longer accepting proposals.
+function isTakenJob(job) {
+  return job.status === 'assigned' || job.status === 'completed';
+}
+
 function JobCard({ job, onOpen }) {
+  const isTaken = isTakenJob(job);
   const categoryName = job.categories?.category_name || 'Uncategorized';
   const posted = formatDate(job.created_at);
   const clientName = [job.users?.first_name, job.users?.last_name].filter(Boolean).join(' ') || 'customer';
@@ -447,7 +470,7 @@ function JobCard({ job, onOpen }) {
   const avatarUrl = job.users?.client_avatar_url || job.users?.avatar_url;
 
   return (
-    <div className="card h-100 border transition-all" style={{ cursor: 'pointer' }} onClick={onOpen}>
+    <div className="card h-100 border transition-all" style={{ cursor: 'pointer', opacity: isTaken ? 0.75 : 1 }} onClick={onOpen}>
       <div className="card-body d-flex flex-column p-3">
         <div className="mb-3">
           <div className="d-flex justify-content-between align-items-start mb-2 gap-2">
@@ -495,17 +518,28 @@ function JobCard({ job, onOpen }) {
             </Link>
           </div>
         </div>
+        {isTaken && (
+          <span className="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle align-self-start mb-2 px-3 py-2">
+            <i className="bi bi-lock-fill me-1"></i>Job taken
+          </span>
+        )}
         <h5 className="card-title text-dark fw-bold mb-3" style={{ fontSize: "1.15rem", lineHeight: "1.4" }}>
           {job.title || 'Untitled job'}
         </h5>
         <div className="mb-3">
           <span className="small text-muted">Budget: </span>
-          <span className="fw-bold text-success fs-6">{job.budget ? formatCurrency(job.budget, job.currency) : '—'}</span>
+          <span className="fw-bold text-success fs-6">{job.budget ? <Money amount={job.budget} currency={job.currency} /> : '—'}</span>
         </div>
         <p className="card-text small text-muted flex-grow-1" style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {job.description || 'No description provided.'}
         </p>
-        <button onClick={(e) => { e.stopPropagation(); onOpen(); }} className="btn btn-outline-dark w-100 mt-3 rounded-pill fw-medium">View & Apply</button>
+        {isTaken ? (
+          <button type="button" disabled className="btn btn-outline-secondary w-100 mt-3 rounded-pill fw-medium">
+            No longer accepting proposals
+          </button>
+        ) : (
+          <button onClick={(e) => { e.stopPropagation(); onOpen(); }} className="btn btn-outline-dark w-100 mt-3 rounded-pill fw-medium">View & Apply</button>
+        )}
       </div>
     </div>
   );

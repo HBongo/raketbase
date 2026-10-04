@@ -231,9 +231,23 @@ exports.getProposalsForJob = async (req, res) => {
 
     // Attach each bidder's average freelancer rating so the client can compare them.
     const ratings = await getRatingSummaries((proposals || []).map((p) => p.freelancer_id), 'freelancer');
+    // The accepted freelancer's contract chat, so the client can message them from here.
+    const accepted = (proposals || []).find((p) => p.status === 'accepted');
+    let acceptedConversationId = null;
+    if (accepted) {
+      const { data: contract } = await supabaseAdmin
+        .from('contracts')
+        .select('contract_id, conversations ( conversation_id )')
+        .eq('job_id', job.job_id)
+        .eq('freelancer_id', accepted.freelancer_id)
+        .maybeSingle();
+      acceptedConversationId = contract?.conversations?.conversation_id || null;
+    }
+
     const proposalsWithRatings = (proposals || []).map((p) => ({
       ...p,
       freelancer_rating: ratings[p.freelancer_id] || emptySummary('freelancer'),
+      conversation_id: p.status === 'accepted' ? acceptedConversationId : null,
     }));
 
     return res.status(200).json({ success: true, data: { job, proposals: proposalsWithRatings } });

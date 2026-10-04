@@ -15,7 +15,7 @@ exports.getAnalytics = async (req, res) => {
         .from('contracts')
         .select('contract_id', { count: 'exact', head: true })
         .in('status', ['active', 'submitted']),
-      supabaseAdmin.from('contracts').select('agreed_amount').eq('status', 'completed'),
+      supabaseAdmin.from('contracts').select('*').eq('status', 'completed'),
       supabaseAdmin
         .from('disputes')
         .select('dispute_id', { count: 'exact', head: true })
@@ -28,7 +28,7 @@ exports.getAnalytics = async (req, res) => {
     if (disputesError) throw disputesError;
 
     const platformRevenue = (completedContracts || []).reduce(
-      (sum, c) => sum + Number(c.agreed_amount || 0),
+      (sum, c) => sum + Number(c.released_amount ?? c.agreed_amount ?? 0),
       0
     );
 

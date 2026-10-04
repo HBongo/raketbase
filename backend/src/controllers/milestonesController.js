@@ -115,12 +115,6 @@ exports.submitMilestone = async (req, res) => {
       return res.status(403).json({ success: false, error: 'Only the assigned freelancer can submit milestone work' });
     }
 
-    // Auto-align active role if user is in customer mode
-    if (req.user.active_role !== 'freelancer') {
-      await supabaseAdmin.from('users').update({ active_role: 'freelancer' }).eq('user_id', userId);
-      req.user.active_role = 'freelancer';
-    }
-
     if (!deliverable_url) {
       return res.status(400).json({
         success: false,
@@ -221,11 +215,6 @@ exports.approveMilestone = async (req, res) => {
       return res.status(403).json({ success: false, error: 'Only the client can approve deliverables and release funds' });
     }
 
-    // Auto-align active role if user is in freelancer mode
-    if (req.user.active_role !== 'customer') {
-      await supabaseAdmin.from('users').update({ active_role: 'customer' }).eq('user_id', userId);
-      req.user.active_role = 'customer';
-    }
     if (contract.status !== 'active') {
       return res.status(409).json({ success: false, error: `Cannot approve work on a contract that is currently '${contract.status}'` });
     }

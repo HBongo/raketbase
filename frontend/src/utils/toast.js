@@ -19,13 +19,17 @@ export function dismissToast() {
 /**
  * Show a floating toast notification.
  * @param {string} message
- * @param {number|{ duration?: number, loading?: boolean }} [options=4000]
+ * @param {number|{ duration?: number, loading?: boolean, type?: 'success'|'error'|'info' }} [options=4000]
+ *   type defaults to 'success'. Errors stay 6 seconds unless a duration is given.
  */
 export function showToast(message, options = 4000) {
   clearTimeout(timer);
-  const duration = typeof options === 'number' ? options : (options?.duration !== undefined ? options.duration : 4000);
-  const loading = typeof options === 'object' && options !== null ? !!options.loading : false;
-  toast = { id: Date.now(), message, duration, loading };
+  const opts = typeof options === 'object' && options !== null ? options : {};
+  const type = ['success', 'error', 'info'].includes(opts.type) ? opts.type : 'success';
+  const defaultDuration = type === 'error' ? 6000 : 4000;
+  const duration = typeof options === 'number' ? options : (opts.duration !== undefined ? opts.duration : defaultDuration);
+  const loading = !!opts.loading;
+  toast = { id: Date.now(), message, duration, loading, type };
   emit();
   if (duration > 0 && !loading) {
     timer = setTimeout(dismissToast, duration);

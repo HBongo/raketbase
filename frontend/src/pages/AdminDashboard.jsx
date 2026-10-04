@@ -9,7 +9,7 @@ import {
   getAdminJobs,
   takedownJob,
 } from '../services/api';
-import { formatCurrency } from '../utils/formatters';
+import Money from '../components/Money';
 
 const MOCK_ANALYTICS = {
   total_users: 24,
@@ -295,7 +295,7 @@ export default function AdminDashboard() {
                   <div className="card-body">
                     <h6 className="card-title text-muted small mb-1 fw-medium">Platform Revenue</h6>
                     <h3 className="fw-bold mb-1 text-success">
-                      ₱{Number(analytics.platform_revenue).toLocaleString()}
+                      <Money amount={Number(analytics.platform_revenue) || 0} currency="PHP" />
                     </h3>
                     <small className="text-muted" style={{ fontSize: '11px' }}>From completed contracts</small>
                   </div>
@@ -336,7 +336,7 @@ export default function AdminDashboard() {
                             {d.contracts?.jobs?.title || 'Contract dispute'}
                           </h6>
                           <p className="text-muted mt-1 mb-0" style={{ fontSize: '12px' }}>
-                            {formatCurrency(d.contracts?.agreed_amount, d.contracts?.jobs?.currency)} in escrow ·{' '}
+                            <Money amount={d.contracts?.agreed_amount} currency={d.contracts?.jobs?.currency} /> in escrow ·{' '}
                             {new Date(d.created_at).toLocaleDateString()}
                           </p>
                         </div>
@@ -420,7 +420,7 @@ export default function AdminDashboard() {
                               {j.title}
                             </Link>
                             <small className="text-muted" style={{ fontSize: '12px' }}>
-                              {j.categories?.category_name || 'Uncategorized'} · {formatCurrency(j.budget, j.currency)} ·{' '}
+                              {j.categories?.category_name || 'Uncategorized'} · <Money amount={j.budget} currency={j.currency} /> ·{' '}
                               {new Date(j.created_at).toLocaleDateString()}
                             </small>
                             {j.status === 'removed' && j.removal_reason && (
@@ -535,7 +535,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="modal-body">
                   <p className="text-muted small mb-3">
-                    {resolvingDispute.contracts?.jobs?.title} — {formatCurrency(resolvingDispute.contracts?.agreed_amount, resolvingDispute.contracts?.jobs?.currency)} in escrow
+                    {resolvingDispute.contracts?.jobs?.title} — <Money amount={resolvingDispute.contracts?.agreed_amount} currency={resolvingDispute.contracts?.jobs?.currency} /> in escrow
                   </p>
 
                   <p className="small mb-2">{resolvingDispute.reason}</p>

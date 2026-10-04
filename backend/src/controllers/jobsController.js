@@ -25,8 +25,12 @@ exports.getAllJobs = async (req, res) => {
 
     if (error) throw error;
 
+    // Jobs created from an accepted direct offer ("Hire Me") are private to the two people involved.
+    // Filtered here rather than in the query so Explore keeps working before migration 008 is run.
+    const listed = (jobs || []).filter((j) => !j.is_direct);
+
     // Stable sort: open jobs first, otherwise keep newest-first order
-    const sorted = [...jobs].sort(
+    const sorted = [...listed].sort(
       (a, b) => Number(b.status === 'open') - Number(a.status === 'open')
     );
 

@@ -500,7 +500,104 @@ async function removeAvatar(req, res) {
   });
 }
 
-module.exports = { register, login, refreshSession, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout };
+module.exports = { register, login, refreshSession, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout, forgotPassword, resetPassword, changePassword };
+
+// Same rule as registration.
+const PASSWORD_RULE = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
+const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters long, contain 1 uppercase letter and 1 number';
+
+// Reads the claims of a JWT that Supabase has already verified (via auth.getUser).
+function decodeJwtPayload(token) {
+  try {
+    return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+  } catch {
+    return {};
+  }
+}
+
+// POST /api/v1/auth/forgot-password  { email }
+// Asks Supabase to email a reset link that opens the frontend's /reset-password page.
+// Always answers the same way so the form can't be used to find out which emails have accounts.
+async function forgotPassword(req, res) {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ status: 400, message: 'Please enter a valid email address.' });
+  }
+
+  // The link must point at an address listed under Supabase Auth > URL Configuration > Redirect URLs.
+  const frontendUrl = (process.env.FRONTEND_URL || req.headers.origin || 'http://localhost:5173').replace(/\/$/, '');
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${frontendUrl}/reset-password`,
+  });
+  if (error) {
+    // Logged for debugging (e.g. email rate limit or SMTP setup), never shown to the requester.
+    console.error('resetPasswordForEmail failed:', error.message);
+  }
+
+  return res.status(200).json({
+    message: 'If an account exists for that email, a password reset link has been sent.',
+  });
+}
+
+// POST /api/v1/auth/reset-password  { access_token, password }
+// access_token comes from the emailed reset link. Only tokens issued for a password
+// recovery are accepted, so an ordinary login token can't be used to skip the current password.
+async function resetPassword(req, res) {
+  const { access_token: accessToken, password } = req.body || {};
+  if (!accessToken || typeof accessToken !== 'string') {
+    return res.status(400).json({ status: 400, message: 'This reset link is invalid. Please request a new one.' });
+  }
+  if (!password || !PASSWORD_RULE.test(password)) {
+    return res.status(400).json({ status: 400, message: PASSWORD_RULE_MESSAGE });
+  }
+
+  const { data, error } = await supabase.auth.getUser(accessToken);
+  if (error || !data?.user) {
+    return res.status(400).json({ status: 400, message: 'This reset link has expired or was already used. Please request a new one.' });
+  }
+
+  const methods = (decodeJwtPayload(accessToken).amr || []).map((a) => a.method);
+  if (!methods.some((m) => m === 'recovery' || m === 'otp')) {
+    return res.status(400).json({ status: 400, message: 'This link is not a password reset link. Please request a new one.' });
+  }
+
+  const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(data.user.id, { password });
+  if (updateError) {
+    return res.status(400).json({ status: 400, message: updateError.message });
+  }
+
+  return res.status(200).json({ message: 'Your password has been reset. You can now log in.' });
+}
+
+// PATCH /api/v1/auth/password  { current_password, new_password }  (logged in)
+async function changePassword(req, res) {
+  const { current_password: currentPassword, new_password: newPassword } = req.body || {};
+  if (!currentPassword) {
+    return res.status(400).json({ status: 400, message: 'Please enter your current password.' });
+  }
+  if (!newPassword || !PASSWORD_RULE.test(newPassword)) {
+    return res.status(400).json({ status: 400, message: PASSWORD_RULE_MESSAGE });
+  }
+  if (newPassword === currentPassword) {
+    return res.status(400).json({ status: 400, message: 'Your new password must be different from the current one.' });
+  }
+
+  // Confirm the current password before changing it.
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: req.user.email,
+    password: currentPassword,
+  });
+  if (signInError) {
+    return res.status(400).json({ status: 400, message: 'Your current password is incorrect.' });
+  }
+
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(req.user.id, { password: newPassword });
+  if (error) {
+    return res.status(400).json({ status: 400, message: error.message });
+  }
+
+  return res.status(200).json({ message: 'Password updated successfully.' });
+}
 
 // POST /api/v1/auth/logout
 // Securely invalidates the user's session (for stateless JWT, this signals the client to clear tokens)

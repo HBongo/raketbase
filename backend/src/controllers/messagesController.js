@@ -159,7 +159,7 @@ exports.sendMessage = async (req, res) => {
     if (!isParticipant(req.user, conversation)) {
       return res.status(403).json({ success: false, error: 'You are not a participant in this conversation' });
     }
-    if (conversation.contracts?.status === 'completed') {
+    if (['completed', 'refunded'].includes(conversation.contracts?.status)) {
       return res.status(409).json({ success: false, error: 'This job is complete — the conversation is read-only.' });
     }
     if (!content && !file) {
@@ -268,7 +268,7 @@ exports.confirmDelete = async (req, res) => {
     if (!isParticipant(req.user, conversation)) {
       return res.status(403).json({ success: false, error: 'You are not a participant in this conversation' });
     }
-    if (conversation.contracts?.status !== 'completed') {
+    if (!['completed', 'refunded'].includes(conversation.contracts?.status)) {
       return res.status(409).json({
         success: false,
         error: 'This conversation can only be deleted once the contract is completed.',

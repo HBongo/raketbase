@@ -37,8 +37,8 @@ function CustomAutocomplete({ value, onChange, options, placeholder, disabled, i
           zIndex: 50,
           maxHeight: '180px',
           overflowY: 'auto',
-          backgroundColor: '#1D2129',
-          border: '1px solid #262B36',
+          backgroundColor: 'var(--auth-surface)',
+          border: '1px solid var(--auth-border)',
           borderRadius: '6px',
           listStyle: 'none',
           padding: '4px 0',
@@ -58,12 +58,12 @@ function CustomAutocomplete({ value, onChange, options, placeholder, disabled, i
                   textAlign: 'left',
                   background: 'none',
                   border: 'none',
-                  color: '#EDEEF2',
+                  color: 'var(--auth-text)',
                   padding: '7px 12px',
                   fontSize: '13px',
                   cursor: 'pointer'
                 }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#252B37'}
+                onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--auth-surface-alt)'}
                 onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
               >
                 {opt}
@@ -96,9 +96,11 @@ const ALLOWED_EMAIL_DOMAINS = [
 ];
 
 export default function Register() {
+  // Auth pages always open in light mode; the corner button toggles dark mode for this page only.
+  const [isDarkMode, setIsDarkMode] = useState(false);
   useEffect(() => {
-    document.body.classList.remove('dark-mode');
-  }, []);
+    document.body.classList.toggle('dark-mode', isDarkMode);
+  }, [isDarkMode]);
 
   const navigate = useNavigate();
 
@@ -277,25 +279,25 @@ export default function Register() {
             style={{ height: '46px', width: 'auto', objectFit: 'contain' }} 
           />
           <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.5rem', letterSpacing: '0.5px', display: 'flex', alignItems: 'center' }}>
-            <span style={{ fontWeight: 800, color: '#EDEEF2' }}>RAKET</span>
-            <span style={{ fontWeight: 400, color: '#EDEEF2' }}>BASE</span>
+            <span style={{ fontWeight: 800, color: 'var(--auth-text)' }}>RAKET</span>
+            <span style={{ fontWeight: 400, color: 'var(--auth-text)' }}>BASE</span>
           </div>
         </div>
 
         <div style={{ maxWidth: '320px' }}>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.875rem', fontWeight: 500, lineHeight: 1.3, marginBottom: '0.75rem', color: '#EDEEF2' }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.875rem', fontWeight: 500, lineHeight: 1.3, marginBottom: '0.75rem', color: 'var(--auth-text)' }}>
             Built for the people who get things done.
           </h1>
-          <p style={{ color: '#8D93A3', fontSize: '15px', lineHeight: 1.6 }}>
+          <p style={{ color: 'var(--auth-muted)', fontSize: '15px', lineHeight: 1.6 }}>
             Post the work. Find the work. RaketBase connects clients and freelancers directly.
           </p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: '#262B36', width: '70%' }} />
-          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: '#262B36', width: '45%' }} />
-          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: '#262B36', width: '85%' }} />
-          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: '#262B36', width: '30%' }} />
+          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: 'var(--auth-border)', width: '70%' }} />
+          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: 'var(--auth-border)', width: '45%' }} />
+          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: 'var(--auth-border)', width: '85%' }} />
+          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: 'var(--auth-border)', width: '30%' }} />
         </div>
       </div>
 
@@ -312,21 +314,21 @@ export default function Register() {
                 style={{ height: '38px', width: 'auto', objectFit: 'contain' }} 
               />
               <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.35rem', letterSpacing: '0.5px', display: 'flex', alignItems: 'center' }}>
-                <span style={{ fontWeight: 800, color: '#EDEEF2' }}>RAKET</span>
-                <span style={{ fontWeight: 400, color: '#EDEEF2' }}>BASE</span>
+                <span style={{ fontWeight: 800, color: 'var(--auth-text)' }}>RAKET</span>
+                <span style={{ fontWeight: 400, color: 'var(--auth-text)' }}>BASE</span>
               </div>
             </div>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 500, margin: 0, color: '#EDEEF2' }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 500, margin: 0, color: 'var(--auth-text)' }}>
               Create your account
             </h2>
-            <span style={{ fontSize: '12px', color: '#8D93A3', padding: '3px 8px', borderRadius: '12px', border: '1px solid #262B36', backgroundColor: '#141824' }}>
+            <span style={{ fontSize: '12px', color: 'var(--auth-muted)', padding: '3px 8px', borderRadius: '12px', border: '1px solid var(--auth-border)', backgroundColor: 'var(--auth-surface-alt)' }}>
               Step {step} of 2
             </span>
           </div>
-          <p style={{ color: '#8D93A3', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+          <p style={{ color: 'var(--auth-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
             {step === 1 ? 'Start posting jobs or picking up work.' : 'Complete your profile credentials.'}
           </p>
 
@@ -340,7 +342,7 @@ export default function Register() {
             <form onSubmit={handleNext}>
               <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="first-name">
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="first-name">
                     First name
                   </label>
                   <input
@@ -359,7 +361,7 @@ export default function Register() {
                 </div>
 
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="last-name">
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="last-name">
                     Last name
                   </label>
                   <input
@@ -379,7 +381,7 @@ export default function Register() {
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="email">
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="email">
                   Email
                 </label>
                 <input
@@ -403,7 +405,7 @@ export default function Register() {
               </div>
 
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="role">
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="role">
                   I want to join as a:
                 </label>
                 <select
@@ -434,8 +436,8 @@ export default function Register() {
                 <>
                   <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
                     <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="title">
-                        Title <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="title">
+                        Title <span style={{ color: 'var(--auth-subtle)', fontSize: '11px' }}>(Optional)</span>
                       </label>
                       <input
                         id="title"
@@ -447,8 +449,8 @@ export default function Register() {
                       />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="rate">
-                        Rate (₱) <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="rate">
+                        Rate (₱) <span style={{ color: 'var(--auth-subtle)', fontSize: '11px' }}>(Optional)</span>
                       </label>
                       <input
                         id="rate"
@@ -463,8 +465,8 @@ export default function Register() {
 
                   <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
                     <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }}>
-                        Region <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }}>
+                        Region <span style={{ color: 'var(--auth-subtle)', fontSize: '11px' }}>(Optional)</span>
                       </label>
                       <CustomAutocomplete
                         value={region}
@@ -474,8 +476,8 @@ export default function Register() {
                       />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }}>
-                        City <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }}>
+                        City <span style={{ color: 'var(--auth-subtle)', fontSize: '11px' }}>(Optional)</span>
                       </label>
                       <CustomAutocomplete
                         value={city}
@@ -490,8 +492,8 @@ export default function Register() {
                 </>
               ) : (
                 <div style={{ marginBottom: '0.85rem' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="company">
-                    Company Name <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="company">
+                    Company Name <span style={{ color: 'var(--auth-subtle)', fontSize: '11px' }}>(Optional)</span>
                   </label>
                   <input
                     id="company"
@@ -506,7 +508,7 @@ export default function Register() {
 
               <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="password">
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="password">
                     Password
                   </label>
                   <div style={{ position: 'relative' }}>
@@ -525,7 +527,7 @@ export default function Register() {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label="Toggle password visibility"
-                      style={{ position: 'absolute', right: '0.65rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#8D93A3', cursor: 'pointer', padding: 0 }}
+                      style={{ position: 'absolute', right: '0.65rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--auth-muted)', cursor: 'pointer', padding: 0 }}
                     >
                       <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`} style={{ fontSize: '12px' }}></i>
                     </button>
@@ -533,7 +535,7 @@ export default function Register() {
                 </div>
 
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="confirmPassword">
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--auth-muted)', marginBottom: '0.35rem' }} htmlFor="confirmPassword">
                     Confirm
                   </label>
                   <div style={{ position: 'relative' }}>
@@ -552,7 +554,7 @@ export default function Register() {
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       aria-label="Toggle confirm password visibility"
-                      style={{ position: 'absolute', right: '0.65rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#8D93A3', cursor: 'pointer', padding: 0 }}
+                      style={{ position: 'absolute', right: '0.65rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--auth-muted)', cursor: 'pointer', padding: 0 }}
                     >
                       <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`} style={{ fontSize: '12px' }}></i>
                     </button>
@@ -566,21 +568,21 @@ export default function Register() {
 
               {/* Password checklist in clean dark panel */}
               <div className="auth-checklist" style={{ marginBottom: '1rem' }}>
-                <div style={{ color: '#8D93A3', fontWeight: 500, marginBottom: '4px' }}>Password must have:</div>
+                <div style={{ color: 'var(--auth-muted)', fontWeight: 500, marginBottom: '4px' }}>Password must have:</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 8px' }}>
-                  <span style={{ color: password.length >= 8 ? '#4EBA6F' : '#6A7285' }}>
+                  <span style={{ color: password.length >= 8 ? '#4EBA6F' : 'var(--auth-subtle)' }}>
                     <i className={`bi ${password.length >= 8 ? 'bi-check-circle-fill' : 'bi-circle'}`} style={{ marginRight: '4px' }}></i>
                     8+ chars
                   </span>
-                  <span style={{ color: /[A-Z]/.test(password) ? '#4EBA6F' : '#6A7285' }}>
+                  <span style={{ color: /[A-Z]/.test(password) ? '#4EBA6F' : 'var(--auth-subtle)' }}>
                     <i className={`bi ${/[A-Z]/.test(password) ? 'bi-check-circle-fill' : 'bi-circle'}`} style={{ marginRight: '4px' }}></i>
                     1 uppercase
                   </span>
-                  <span style={{ color: /\d/.test(password) ? '#4EBA6F' : '#6A7285' }}>
+                  <span style={{ color: /\d/.test(password) ? '#4EBA6F' : 'var(--auth-subtle)' }}>
                     <i className={`bi ${/\d/.test(password) ? 'bi-check-circle-fill' : 'bi-circle'}`} style={{ marginRight: '4px' }}></i>
                     1 number
                   </span>
-                  <span style={{ color: /[!@#$%^&*(),.?":{}|<>]/.test(password) ? '#4EBA6F' : '#6A7285' }}>
+                  <span style={{ color: /[!@#$%^&*(),.?":{}|<>]/.test(password) ? '#4EBA6F' : 'var(--auth-subtle)' }}>
                     <i className={`bi ${/[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'bi-check-circle-fill' : 'bi-circle'}`} style={{ marginRight: '4px' }}></i>
                     1 symbol
                   </span>
@@ -588,12 +590,12 @@ export default function Register() {
               </div>
 
               {/* Legal disclaimer */}
-              <div style={{ fontSize: '11.5px', color: '#8D93A3', marginBottom: '1rem', lineHeight: 1.5, textAlign: 'center' }}>
+              <div style={{ fontSize: '11.5px', color: 'var(--auth-muted)', marginBottom: '1rem', lineHeight: 1.5, textAlign: 'center' }}>
                 By creating an account, you agree to our{' '}
                 <button
                   type="button"
                   onClick={() => openLegalModal('terms')}
-                  style={{ background: 'transparent', border: 'none', color: '#E7B24B', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontWeight: 500 }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--auth-accent)', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontWeight: 500 }}
                   className="hover:underline"
                 >
                   Terms of Service
@@ -602,7 +604,7 @@ export default function Register() {
                 <button
                   type="button"
                   onClick={() => openLegalModal('privacy')}
-                  style={{ background: 'transparent', border: 'none', color: '#E7B24B', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontWeight: 500 }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--auth-accent)', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontWeight: 500 }}
                   className="hover:underline"
                 >
                   Privacy Notice
@@ -618,7 +620,7 @@ export default function Register() {
                 onChange={(e) => setOver18(e.target.checked)} 
                 style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#FF5A1E' }}
               />
-              <label htmlFor="over18" style={{ fontSize: '13px', color: '#EDEEF2', cursor: 'pointer', margin: 0, userSelect: 'none' }}>
+              <label htmlFor="over18" style={{ fontSize: '13px', color: 'var(--auth-text)', cursor: 'pointer', margin: 0, userSelect: 'none' }}>
                 I confirm that I am at least 18 years of age.
               </label>
             </div>
@@ -647,9 +649,9 @@ export default function Register() {
             </form>
           )}
 
-          <div style={{ marginTop: '1.5rem', fontSize: '0.875rem', color: '#8D93A3', textAlign: 'center' }}>
+          <div style={{ marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--auth-muted)', textAlign: 'center' }}>
             Already have an account?{' '}
-            <Link to="/login" style={{ color: '#E7B24B', fontWeight: 500 }} className="hover:underline">
+            <Link to="/login" style={{ color: 'var(--auth-accent)', fontWeight: 500 }} className="hover:underline">
               Log in
             </Link>
           </div>

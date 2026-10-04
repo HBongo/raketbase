@@ -57,16 +57,7 @@ exports.getContracts = async (req, res) => {
     let { data: contracts, error } = await supabaseAdmin
       .from('contracts')
       .select(`
-        contract_id,
-        job_id,
-        client_id,
-        freelancer_id,
-        agreed_amount,
-        status,
-        created_at,
-        deliverable_url,
-        deliverable_notes,
-        submitted_at,
+        *,
         jobs (
           job_id,
           title,
@@ -81,6 +72,7 @@ exports.getContracts = async (req, res) => {
           reviewee_id,
           rating
         ),
+        conversations ( conversation_id ),
         client:users!contracts_client_id_fkey (
           user_id,
           first_name,
@@ -140,6 +132,7 @@ exports.getContracts = async (req, res) => {
             reviewee_id,
             rating
           ),
+          conversations ( conversation_id ),
           client:users!contracts_client_id_fkey (
             user_id,
             first_name,
@@ -191,16 +184,7 @@ exports.getContractById = async (req, res) => {
     let { data: contract, error } = await supabaseAdmin
       .from('contracts')
       .select(`
-        contract_id,
-        job_id,
-        client_id,
-        freelancer_id,
-        agreed_amount,
-        status,
-        created_at,
-        deliverable_url,
-        deliverable_notes,
-        submitted_at,
+        *,
         jobs (
           job_id,
           title,
@@ -215,6 +199,7 @@ exports.getContractById = async (req, res) => {
           reviewee_id,
           rating
         ),
+        conversations ( conversation_id ),
         client:users!contracts_client_id_fkey (
           user_id,
           first_name,
@@ -274,6 +259,7 @@ exports.getContractById = async (req, res) => {
             reviewee_id,
             rating
           ),
+          conversations ( conversation_id ),
           client:users!contracts_client_id_fkey (
             user_id,
             first_name,
@@ -342,12 +328,6 @@ exports.submitWork = async (req, res) => {
 
     if (contract.freelancer_id !== userId) {
       return res.status(403).json({ success: false, error: 'Only the assigned freelancer can submit work' });
-    }
-
-    // Auto-align active role if caller is in client mode
-    if (req.user.active_role !== 'freelancer') {
-      await supabaseAdmin.from('users').update({ active_role: 'freelancer' }).eq('user_id', userId);
-      req.user.active_role = 'freelancer';
     }
 
     if (contract.status !== 'active') {
@@ -455,11 +435,6 @@ exports.completeContract = async (req, res) => {
 
     if (contract.client_id !== userId) {
       return res.status(403).json({ success: false, error: 'Only the client can approve deliverables and release funds' });
-    }
-
-    // Ensure user's active role is customer
-    if (req.user.active_role !== 'customer') {
-      await supabaseAdmin.from('users').update({ active_role: 'customer' }).eq('user_id', userId);
     }
 
     if (contract.status !== 'submitted') {

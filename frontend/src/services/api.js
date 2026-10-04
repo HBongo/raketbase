@@ -93,6 +93,28 @@ export function loginUser(payload) {
   });
 }
 
+export function forgotPassword(email) {
+  return request('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+// accessToken comes from the emailed reset link
+export function resetPassword(accessToken, password) {
+  return request('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ access_token: accessToken, password }),
+  });
+}
+
+export function changePassword(currentPassword, newPassword) {
+  return request('/auth/password', {
+    method: 'PATCH',
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+}
+
 export function switchRole(new_role) {
   return request('/auth/switch-role', {
     method: 'PATCH',
@@ -296,6 +318,49 @@ export function cancelDeleteConversation(id) {
   return request(`/conversations/${id}/delete-cancel`, { method: "POST" });
 }
 
+// Direct offers ("Hire Me"). payload: { freelancer_id, title, description, amount, currency, deadline?, files?: File[] }
+export function createOffer(payload) {
+  const formData = new FormData();
+  for (const key of ['freelancer_id', 'title', 'description', 'amount', 'currency', 'deadline']) {
+    if (payload[key] !== undefined && payload[key] !== null && payload[key] !== '') formData.append(key, payload[key]);
+  }
+  for (const file of payload.files || []) formData.append('files', file);
+  const token = localStorage.getItem('token');
+  return fetch(`${API_URL}/offers`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  }).then(async (r) => {
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.message || data.error || 'Could not send the offer');
+    return data;
+  });
+}
+
+export function getReceivedOffers() {
+  return request('/offers/received');
+}
+
+export function getSentOffers() {
+  return request('/offers/sent');
+}
+
+export function acceptOffer(offerId) {
+  return request(`/offers/${offerId}/accept`, { method: 'PATCH' });
+}
+
+export function declineOffer(offerId) {
+  return request(`/offers/${offerId}/decline`, { method: 'PATCH' });
+}
+
+export function withdrawOffer(offerId) {
+  return request(`/offers/${offerId}/withdraw`, { method: 'PATCH' });
+}
+
+export function getOfferFileUrl(offerId, fileId) {
+  return request(`/offers/${offerId}/files/${fileId}/download`);
+}
+
 // Notifications API
 export function getNotifications() {
   return request('/notifications');
@@ -320,6 +385,25 @@ export function getTopUsers(params = {}) {
   if (params.offset !== undefined) q.set('offset', params.offset);
   const qs = q.toString();
   return request(`/top-users${qs ? '?' + qs : ''}`);
+}
+
+// Rate the other side of a completed contract (once per contract)
+export function createReview(payload) {
+  return request('/reviews', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+// Browse Users page: everyone active in a role, with ratings and their latest 3 reviews
+export function browseUsers(params = {}) {
+  const q = new URLSearchParams();
+  if (params.role) q.set('role', params.role);
+  if (params.q) q.set('q', params.q);
+  if (params.sort) q.set('sort', params.sort);
+  if (params.limit) q.set('limit', params.limit);
+  if (params.offset !== undefined) q.set('offset', params.offset);
+  return request(`/users/browse?${q.toString()}`);
 }
 
 // Profile & Ratings API

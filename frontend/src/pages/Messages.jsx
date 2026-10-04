@@ -113,7 +113,7 @@ export default function Messages() {
       setConversations(list);
       setCached("messages_conversations", list);
     } catch (err) {
-      showToast(err.message || "Failed to load conversations");
+      showToast(err.message || "Failed to load conversations", { type: "error" });
     } finally {
       setLoadingList(false);
     }
@@ -181,6 +181,15 @@ export default function Messages() {
 
   useEffect(() => {
     if (!selectedId || !user) return;
+
+    // The app logs in through the backend, so the browser's Supabase client has no
+    // session of its own. Hand Realtime the user's token, or the messages/conversations
+    // RLS policies see an anonymous viewer and no live updates arrive.
+    const token = localStorage.getItem('token');
+    if (token && supabase.realtime?.setAuth) {
+      supabase.realtime.setAuth(token);
+    }
+
     const channel = supabase.channel(`conversation:${selectedId}`);
     channel
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${selectedId}` }, (payload) => {
@@ -290,7 +299,7 @@ export default function Messages() {
       showToast("Deletion confirmed.");
       loadConversations();
     } catch (err) {
-      showToast(err.message || "Failed to confirm deletion");
+      showToast(err.message || "Failed to confirm deletion", { type: "error" });
     } finally {
       setDeleteBusy(false);
     }
@@ -304,7 +313,7 @@ export default function Messages() {
       showToast("Deletion cancelled.");
       loadConversations();
     } catch (err) {
-      showToast(err.message || "Failed to cancel deletion");
+      showToast(err.message || "Failed to cancel deletion", { type: "error" });
     } finally {
       setDeleteBusy(false);
     }
@@ -321,7 +330,7 @@ export default function Messages() {
   const isParticipant = isClient || isFreelancer;
   const other = isClient ? active?.freelancer : active?.client;
   const contractStatus = active?.contracts?.status;
-  const isCompleted = contractStatus === "completed";
+  const isCompleted = contractStatus === "completed" || contractStatus === "refunded";
 
   const myConfirmed = isClient ? active?.client_deleted : isFreelancer ? active?.freelancer_deleted : false;
   const otherConfirmed = isClient ? active?.freelancer_deleted : isFreelancer ? active?.client_deleted : false;

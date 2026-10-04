@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { getMyJobs, getJobProposals, acceptProposal, rejectProposal, switchRole, pauseJob, resumeJob, cancelJob } from '../services/api';
 import { clearCached } from '../utils/cache';
-import { formatCurrency } from '../utils/formatters';
+import Money from '../components/Money';
 import { showToast } from '../utils/toast';
+import OffersList from '../components/OffersList';
+import PageViewTabs from '../components/PageViewTabs';
 
 export default function ClientJobView() {
   const { id } = useParams();
@@ -12,6 +14,9 @@ export default function ClientJobView() {
 
 function MyJobsList() {
   const navigate = useNavigate();
+  // ?tab=offers shows direct offers sent from freelancers' profiles ("Hire Me")
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = searchParams.get('tab') === 'offers' ? 'offers' : 'postings';
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -74,7 +79,7 @@ function MyJobsList() {
                     window.location.reload();
                   } catch (err) {
                     setSwitchingRole(false);
-                    showToast(err.message || 'Failed to switch role', 4000);
+                    showToast(err.message || 'Failed to switch role', { type: 'error' });
                   }
                 }}
                 disabled={switchingRole}
@@ -122,6 +127,19 @@ function MyJobsList() {
         </button>
       </div>
 
+      <PageViewTabs
+        value={view}
+        onChange={(v) => setSearchParams(v === 'offers' ? { tab: 'offers' } : {})}
+        tabs={[
+          { id: 'postings', label: 'My postings', icon: 'bi-briefcase' },
+          { id: 'offers', label: 'Sent offers', icon: 'bi-send' },
+        ]}
+      />
+
+      {view === 'offers' ? (
+        <OffersList side="sent" />
+      ) : (
+      <>
       {loading && <StateCard title="Loading your postings..." />}
 
       {!loading && loadError && (
@@ -182,7 +200,7 @@ function MyJobsList() {
 
                 <div className="text-end flex-shrink-0">
                   <p className="fs-5 fw-bold mb-0" style={{ color: '#FF5A1E' }}>
-                    {job.budget ? formatCurrency(job.budget, job.currency) : '—'}
+                    {job.budget ? <Money amount={job.budget} currency={job.currency} /> : '—'}
                   </p>
                   <p className="small text-muted mb-0">
                     {job.pending_count > 0 ? `${job.pending_count} pending` : 'proposals'}
@@ -192,6 +210,8 @@ function MyJobsList() {
             </div>
           ))}
         </div>
+      )}
+      </>
       )}
     </>
   );
@@ -229,7 +249,7 @@ function ProposalsForJob({ jobId }) {
     setActioningId(proposalId);
     try {
       await acceptProposal(proposalId);
-      showToast('Proposal accepted successfully!', { type: 'success' });
+      showToast('Proposal accepted! A contract and chat were created. Use "Message" on their card to reach them.', { type: 'success', duration: 5000 });
       await load();
     } catch (err) {
       setActionError(err.message || 'Could not accept this proposal.');
@@ -318,7 +338,7 @@ function ProposalsForJob({ jobId }) {
                 <div className="text-end">
                   <p className="small text-muted mb-1">Budget</p>
                   <p className="fs-5 fw-bold mb-0" style={{ color: '#FF5A1E' }}>
-                    {job.budget ? formatCurrency(job.budget, job.currency) : '—'}
+                    {job.budget ? <Money amount={job.budget} currency={job.currency} /> : '—'}
                   </p>
                 </div>
 
@@ -471,7 +491,18 @@ function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject, currency 
               )}
               <StatusPill status={proposal.status} />
             </div>
-            <p className="small text-muted mb-1 d-flex align-items-center gap-1">
+            <p className="small text-muted mb-1 d-flex flex-wrap align-items-center gap-1">
+              {proposal.freelancer_rating?.count > 0 ? (
+                <span className="text-dark fw-semibold me-2" title="Average rating from clients">
+                  <i className="bi bi-star-fill text-warning me-1"></i>
+                  {proposal.freelancer_rating.average}
+                  <span className="text-muted fw-normal ms-1">
+                    ({proposal.freelancer_rating.count} {proposal.freelancer_rating.count === 1 ? 'review' : 'reviews'})
+                  </span>
+                </span>
+              ) : (
+                <span className="me-2"><i className="bi bi-star me-1"></i>No reviews yet</span>
+              )}
               <i className="bi bi-clock"></i>
               Submitted {formatDate(proposal.submitted_at)}
             </p>
@@ -480,7 +511,7 @@ function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject, currency 
             )}
           </div>
           <h4 className="fw-bold mb-0 flex-shrink-0" style={{ color: '#FF5A1E' }}>
-            {formatCurrency(proposal.bid_amount, currency)}
+            <Money amount={proposal.bid_amount} currency={currency} />
           </h4>
         </div>
 
@@ -505,6 +536,22 @@ function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject, currency 
             >
               {busy ? 'Working...' : 'Reject'}
             </button>
+          </div>
+        )}
+
+        {/* Accepted: the contract chat is the place to talk to the hired freelancer */}
+        {proposal.status === 'accepted' && proposal.conversation_id && (
+          <div className="d-flex flex-wrap align-items-center gap-2 mt-4 pt-3 border-top">
+            <Link
+              to={`/messages/${proposal.conversation_id}`}
+              className="btn btn-sm fw-medium px-4 text-white"
+              style={{ backgroundColor: '#FF5A1E', borderColor: '#FF5A1E' }}
+            >
+              <i className="bi bi-chat-dots me-1"></i>Message {name}
+            </Link>
+            <Link to="/dashboard" className="btn btn-sm btn-outline-secondary fw-medium px-3">
+              View contract
+            </Link>
           </div>
         )}
       </div>

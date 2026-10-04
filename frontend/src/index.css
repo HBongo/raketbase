@@ -20,6 +20,27 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Auth page text/surface colors used by inline styles in Login.jsx and Register.jsx,
+   so they follow the light/dark toggle instead of being fixed to the dark palette. */
+:root {
+  --auth-text: #1E293B;
+  --auth-muted: #64748B;
+  --auth-subtle: #94A3B8;
+  --auth-border: #E2E8F0;
+  --auth-surface: #FFFFFF;
+  --auth-surface-alt: #F1F5F9;
+  --auth-accent: #B7791F;
+}
+body.dark-mode {
+  --auth-text: #EDEEF2;
+  --auth-muted: #8D93A3;
+  --auth-subtle: #6A7285;
+  --auth-border: #262B36;
+  --auth-surface: #1D2129;
+  --auth-surface-alt: #141824;
+  --auth-accent: #E7B24B;
+}
+
 /* ── GitHub main Dark Split-Screen System ── */
 .auth-split-wrapper {
   background-color: #F8FAFC !important;

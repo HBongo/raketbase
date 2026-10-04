@@ -42,6 +42,17 @@ exports.createDispute = async (req, res) => {
       return res.status(403).json({ success: false, error: 'You are not a participant in this contract' });
     }
 
+    // Only work that's still in progress can be disputed; finished or already-disputed
+    // contracts can't be reopened this way.
+    if (!['active', 'submitted'].includes(contract.status)) {
+      return res.status(409).json({
+        success: false,
+        error: contract.status === 'disputed'
+          ? 'This contract already has an open dispute.'
+          : `Disputes can only be filed on contracts that are in progress (this one is '${contract.status}').`,
+      });
+    }
+
     // Fold category + evidence into the single `reason` column until schema adds a
     // dedicated evidence_summary field.
     const reason = `[${reason_category}] ${evidence_summary.trim()}`;
@@ -183,7 +194,7 @@ exports.resolveDispute = async (req, res) => {
 
     const { data: dispute, error: fetchError } = await supabaseAdmin
       .from('disputes')
-      .select('dispute_id, contract_id, status, contracts(client_id, freelancer_id, jobs(title))')
+      .select('dispute_id, contract_id, status, contracts(client_id, freelancer_id, job_id, agreed_amount, jobs(title))')
       .eq('dispute_id', dispute_id)
       .single();
 
@@ -206,6 +217,36 @@ exports.resolveDispute = async (req, res) => {
     }
     const resolutionNotes = `${resolutionLabels[resolution]}${trimmedNotes ? ` — ${trimmedNotes}` : ''}`;
 
+    // Apply the outcome to the contract and job first, so a failure (e.g. migration 009
+    // not run yet) leaves the dispute open instead of half-resolved.
+    //   release -> completed, full amount        job completed
+    //   split   -> completed, half released      job completed
+    //   refund  -> refunded, nothing released    job cancelled
+    if (dispute.contract_id && dispute.contracts) {
+      const agreed = Number(dispute.contracts.agreed_amount) || 0;
+      const outcome = {
+        release_freelancer: { contract: { status: 'completed', released_amount: null }, job: 'completed' },
+        split: { contract: { status: 'completed', released_amount: Math.round((agreed / 2) * 100) / 100 }, job: 'completed' },
+        refund_client: { contract: { status: 'refunded', released_amount: 0 }, job: 'cancelled' },
+      }[resolution];
+
+      const { error: contractError } = await supabaseAdmin
+        .from('contracts')
+        .update(outcome.contract)
+        .eq('contract_id', dispute.contract_id);
+      if (contractError) {
+        console.error('Dispute outcome could not be applied to the contract:', contractError.message);
+        return res.status(500).json({
+          success: false,
+          error: 'Could not update the contract for this outcome. Make sure migration 009 has been run, then try again.',
+        });
+      }
+
+      if (dispute.contracts.job_id) {
+        await supabaseAdmin.from('jobs').update({ status: outcome.job }).eq('job_id', dispute.contracts.job_id);
+      }
+    }
+
     const { data: updatedDispute, error: updateError } = await supabaseAdmin
       .from('disputes')
       .update({
@@ -219,19 +260,13 @@ exports.resolveDispute = async (req, res) => {
 
     if (updateError) throw updateError;
 
-    // Move the underlying contract out of 'disputed' once resolved.
     if (dispute.contract_id) {
-      await supabaseAdmin
-        .from('contracts')
-        .update({ status: 'completed' })
-        .eq('contract_id', dispute.contract_id);
-
       // Let both parties know the outcome in their contract chat.
       await postSystemMessage(dispute.contract_id, staffId, `Dispute resolved by admin: ${resolutionNotes}`);
 
       const parties = dispute.contracts;
       if (parties) {
-        const title = `Dispute resolved on "${parties.jobs?.title || 'your contract'}"`;
+        const title = `Dispute resolved on "${parties.jobs?.title || 'your contract'}" — you can now rate each other`;
         await notify([
           { user_id: parties.client_id, type: 'dispute_resolved', role: 'customer', title, body: resolutionNotes, link: '/dashboard' },
           { user_id: parties.freelancer_id, type: 'dispute_resolved', role: 'freelancer', title, body: resolutionNotes, link: '/dashboard' },

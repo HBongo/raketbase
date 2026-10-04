@@ -226,7 +226,7 @@ export default function CreateJob() {
       window.location.reload();
     } catch (err) {
       setError(err.message || 'Failed to switch to customer mode');
-      showToast(err.message || 'Failed to switch mode', 4000);
+      showToast(err.message || 'Failed to switch mode', { type: 'error' });
       setSwitchingRole(false);
     }
   }

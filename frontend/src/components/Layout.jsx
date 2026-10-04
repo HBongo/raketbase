@@ -4,6 +4,7 @@ import { clearCached } from '../utils/cache';
 import { switchRole } from '../services/api';
 import { showToast } from '../utils/toast';
 import NotificationBell from './NotificationBell';
+import CurrencySelector from './CurrencySelector';
 
 const FreelancerIcon = () => (
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -37,11 +38,7 @@ export default function Layout() {
   function handleSearchSubmit(e) {
     e.preventDefault();
     const q = navSearch.trim();
-    if (location.pathname.startsWith('/top-users')) {
-      navigate(q ? `/top-users?q=${encodeURIComponent(q)}` : '/top-users');
-    } else {
-      navigate(q ? `/explore?q=${encodeURIComponent(q)}` : '/explore');
-    }
+    navigate(q ? `/explore?q=${encodeURIComponent(q)}` : '/explore');
   }
 
   function handleSearchChange(e) {
@@ -49,8 +46,6 @@ export default function Layout() {
     setNavSearch(val);
     if (location.pathname.startsWith('/explore')) {
       navigate(val.trim() ? `/explore?q=${encodeURIComponent(val)}` : '/explore', { replace: true });
-    } else if (location.pathname.startsWith('/top-users')) {
-      navigate(val.trim() ? `/top-users?q=${encodeURIComponent(val)}` : '/top-users', { replace: true });
     }
   }
 
@@ -141,7 +136,7 @@ export default function Layout() {
       }
     } catch (err) {
       console.error('Failed to switch role:', err);
-      showToast(err.message || 'Failed to switch role', 4000);
+      showToast(err.message || 'Failed to switch role', { type: 'error' });
       setIsSwitchingRole(false);
     }
   };
@@ -170,8 +165,8 @@ export default function Layout() {
                 </Link>
               </li>
               <li className="sidebar-menu-item">
-                <Link to="/top-users" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isActive('/top-users')}`}>
-                  <i className="bi bi-star"></i><span>Top Freelancers</span>
+                <Link to="/browse" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isActive('/browse')}`}>
+                  <i className="bi bi-people"></i><span>Browse Users</span>
                 </Link>
               </li>
               <li className="sidebar-menu-item">
@@ -254,7 +249,7 @@ export default function Layout() {
 
           <div className="navbar-search-wrapper mx-3">
             {!location.pathname.startsWith('/explore') &&
-             (location.pathname.includes('/top-users') || location.pathname.includes('/messages') || location.pathname.includes('/my-proposals')) && (
+             (location.pathname.includes('/messages') || location.pathname.includes('/my-proposals')) && (
               <form onSubmit={handleSearchSubmit} className="d-flex align-items-center w-100 position-relative">
                 <input
                   type="text"
@@ -271,6 +266,7 @@ export default function Layout() {
           </div>
 
           <div className="navbar-actions d-flex align-items-center gap-3">
+            <CurrencySelector />
             <NotificationBell />
             <button
               type="button"

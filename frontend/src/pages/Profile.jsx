@@ -7,32 +7,37 @@
 // 5. Spark Admin layout (sidebar + navbar)
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { getFreelancerProfile, updateProfile } from '../services/api';
+import { getFreelancerProfile, updateProfile, changePassword } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
-import { supabase } from '../config/supabaseClient';
 import { showToast } from '../utils/toast';
+import Money from '../components/Money';
+import HireMeModal from '../components/HireMeModal';
 
 function SecurityTab() {
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  const isFormValid = newPassword.length >= 6 && newPassword === confirmPassword;
+  // Same rule as sign-up: 8+ characters, 1 uppercase letter, 1 number
+  const meetsRule = /^(?=.*[A-Z])(?=.*\d).{8,}$/.test(newPassword);
+  const isFormValid = currentPassword && meetsRule && newPassword === confirmPassword;
 
   async function handleUpdatePassword(e) {
     e.preventDefault();
     if (!isFormValid || isSubmitting) return;
 
+    setFormError('');
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      
-      showToast('Password updated successfully', { type: 'success' });
+      await changePassword(currentPassword, newPassword);
+      showToast('Password updated successfully', 4000);
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
-      showToast(err.message || 'Failed to update password', { type: 'error' });
+      setFormError(err.message || 'Failed to update password');
     } finally {
       setIsSubmitting(false);
     }
@@ -45,16 +50,37 @@ function SecurityTab() {
       </div>
       <div className="card-body px-4 pb-4 mt-3">
         <form onSubmit={handleUpdatePassword}>
+          {formError && (
+            <div className="alert alert-danger py-2 small" role="alert">{formError}</div>
+          )}
           <div className="mb-3">
-            <label className="form-label small fw-medium text-dark">New Password</label>
-            <input 
-              type="password" 
-              className="form-control bg-light" 
-              placeholder="Enter new password (min. 6 characters)"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+            <label className="form-label small fw-medium text-dark" htmlFor="current-password">Current Password</label>
+            <input
+              id="current-password"
+              type="password"
+              className="form-control bg-light"
+              placeholder="Enter your current password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
               disabled={isSubmitting}
             />
+          </div>
+          <div className="mb-3">
+            <label className="form-label small fw-medium text-dark" htmlFor="new-password">New Password</label>
+            <input
+              id="new-password"
+              type="password"
+              className={`form-control bg-light ${newPassword && !meetsRule ? 'is-invalid border-danger' : ''}`}
+              placeholder="At least 8 characters, 1 uppercase letter, 1 number"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              disabled={isSubmitting}
+            />
+            {newPassword && !meetsRule && (
+              <div className="invalid-feedback">Use at least 8 characters, including 1 uppercase letter and 1 number</div>
+            )}
           </div>
           <div className="mb-4">
             <label className="form-label small fw-medium text-dark">Confirm New Password</label>
@@ -155,6 +181,7 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
     const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'about');
+  const [showHireModal, setShowHireModal] = useState(false);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -507,7 +534,7 @@ export default function Profile() {
                         {editing ? (
                           <input type="number" className="form-control form-control-sm bg-white text-center fw-bold" value={form.hourly_rate} onChange={(e) => handleChange('hourly_rate', e.target.value)} placeholder="0" />
                         ) : (
-                          <div className="fw-bold text-success fs-6">₱{f.hourly_rate ? Number(f.hourly_rate).toLocaleString() : '—'}</div>
+                          <div className="fw-bold text-success fs-6">{f.hourly_rate ? <Money amount={Number(f.hourly_rate)} currency="PHP" /> : '—'}</div>
                         )}
                         <div className="text-muted" style={{ fontSize: '0.7rem' }}>/hour</div>
                       </div>
@@ -588,7 +615,21 @@ export default function Profile() {
                     <>
                       <hr className="my-3" />
                       <div className="d-grid gap-2">
-                        <button className="btn btn-dark rounded-pill fw-medium py-2"><i className="bi bi-briefcase me-2"></i>Hire Me</button>
+                        <button
+                          type="button"
+                          className="btn btn-dark rounded-pill fw-medium py-2"
+                          onClick={() => {
+                            // Only clients can send offers
+                            if (user.active_role !== 'customer') {
+                              showToast('Switch to Client mode to hire this freelancer.', { type: 'info' });
+                              return;
+                            }
+                            setShowHireModal(true);
+                          }}
+                          title={user.active_role === 'customer' ? 'Send this freelancer a direct offer' : 'Switch to Client mode to hire'}
+                        >
+                          <i className="bi bi-briefcase me-2"></i>Hire Me
+                        </button>
                         <button className="btn btn-outline-dark rounded-pill fw-medium py-2"><i className="bi bi-chat-dots me-2"></i>Message</button>
                       </div>
                     </>
@@ -720,7 +761,7 @@ export default function Profile() {
                                   <i className="bi bi-cash-stack text-warning"></i>
                                 </div>
                                 <div>
-                                  <div className="fw-bold text-dark">₱{(f.total_earnings || 0).toLocaleString()}</div>
+                                  <div className="fw-bold text-dark"><Money amount={f.total_earnings || 0} currency="PHP" /></div>
                                   <div className="text-muted small">Total earnings on RaketBase</div>
                                 </div>
                               </div>
@@ -869,7 +910,18 @@ export default function Profile() {
             </div>
           </div>
         )}
-      
+
+      {showHireModal && (
+        <HireMeModal
+          freelancerId={id}
+          freelancerName={[f.first_name, f.last_name].filter(Boolean).join(' ') || 'this freelancer'}
+          onClose={() => setShowHireModal(false)}
+          onSent={() => {
+            setShowHireModal(false);
+            showToast('Offer sent! Track it under My Postings → Sent offers.', 5000);
+          }}
+        />
+      )}
     </>
   );
 }

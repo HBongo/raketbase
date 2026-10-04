@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { getTopUsers } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
 import BackToTop from '../components/BackToTop';
+import Money from '../components/Money';
 
 const PAGE_SIZE = 12;
 
@@ -49,7 +50,8 @@ function TopUsersSkeleton() {
   );
 }
 
-export default function TopUsers() {
+// embedded: shown as the "Top users" view inside Browse Users, which supplies the page title.
+export default function TopUsers({ embedded = false }) {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') === 'clients' ? 'clients' : 'freelancers';
@@ -148,7 +150,13 @@ export default function TopUsers() {
       setUsers([]);
       setLoading(true);
     }
-    setSearchParams(next === 'clients' ? { tab: 'clients' } : {});
+    // Keep other params (e.g. Browse Users' view=top) when switching tabs
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (next === 'clients') params.set('tab', 'clients');
+      else params.delete('tab');
+      return params;
+    });
   }
 
   function resetFilters() {
@@ -169,10 +177,10 @@ export default function TopUsers() {
         </div>
       )}
 
-      <div className="page-header">
+      <div className={embedded ? 'd-flex justify-content-between align-items-start gap-2 mb-3' : 'page-header'}>
         <div>
-          <h1 className="page-title">Top users</h1>
-          <p className="page-subtitle">
+          {!embedded && <h1 className="page-title">Top users</h1>}
+          <p className={embedded ? 'text-muted small mb-0' : 'page-subtitle'}>
             Ranked by average rating. Only {who} with at least {minReviews} reviews are listed.
           </p>
         </div>
@@ -434,12 +442,14 @@ function TopUserCard({ user, role, rank }) {
         />
         <h5 className="card-title fw-bold mb-1">{user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.name || user.full_name || 'User'}</h5>
         <div className="mb-2">
-           <span className="text-warning"><i className="bi bi-star-fill"></i> {user.average_rating ? Number(user.average_rating).toFixed(1) : "0.0"}</span>
-           <span className="text-muted small ms-1">({user.review_count || 0} reviews)</span>
+           <span className="text-warning"><i className="bi bi-star-fill"></i> {user.average != null ? Number(user.average).toFixed(1) : "0.0"}</span>
+           <span className="text-muted small ms-1">({user.count || 0} reviews)</span>
         </div>
         <div className="text-muted small mb-3">
           {isFreelancer ? 'Avg Price: ' : 'Avg Budget: '}
-          <span className="fw-medium text-dark">₱{Number(user.average_price || user.average_budget || 0).toLocaleString()}</span>
+          <span className="fw-medium text-dark">
+            {user.avg_price != null ? <Money amount={Number(user.avg_price)} currency="PHP" /> : '—'}
+          </span>
         </div>
         <Link to={`/profile/${user.user_id || user.id}`} className="btn btn-outline-dark btn-sm w-100 rounded-pill">
           View Profile

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { formatCurrency, getCurrencySymbol } from '../utils/formatters';
+import { getCurrencySymbol } from '../utils/formatters';
+import Money from '../components/Money';
 import { showToast } from '../utils/toast';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
@@ -367,7 +368,7 @@ export default function JobDetail() {
                   <div className="card-body p-4">
                     <p className="text-muted small fw-medium text-uppercase mb-1">Budget</p>
                     <h3 className="fw-bold text-success mb-4">
-                      {job.budget ? formatCurrency(job.budget, job.currency) : '—'}
+                      {job.budget ? <Money amount={job.budget} currency={job.currency} /> : '—'}
                     </h3>
                     
                     {alreadyApplied && (
@@ -520,7 +521,7 @@ export default function JobDetail() {
                                 </button>
                                 <div className="text-end">
                                   <span className="small text-muted me-2">Total Bid:</span>
-                                  <span className="fw-bold text-success">{formatCurrency(milestoneTotal, job?.currency)}</span>
+                                  <span className="fw-bold text-success"><Money amount={milestoneTotal} currency={job?.currency} /></span>
                                 </div>
                               </div>
 

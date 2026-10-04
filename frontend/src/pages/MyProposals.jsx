@@ -2,10 +2,13 @@
 // Lets a freelancer withdraw a pending proposal, and later restore
 // (unwithdraw) it — either as-is or with an edited bid/cover letter.
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { getMyProposals, withdrawProposal, unwithdrawProposal } from '../services/api';
+import OffersList from '../components/OffersList';
+import PageViewTabs from '../components/PageViewTabs';
 import { getCached, setCached } from '../utils/cache';
-import { formatCurrency, getCurrencySymbol } from '../utils/formatters';
+import { getCurrencySymbol } from '../utils/formatters';
+import Money from '../components/Money';
 import BackToTop from '../components/BackToTop';
 
 const FILTERS = [
@@ -42,6 +45,9 @@ function ProposalsSkeleton() {
 
 export default function MyProposals() {
   const cachedProposals = getCached('my_proposals');
+  // ?tab=offers shows direct offers from clients ("Hire Me") instead of proposals
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = searchParams.get('tab') === 'offers' ? 'offers' : 'proposals';
 
   const [proposals, setProposals] = useState(cachedProposals || []);
   const [loading, setLoading] = useState(!cachedProposals);
@@ -128,6 +134,18 @@ export default function MyProposals() {
         </div>
       </div>
 
+      <PageViewTabs
+        value={view}
+        onChange={(v) => setSearchParams(v === 'offers' ? { tab: 'offers' } : {})}
+        tabs={[
+          { id: 'proposals', label: 'My proposals', icon: 'bi-file-earmark-text' },
+          { id: 'offers', label: 'Offers received', icon: 'bi-envelope-paper' },
+        ]}
+      />
+
+      {view === 'offers' ? (
+        <OffersList side="received" />
+      ) : (
       <div className="row g-4 mb-4">
         <div className="col-12">
           {/* Status filter tabs */}
@@ -200,7 +218,8 @@ export default function MyProposals() {
             )}
           </div>
         </div>
-      
+      )}
+
       <BackToTop />
     </>
   );
@@ -256,7 +275,7 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
             </p>
           </div>
           <p className="fs-5 fw-bold text-success mb-0">
-            {formatCurrency(proposal.bid_amount, proposal.jobs?.currency)}
+            <Money amount={proposal.bid_amount} currency={proposal.jobs?.currency} />
           </p>
         </div>
 

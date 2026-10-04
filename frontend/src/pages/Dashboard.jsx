@@ -21,6 +21,8 @@ import {
 } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
 import { formatCurrency } from '../utils/formatters';
+import Money from '../components/Money';
+import RateContractModal from '../components/RateContractModal';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -68,6 +70,9 @@ export default function Dashboard() {
 
   // Milestone stages accordion state
   const [expandedContractId, setExpandedContractId] = useState(null);
+
+  // Rating modal: { contract, revieweeRole, revieweeName } while open, null when closed
+  const [ratingTarget, setRatingTarget] = useState(null);
 
   const loadData = useCallback(async (isRefresh = false) => {
     const token = localStorage.getItem('token');
@@ -224,7 +229,10 @@ export default function Dashboard() {
 
   // Summary metrics calculation
   const activeContracts = contracts.filter((c) => c.status === 'active' || c.status === 'submitted');
-  const totalAgreedEscrow = contracts.reduce((sum, c) => sum + Number(c.agreed_amount || 0), 0);
+  // Refunded contracts count for nothing; after a split dispute only the released half counts.
+  const totalAgreedEscrow = contracts
+    .filter((c) => c.status !== 'refunded')
+    .reduce((sum, c) => sum + Number(c.released_amount ?? c.agreed_amount ?? 0), 0);
   const pendingProposalsCount = isCustomer
     ? clientJobs.reduce((sum, j) => sum + (j.pending_count || 0), 0)
     : proposals.filter((p) => p.status === 'pending').length;
@@ -301,7 +309,7 @@ export default function Dashboard() {
                     <h2 className="card-title" style={{ fontSize: "1.2rem" }}>{user.active_role === 'customer' ? 'Total Escrow Funded' : 'Total Contract Value'}</h2>
                   </div>
                   <div className="stat-value">
-                    {loading ? <div className="skeleton-box mt-1" style={{ width: 120, height: 32 }} /> : formatCurrency(totalAgreedEscrow, 'PHP')}
+                    {loading ? <div className="skeleton-box mt-1" style={{ width: 120, height: 32 }} /> : <Money amount={totalAgreedEscrow} currency="PHP" />}
                   </div>
                   <div className="trend-badge trend-up">
                     <i className="bi bi-shield-check"></i>
@@ -421,13 +429,15 @@ export default function Dashboard() {
                             </div>
                           </td>
                           <td className="px-2">
-                            <div className="fw-bold text-success">{formatCurrency(c.agreed_amount, c.jobs?.currency)}</div>
+                            <div className="fw-bold text-success"><Money amount={c.agreed_amount} currency={c.jobs?.currency} /></div>
                           </td>
                           <td>
                             {isMilestoneContract ? (
                               <span
                                 className={`badge rounded-pill px-3 py-2 fw-medium ${
-                                  c.status === 'completed'
+                                  c.status === 'refunded'
+                                    ? 'bg-secondary text-white'
+                                    : c.status === 'completed'
                                     ? 'bg-success text-white'
                                     : submittedMilestone
                                     ? 'bg-warning text-dark'
@@ -435,7 +445,11 @@ export default function Dashboard() {
                                 }`}
                                 style={{ fontSize: '0.85rem' }}
                               >
-                                {c.status === 'completed'
+                                {c.status === 'refunded'
+                                  ? 'Refunded'
+                                  : c.status === 'completed' && c.released_amount != null
+                                  ? 'Completed (split)'
+                                  : c.status === 'completed'
                                   ? 'All Completed'
                                   : submittedMilestone
                                   ? `Stage ${submittedMilestone.sequence} Under Review`
@@ -446,7 +460,9 @@ export default function Dashboard() {
                             ) : (
                               <span
                                 className={`badge rounded-pill px-3 py-2 fw-medium ${
-                                  c.status === 'completed'
+                                  c.status === 'refunded'
+                                    ? 'bg-secondary text-white'
+                                    : c.status === 'completed'
                                     ? 'bg-success text-white'
                                     : c.status === 'submitted'
                                     ? 'bg-warning text-dark'
@@ -454,7 +470,7 @@ export default function Dashboard() {
                                 }`}
                                 style={{ fontSize: '0.85rem' }}
                               >
-                                {c.status === 'submitted' ? 'Under Review' : c.status}
+                                {c.status === 'submitted' ? 'Under Review' : c.status === 'refunded' ? 'Refunded' : c.status === 'completed' && c.released_amount != null ? 'Completed (split)' : c.status}
                               </span>
                             )}
                           </td>
@@ -545,7 +561,7 @@ export default function Dashboard() {
 
                               {/* Chat conversation jump button */}
                               <Link
-                                to="/messages"
+                                to={c.conversations?.conversation_id ? `/messages/${c.conversations.conversation_id}` : '/messages'}
                                 className="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 text-decoration-none"
                                 title="Open Contract Chat"
                               >
@@ -564,6 +580,26 @@ export default function Dashboard() {
                                   <span className="small d-none d-sm-inline">Dispute</span>
                                 </Link>
                               )}
+
+                              {/* Each side rates the other once the contract is completed */}
+                              {(c.status === 'completed' || c.status === 'refunded') && (() => {
+                                const myReview = (c.reviews || []).find((r) => r.reviewer_id === currentUserId);
+                                return myReview ? (
+                                  <span className="small text-muted fw-medium text-nowrap" title="Your rating for this contract">
+                                    You rated {myReview.rating}<i className="bi bi-star-fill text-warning ms-1"></i>
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-warning rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1"
+                                    onClick={() => setRatingTarget({ contract: c, revieweeRole: isClient ? 'freelancer' : 'customer', revieweeName: partnerName })}
+                                    title={`Rate ${partnerName}`}
+                                  >
+                                    <i className="bi bi-star"></i>
+                                    <span className="small d-none d-sm-inline">Rate</span>
+                                  </button>
+                                );
+                              })()}
                             </div>
                           </td>
                         </tr>
@@ -613,7 +649,7 @@ export default function Dashboard() {
                                   <tr key={m.milestone_id}>
                                     <td className="fw-bold">{m.sequence}</td>
                                     <td>{m.title}</td>
-                                    <td className="fw-semibold text-success">{formatCurrency(m.amount, expandedContract.jobs?.currency)}</td>
+                                    <td className="fw-semibold text-success"><Money amount={m.amount} currency={expandedContract.jobs?.currency} /></td>
                                     <td>
                                       <span
                                         className={`badge rounded-pill ${
@@ -726,7 +762,7 @@ export default function Dashboard() {
                         <div className="transaction-info flex-grow-1 min-w-0 me-2">
                           <div className="transaction-name text-dark fw-semibold mb-1 text-truncate">{job.title}</div>
                           <div className="transaction-amount text-success fw-bold small">
-                            {job.pending_count > 0 ? `${job.pending_count} pending` : `${job.proposal_count} ${job.proposal_count === 1 ? 'proposal' : 'proposals'}`} · {formatCurrency(job.budget || 0, job.currency)}
+                            {job.pending_count > 0 ? `${job.pending_count} pending` : `${job.proposal_count} ${job.proposal_count === 1 ? 'proposal' : 'proposals'}`} · <Money amount={job.budget || 0} currency={job.currency} />
                           </div>
                         </div>
                         <div className="ms-auto text-end flex-shrink-0">
@@ -770,7 +806,7 @@ export default function Dashboard() {
                         </div>
                         <div className="transaction-info flex-grow-1">
                           <div className="transaction-name text-dark fw-semibold mb-1">{p.jobs?.title || 'Job Posting'}</div>
-                          <div className="transaction-amount text-success fw-bold small">{formatCurrency(p.bid_amount || 0, p.jobs?.currency)}</div>
+                          <div className="transaction-amount text-success fw-bold small"><Money amount={p.bid_amount || 0} currency={p.jobs?.currency} /></div>
                         </div>
                         <div className="ms-3 text-end">
                           <span className={`${statusClass} rounded-pill px-3 fw-medium`} style={{ pointerEvents: 'none' }}>
@@ -786,6 +822,20 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {ratingTarget && (
+        <RateContractModal
+          contract={ratingTarget.contract}
+          revieweeRole={ratingTarget.revieweeRole}
+          revieweeName={ratingTarget.revieweeName}
+          onClose={() => setRatingTarget(null)}
+          onRated={async () => {
+            setActionSuccess(`Thanks! Your rating for ${ratingTarget.revieweeName} was submitted.`);
+            setRatingTarget(null);
+            await loadData(true);
+          }}
+        />
+      )}
 
       {/* ========================================================================= */}
       {/* 1. FREELANCER SUBMIT DELIVERABLES MODAL */}
