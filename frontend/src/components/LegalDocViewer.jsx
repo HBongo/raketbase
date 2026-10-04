@@ -464,10 +464,10 @@ export default function LegalDocViewer({ docType = 'terms' }) {
   };
 
   return (
-    <div className="legal-doc-content text-start" style={{ color: '#212529', lineHeight: 1.6, fontSize: '14px' }}>
+    <div className="legal-doc-content text-start" style={{ lineHeight: 1.6, fontSize: '14px' }}>
       {/* Title & Metadata */}
       <div className="mb-4">
-        <h3 className="fw-bold mb-1" style={{ color: '#111827' }}>
+        <h3 className="fw-bold mb-1 legal-doc-title">
           {doc.documentName}
         </h3>
         <p className="text-muted small mb-0">
@@ -489,7 +489,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
       {/* PRIVACY POLICY: SUMMARY OF KEY POINTS */}
       {isPrivacy && doc.summary && (
         <div className="mb-4">
-          <h5 className="fw-bold mb-3" style={{ color: '#111827' }}>
+          <h5 className="fw-bold mb-3 legal-doc-heading">
             SUMMARY OF KEY POINTS
           </h5>
           {doc.summary.map((item, idx) => (
@@ -505,7 +505,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
       {/* TERMS OF SERVICE: PREAMBLE */}
       {!isPrivacy && doc.preamble && (
         <div className="mb-4">
-          <h5 className="fw-bold mb-2" style={{ color: '#111827' }}>
+          <h5 className="fw-bold mb-2 legal-doc-heading">
             {doc.preamble.title}
           </h5>
           {doc.preamble.content.map((p, idx) => (
@@ -519,7 +519,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
       {/* TERMS OF SERVICE: TABLE OF CONTENTS */}
       {!isPrivacy && doc.tableOfContents && (
         <div className="mb-4">
-          <h5 className="fw-bold mb-2" style={{ color: '#111827' }}>
+          <h5 className="fw-bold mb-2 legal-doc-heading">
             TABLE OF CONTENTS
           </h5>
           <ol className="ps-3 mb-0" style={{ lineHeight: '1.8' }}>
@@ -531,7 +531,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
                   <a
                     href={`#${sectionId}`}
                     onClick={(e) => scrollToSection(e, sectionId)}
-                    className="text-decoration-underline text-primary"
+                    className="text-decoration-underline text-primary legal-toc-link"
                     style={{ cursor: 'pointer' }}
                   >
                     {label}
@@ -546,7 +546,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
       {/* SECTIONS */}
       {doc.sections.filter(s => isPrivacy ? s.id !== 'privacy-intro' : true).map((section, sIdx) => (
         <div key={section.id || sIdx} id={section.id} className="mb-4 pt-1">
-          <h5 className="fw-bold mb-2" style={{ color: '#111827' }}>
+          <h5 className="fw-bold mb-2 legal-doc-heading">
             {section.title}
           </h5>
 
@@ -573,7 +573,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
 
           {section.subsections && section.subsections.map((sub, subIdx) => (
             <div key={subIdx} className="mt-3 mb-3">
-              <h6 className="fw-bold mb-1" style={{ color: '#111827' }}>
+              <h6 className="fw-bold mb-1 legal-doc-subheading">
                 {sub.title}
               </h6>
               {sub.inShort && (

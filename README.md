@@ -321,6 +321,11 @@ Changes 10
 - Restored the "My Account" navigation link and user icon in the sidebar
 - Connected the Recent Activity widget footer link to open the user's full activity history tab directly (/profile/:id?tab=activity)
 
+[Legal Modal & Dark Mode Contrast Fixes]
+- Fixed nearly invisible black-on-dark-green text in the Terms of Service and Privacy Notice modal by removing hardcoded inline dark colors and applying semantic dark-mode text styling
+- Modernized modal backgrounds from murky moss-green (#1A2420) to sleek dark slate (#141824) with crisp borders (#262B36), high-contrast headings, readable TOC links, and white close buttons
+- Fixed tab switching and prop handling in LegalModal so clicking either "Terms of Service" or "Privacy Notice" opens the selected document directly with pill-shaped active tabs
+
 [Branch Integration & Safety]
 - Cleanly integrated upstream account deletion, payout methods, and activity log updates into the development branch without regressions
 - Created a safety rollback branch (backup-before-merge-ebf1d02) to preserve local state prior to merging

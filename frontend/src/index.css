@@ -403,25 +403,96 @@ body.dark-mode .category-filter-btn:not(.is-active) {
   }
 }
 
+.legal-doc-content {
+  color: #1E293B;
+}
+.legal-doc-title,
+.legal-doc-heading,
+.legal-doc-subheading {
+  color: #0F172A;
+}
+.legal-toc-link {
+  color: #2563EB;
+}
+.legal-toc-link:hover {
+  color: #1D4ED8;
+}
+
 /* ── Modal & Alert Dark Mode Enhancements ── */
 body.dark-mode .modal-content {
-  background-color: #1A2420 !important;
-  color: #E8EDEB !important;
-  border: 1px solid #2A3832 !important;
+  background-color: #141824 !important;
+  color: #EDEEF2 !important;
+  border: 1px solid #262B36 !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5) !important;
 }
 
 body.dark-mode .modal-header,
 body.dark-mode .modal-footer {
-  background-color: #151F1B !important;
-  border-color: #2A3832 !important;
+  background-color: #10131A !important;
+  border-color: #262B36 !important;
 }
 
 body.dark-mode .modal-title {
-  color: #E8EDEB !important;
+  color: #F8FAFC !important;
 }
 
 body.dark-mode .btn-close {
   filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Legal Document & Modal Dark Mode */
+body.dark-mode .legal-modal-content {
+  background-color: #141824 !important;
+  border: 1px solid #262B36 !important;
+}
+
+body.dark-mode .legal-doc-content {
+  color: #CBD5E1 !important;
+}
+
+body.dark-mode .legal-doc-title,
+body.dark-mode .legal-doc-heading,
+body.dark-mode .legal-doc-subheading,
+body.dark-mode .legal-doc-content strong {
+  color: #F8FAFC !important;
+}
+
+body.dark-mode .legal-doc-content p,
+body.dark-mode .legal-doc-content li {
+  color: #CBD5E1 !important;
+}
+
+body.dark-mode .legal-doc-content .text-muted,
+body.dark-mode .legal-doc-content .text-secondary {
+  color: #94A3B8 !important;
+}
+
+body.dark-mode .legal-toc-link,
+body.dark-mode .legal-doc-content a {
+  color: #60A5FA !important;
+}
+
+body.dark-mode .legal-toc-link:hover,
+body.dark-mode .legal-doc-content a:hover {
+  color: #93C5FD !important;
+}
+
+body.dark-mode .legal-tab-btn-active {
+  background-color: #E7B24B !important;
+  color: #10131A !important;
+  border-color: #E7B24B !important;
+  font-weight: 600 !important;
+}
+
+body.dark-mode .legal-tab-btn-inactive {
+  background-color: #1D2129 !important;
+  color: #EDEEF2 !important;
+  border-color: #262B36 !important;
+}
+
+body.dark-mode .legal-tab-btn-inactive:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #FFFFFF !important;
 }
 
 /* Alert styles in dark mode */
