@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { registerUser, updateProfile } from '../services/api';
+import { registerUser } from '../services/api';
 import LegalModal from '../components/LegalModal';
 import '../styles/auth.css';
 
@@ -88,9 +88,14 @@ export default function Register() {
 
   // Freelancer fields
   const [professionalTitle, setProfessionalTitle] = useState('');
-  const [hourlyRate, setHourlyRate] = useState('');
+  const [phone, setPhone] = useState('');
   const [region, setRegion] = useState('');
   const [city, setCity] = useState('');
+  // Where released escrow is paid out (required for freelancers)
+  const [payoutMethod, setPayoutMethod] = useState('');
+  const [payoutProvider, setPayoutProvider] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
 
   // Locations Data
   const [regionsList, setRegionsList] = useState([]);
@@ -99,6 +104,13 @@ export default function Register() {
 
   // Client fields
   const [companyName, setCompanyName] = useState('');
+  const [clientType, setClientType] = useState('');
+  // How the client funds escrow (required for clients)
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentProvider, setPaymentProvider] = useState('');
+  const [paymentAccountName, setPaymentAccountName] = useState('');
+  const [paymentAccountNumber, setPaymentAccountNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
 
   // UI state
   const [error, setError] = useState('');
@@ -178,7 +190,34 @@ export default function Register() {
   const isPasswordValid = (p) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/.test(p);
 
   const isStep1Complete = isNameValid(firstName) && isNameValid(lastName) && isEmailFormatValid(email) && isLegitEmailDomain(email) && Boolean(role);
-  const isStep2Complete = isPasswordValid(password) && password === confirmPassword && over18;
+  // "Both" signs up as a freelancer; every account can switch to Client mode anytime
+  const needsPhone = role === 'freelancer' || role === 'both';
+  const isPhoneValid = (v) => /^(09\d{9}|\+639\d{9})$/.test(v.replace(/[\s-]/g, ''));
+  const digitsOnly = (v) => v.replace(/[\s-]/g, '');
+  const isBankNumberValid = (v) => /^\d{6,20}$/.test(digitsOnly(v));
+  const isCardNumberValid = (v) => /^\d{13,19}$/.test(digitsOnly(v));
+  const isExpiryValid = (v) => /^(0[1-9]|1[0-2])\/\d{2}$/.test(v.trim());
+
+  const isPayoutComplete = Boolean(payoutMethod)
+    && accountName.trim().length >= 2
+    && (payoutMethod === 'bank'
+      ? payoutProvider.trim().length >= 2 && isBankNumberValid(accountNumber)
+      : isPhoneValid(accountNumber));
+
+  const isPaymentComplete = Boolean(paymentMethod)
+    && paymentAccountName.trim().length >= 2
+    && (paymentMethod === 'card'
+      ? isCardNumberValid(paymentAccountNumber) && isExpiryValid(cardExpiry)
+      : paymentMethod === 'bank'
+        ? paymentProvider.trim().length >= 2 && isBankNumberValid(paymentAccountNumber)
+        : isPhoneValid(paymentAccountNumber));
+
+  const isClientInfoComplete = Boolean(clientType)
+    && (clientType === 'individual' || companyName.trim().length >= 2)
+    && isPaymentComplete;
+
+  const isStep2Complete = isPasswordValid(password) && password === confirmPassword && over18
+    && (needsPhone ? isPhoneValid(phone) && isPayoutComplete : isClientInfoComplete);
 
   function handleNext(e) {
     e.preventDefault();
@@ -198,30 +237,31 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      const res = await registerUser({ 
-        firstName: firstName.trim(), 
-        lastName: lastName.trim(), 
-        email: email.trim(), 
-        password, 
-        role 
-      });
-      
-      if (res.token) {
-        localStorage.setItem('token', res.token);
-        const updates = {};
-        if (role === 'freelancer') {
-          if (professionalTitle) updates.professional_title = professionalTitle;
-          if (hourlyRate) updates.hourly_rate = Number(hourlyRate);
-          if (region) updates.region = region;
-          if (city) updates.city = city;
-        } else if (role === 'customer') {
-          if (companyName) updates.company_name = companyName;
-        }
-        if (Object.keys(updates).length > 0) {
-          try { await updateProfile(updates); } catch (e) { console.error(e); }
-        }
-        localStorage.removeItem('token');
+      const payload = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        password,
+        role: needsPhone ? 'freelancer' : 'customer',
+      };
+      if (needsPhone) {
+        payload.title = professionalTitle.trim();
+        payload.location = [city, region].filter(Boolean).join(', ');
+        payload.phone = phone.trim();
+        payload.payoutMethod = payoutMethod;
+        payload.payoutProvider = payoutProvider.trim();
+        payload.accountName = accountName.trim();
+        payload.accountNumber = accountNumber.trim();
+      } else {
+        payload.clientType = clientType;
+        payload.companyName = companyName.trim();
+        payload.paymentMethod = paymentMethod;
+        payload.paymentProvider = paymentProvider.trim();
+        payload.paymentAccountName = paymentAccountName.trim();
+        payload.paymentAccountNumber = paymentAccountNumber.trim();
+        if (paymentMethod === 'card') payload.cardExpiry = cardExpiry.trim();
       }
+      await registerUser(payload);
 
       navigate('/login?registered=1');
     } catch (err) {
@@ -402,16 +442,21 @@ export default function Register() {
                       />
                     </div>
                     <div className="rb-auth__field">
-                      <label className="rb-auth__label">Hourly Rate ($) <span className="rb-auth__label-optional">(Optional)</span></label>
+                      <label className="rb-auth__label">Mobile Number</label>
                       <input
-                        type="number"
+                        type="tel"
                         className="rb-auth__input"
-                        value={hourlyRate}
-                        onChange={(e) => setHourlyRate(e.target.value)}
-                        placeholder="0.00"
-                        min="0"
-                        step="0.01"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="e.g. 09171234567"
+                        autoComplete="tel"
+                        required
                       />
+                      {phone && !isPhoneValid(phone) && (
+                        <div className="rb-auth__field-error">
+                          Enter a PH mobile number, like 09171234567 or +639171234567.
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="rb-auth__row">
@@ -436,18 +481,177 @@ export default function Register() {
                       />
                     </div>
                   </div>
+
+                  {/* Payout details: where the freelancer gets paid when escrow is released */}
+                  <p className="rb-auth__label" style={{ marginTop: '0.5rem' }}>
+                    <i className="bi bi-wallet2 me-1"></i> Payout details <span className="rb-auth__label-optional">(where you get paid; only shown masked)</span>
+                  </p>
+                  <div className="rb-auth__row">
+                    <div className="rb-auth__field">
+                      <label className="rb-auth__label">Payout Method</label>
+                      <select className="rb-auth__input" value={payoutMethod} onChange={(e) => setPayoutMethod(e.target.value)} required>
+                        <option value="">Select method</option>
+                        <option value="gcash">GCash</option>
+                        <option value="maya">Maya</option>
+                        <option value="bank">Bank account</option>
+                      </select>
+                    </div>
+                    <div className="rb-auth__field">
+                      <label className="rb-auth__label">Account Holder Name</label>
+                      <input
+                        type="text"
+                        className="rb-auth__input"
+                        value={accountName}
+                        onChange={(e) => setAccountName(e.target.value)}
+                        placeholder="Name on the account"
+                        required
+                      />
+                    </div>
+                  </div>
+                  {/* The number (and bank name) fields only appear once a method is chosen */}
+                  {payoutMethod && (
+                  <div className="rb-auth__row">
+                    {payoutMethod === 'bank' && (
+                      <div className="rb-auth__field">
+                        <label className="rb-auth__label">Bank Name</label>
+                        <input
+                          type="text"
+                          className="rb-auth__input"
+                          value={payoutProvider}
+                          onChange={(e) => setPayoutProvider(e.target.value)}
+                          placeholder="e.g. BDO, BPI"
+                          required
+                        />
+                      </div>
+                    )}
+                    <div className="rb-auth__field">
+                      <label className="rb-auth__label">{payoutMethod === 'bank' ? 'Account Number' : 'GCash / Maya Number'}</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="rb-auth__input"
+                        value={accountNumber}
+                        onChange={(e) => setAccountNumber(e.target.value)}
+                        placeholder={payoutMethod === 'bank' ? '6 to 20 digits' : 'e.g. 09171234567'}
+                        required
+                      />
+                      {accountNumber && !(payoutMethod === 'bank' ? isBankNumberValid(accountNumber) : isPhoneValid(accountNumber)) && (
+                        <div className="rb-auth__field-error">
+                          {payoutMethod === 'bank' ? 'Account number must be 6 to 20 digits.' : 'Enter a mobile number like 09171234567.'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  )}
                 </>
               ) : (
-                <div className="rb-auth__field">
-                  <label className="rb-auth__label">Company Name <span className="rb-auth__label-optional">(Optional)</span></label>
-                  <input
-                    type="text"
-                    className="rb-auth__input"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="Your Company Inc."
-                  />
-                </div>
+                <>
+                  <div className="rb-auth__row">
+                    <div className="rb-auth__field">
+                      <label className="rb-auth__label">Hiring As</label>
+                      <select className="rb-auth__input" value={clientType} onChange={(e) => setClientType(e.target.value)} required>
+                        <option value="">Select one</option>
+                        <option value="individual">Individual</option>
+                        <option value="small_business">Small Business</option>
+                        <option value="major_contractor">Major Contractor</option>
+                      </select>
+                    </div>
+                    <div className="rb-auth__field">
+                      <label className="rb-auth__label">
+                        Business Name {clientType === 'individual' && <span className="rb-auth__label-optional">(Optional)</span>}
+                      </label>
+                      <input
+                        type="text"
+                        className="rb-auth__input"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        placeholder="Your Company Inc."
+                        required={clientType !== 'individual'}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Payment method: how the client funds escrow when hiring */}
+                  <p className="rb-auth__label" style={{ marginTop: '0.5rem' }}>
+                    <i className="bi bi-credit-card me-1"></i> Payment method <span className="rb-auth__label-optional">(used to fund escrow; only shown masked)</span>
+                  </p>
+                  <div className="rb-auth__row">
+                    <div className="rb-auth__field">
+                      <label className="rb-auth__label">Method</label>
+                      <select className="rb-auth__input" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} required>
+                        <option value="">Select method</option>
+                        <option value="gcash">GCash</option>
+                        <option value="maya">Maya</option>
+                        <option value="bank">Bank account</option>
+                        <option value="card">Debit / credit card</option>
+                      </select>
+                    </div>
+                    <div className="rb-auth__field">
+                      <label className="rb-auth__label">{paymentMethod === 'card' ? 'Name on Card' : 'Account Holder Name'}</label>
+                      <input
+                        type="text"
+                        className="rb-auth__input"
+                        value={paymentAccountName}
+                        onChange={(e) => setPaymentAccountName(e.target.value)}
+                        placeholder={paymentMethod === 'card' ? 'As printed on the card' : 'Name on the account'}
+                        required
+                      />
+                    </div>
+                  </div>
+                  {/* The number / bank / card fields only appear once a method is chosen */}
+                  {paymentMethod && (
+                  <div className="rb-auth__row">
+                    {paymentMethod === 'bank' && (
+                      <div className="rb-auth__field">
+                        <label className="rb-auth__label">Bank Name</label>
+                        <input
+                          type="text"
+                          className="rb-auth__input"
+                          value={paymentProvider}
+                          onChange={(e) => setPaymentProvider(e.target.value)}
+                          placeholder="e.g. BDO, BPI"
+                          required
+                        />
+                      </div>
+                    )}
+                    <div className="rb-auth__field">
+                      <label className="rb-auth__label">
+                        {paymentMethod === 'card' ? 'Card Number' : paymentMethod === 'bank' ? 'Account Number' : 'GCash / Maya Number'}
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="rb-auth__input"
+                        value={paymentAccountNumber}
+                        onChange={(e) => setPaymentAccountNumber(e.target.value)}
+                        placeholder={paymentMethod === 'card' ? 'Card number' : paymentMethod === 'bank' ? '6 to 20 digits' : 'e.g. 09171234567'}
+                        autoComplete={paymentMethod === 'card' ? 'cc-number' : 'off'}
+                        required
+                      />
+                    </div>
+                    {paymentMethod === 'card' && (
+                      <div className="rb-auth__field">
+                        <label className="rb-auth__label">Expiry (MM/YY)</label>
+                        <input
+                          type="text"
+                          className="rb-auth__input"
+                          value={cardExpiry}
+                          onChange={(e) => setCardExpiry(e.target.value)}
+                          placeholder="08/28"
+                          autoComplete="cc-exp"
+                          maxLength={5}
+                          required
+                        />
+                      </div>
+                    )}
+                  </div>
+                  )}
+                  {paymentMethod === 'card' && (
+                    <div className="rb-auth__label-optional" style={{ fontSize: '12px', marginTop: '-0.25rem', marginBottom: '0.75rem' }}>
+                      <i className="bi bi-shield-lock me-1"></i> Only the card brand, last 4 digits, and expiry are saved, never the full number.
+                    </div>
+                  )}
+                </>
               )}
 
               <div className="rb-auth__row">

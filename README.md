@@ -357,6 +357,14 @@ Changes 10
 - Cleanly integrated upstream account deletion, payout methods, and activity log updates into the development branch without regressions
 - Created a safety rollback branch (backup-before-merge-ebf1d02) to preserve local state prior to merging
 
+[Registration Fixes]
+- Fixed sign-up on the new register page, which the server was refusing for every new account because required details were missing
+- Freelancer sign-up: replaced the hourly rate field with a required mobile number, and added payout details (GCash, Maya, or bank account with bank name, account holder, and number)
+- Client sign-up: added "Hiring as" (Individual, Small Business, or Major Contractor), a business name (required for businesses), and a payment method (GCash, Maya, bank account, or debit/credit card with expiry)
+- Choosing "Both" signs up as a freelancer, since every account can switch to Client mode anytime
+- Professional title, location (city and region), and business name are now actually saved with the new account
+- The Create Account button stays disabled until the details are filled in correctly, with hints for wrong mobile and account numbers
+
 
 Roadmap
 - Make it so that people who choose the freelancer option also need to put in their bank details and phone number - Complete
