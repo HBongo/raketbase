@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams, Outlet } from 'react-router-dom';
 import { clearCached } from '../utils/cache';
 import { switchRole, getProfile } from '../services/api';
+import { startLive, stopLive } from '../utils/live';
+import { useLive } from '../utils/useLive';
 import { showToast } from '../utils/toast';
 import NotificationBell from './NotificationBell';
 import CurrencySelector from './CurrencySelector';
@@ -69,6 +71,17 @@ export default function Layout() {
       window.removeEventListener('focus', checkAccount);
     };
   }, [location.pathname]);
+
+  // One live-updates connection for every logged-in page (see utils/live.js)
+  useEffect(() => {
+    startLive();
+    return () => stopLive();
+  }, []);
+
+  // An admin just suspended this account: getProfile() gets the suspended answer and logs out
+  useLive(['account'], () => {
+    getProfile().catch(() => {});
+  }, 0);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false);

@@ -418,6 +418,67 @@ body.dark-mode .category-filter-btn:not(.is-active) {
   color: #1D4ED8;
 }
 
+/* ── Bootstrap's own colours in dark mode ──
+   Dark mode is a class on <body>, so Bootstrap still uses its light-theme colours unless
+   they're switched here. Without this, anything that takes its colour from Bootstrap
+   (list items such as the admin dispute list, input add-ons, "-subtle" badges, text that
+   inherits) stays near-black on the dark background. Values follow Bootstrap's dark theme. */
+body.dark-mode {
+  --bs-body-color: var(--text-main);
+  --bs-body-color-rgb: 232, 237, 235;
+  --bs-emphasis-color: #ffffff;
+  --bs-emphasis-color-rgb: 255, 255, 255;
+  --bs-heading-color: var(--text-main);
+  --bs-secondary-color: rgba(232, 237, 235, 0.75);
+  --bs-tertiary-color: rgba(232, 237, 235, 0.5);
+  --bs-secondary-bg: #1F2D27;
+  --bs-tertiary-bg: #1A2420;
+  --bs-border-color: var(--border-light);
+  --bs-border-color-translucent: rgba(255, 255, 255, 0.12);
+
+  --bs-primary-text-emphasis: #6ea8fe;
+  --bs-secondary-text-emphasis: #a7acb1;
+  --bs-success-text-emphasis: #75b798;
+  --bs-info-text-emphasis: #6edff6;
+  --bs-warning-text-emphasis: #ffda6a;
+  --bs-danger-text-emphasis: #ea868f;
+  --bs-primary-bg-subtle: #031633;
+  --bs-secondary-bg-subtle: #161719;
+  --bs-success-bg-subtle: #051b11;
+  --bs-info-bg-subtle: #032830;
+  --bs-warning-bg-subtle: #332701;
+  --bs-danger-bg-subtle: #2c0b0e;
+  --bs-primary-border-subtle: #084298;
+  --bs-secondary-border-subtle: #41464b;
+  --bs-success-border-subtle: #0f5132;
+  --bs-info-border-subtle: #087990;
+  --bs-warning-border-subtle: #997404;
+  --bs-danger-border-subtle: #842029;
+}
+
+/* Bootstrap list groups (admin dispute list and others) */
+body.dark-mode .list-group {
+  --bs-list-group-bg: var(--card-background);
+  --bs-list-group-color: var(--text-main);
+  --bs-list-group-border-color: var(--border-light);
+  --bs-list-group-action-hover-bg: #2A3832;
+  --bs-list-group-action-hover-color: var(--text-main);
+}
+
+/* Grey "secondary" text is too dim on the dark background */
+body.dark-mode .text-secondary {
+  color: var(--text-muted-green) !important;
+}
+
+/* Terms / Privacy documents set dark text inline; keep them readable in dark mode */
+body.dark-mode .legal-doc-content,
+body.dark-mode .legal-doc-content :is(h1, h2, h3, h4, h5, h6, p, li, span, strong, td, th, div) {
+  color: var(--text-main) !important;
+}
+body.dark-mode .legal-doc-content .text-muted {
+  color: var(--text-muted-green) !important;
+}
+
 /* ── Modal & Alert Dark Mode Enhancements ── */
 body.dark-mode .modal-content {
   background-color: #141824 !important;

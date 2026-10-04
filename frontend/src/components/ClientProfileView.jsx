@@ -27,6 +27,9 @@ export default function ClientProfileView({
   securityTab,
   activityTab,
   paymentsTab,
+  onMessage,
+  messageBusy,
+  canMessageAsFreelancer,
 }) {
   const client = f.client || {};
   const displayName = `${f.first_name || ''} ${f.last_name || ''}`.trim() || 'Unnamed User';
@@ -147,6 +150,23 @@ export default function ClientProfileView({
                 </div>
               )}
             </div>
+
+            {!isOwnProfile && onMessage && (
+              <>
+                <hr className="my-3" />
+                <div className="d-grid">
+                  <button
+                    type="button"
+                    className="btn btn-outline-dark rounded-pill fw-medium py-2"
+                    onClick={onMessage}
+                    disabled={messageBusy}
+                    title={canMessageAsFreelancer ? 'Send this client a message' : 'Switch to Freelancer mode to message'}
+                  >
+                    <i className="bi bi-chat-dots me-2"></i>Message
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

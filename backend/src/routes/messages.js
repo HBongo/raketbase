@@ -7,6 +7,9 @@ const messagesController = require('../controllers/messagesController');
 router.use(requireAuth);
 
 router.get('/', messagesController.listConversations);
+// Profile chats ("Message" on a profile); registered before /:id so "direct" isn't read as an id
+router.get('/direct/:userId', messagesController.getProfileChat);
+router.post('/direct', messagesController.startProfileChat);
 router.get('/:id', messagesController.getConversation);
 router.get('/:id/messages', messagesController.listMessages);
 router.post('/:id/messages', uploadChatFile, messagesController.sendMessage);

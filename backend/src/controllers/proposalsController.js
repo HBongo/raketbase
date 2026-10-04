@@ -37,12 +37,39 @@ function formatProposal(proposal) {
 const { hasPayout, PAYOUT_REQUIRED_MESSAGE } = require('../utils/payout');
 const { hasPaymentMethod, PAYMENT_METHOD_REQUIRED_MESSAGE } = require('../utils/paymentMethod');
 
+// Proposal attachments live in a private bucket; see migration 014
+const PROPOSAL_BUCKET = 'proposal-attachments';
+
+function safeFileName(name) {
+  return String(name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
+}
+
+// Adds each proposal's attachments as proposal.files. Skipped quietly (no files listed)
+// if the table can't be read, e.g. before migration 014, so the pages keep working.
+async function attachFiles(proposals) {
+  const list = proposals || [];
+  const ids = list.map((p) => p.proposal_id);
+  const byProposal = {};
+  if (ids.length) {
+    const { data, error } = await supabaseAdmin
+      .from('proposal_files')
+      .select('file_id, proposal_id, file_name, file_size, file_mime_type')
+      .in('proposal_id', ids)
+      .order('created_at', { ascending: true });
+    if (!error) for (const f of data || []) (byProposal[f.proposal_id] = byProposal[f.proposal_id] || []).push(f);
+  }
+  return list.map((p) => ({ ...p, files: byProposal[p.proposal_id] || [] }));
+}
+
 // POST /api/v1/proposals - Submit a proposal for a job
+// Sent as JSON, or as multipart/form-data when files are attached (up to 3, 10 MB each,
+// in the "files" field; milestones then arrive as a JSON string).
 // For a 'milestone' budget_type job, `milestones` (an array of { title, amount })
 // replaces `bid_amount`: the total bid is derived server-side as the sum of the
 // stages, so the two numbers can never drift apart. Fixed-price jobs are unchanged.
 exports.createProposal = async (req, res) => {
   try {
+<<<<<<< HEAD
     const { job_id, bid_amount, cover_letter, portfolio_link } = req.body;
     let milestones = req.body.milestones;
     if (typeof milestones === 'string') {
@@ -50,6 +77,15 @@ exports.createProposal = async (req, res) => {
         milestones = JSON.parse(milestones);
       } catch (e) {
         milestones = [];
+=======
+    const { job_id, bid_amount, cover_letter } = req.body;
+    let { milestones } = req.body;
+    if (typeof milestones === 'string') {
+      try {
+        milestones = JSON.parse(milestones);
+      } catch {
+        return res.status(400).json({ success: false, error: 'Could not read the milestone breakdown.' });
+>>>>>>> origin/merged-features
       }
     }
     // req.user is appended by JWT auth middleware
@@ -231,6 +267,37 @@ exports.createProposal = async (req, res) => {
       }
     }
 
+    // Attachments. If any upload fails, remove the proposal and what was uploaded so the
+    // freelancer can simply try again.
+    const files = req.files || [];
+    const uploadedPaths = [];
+    try {
+      for (const file of files) {
+        const filePath = `${proposal.proposal_id}/${crypto.randomUUID()}-${safeFileName(file.originalname)}`;
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from(PROPOSAL_BUCKET)
+          .upload(filePath, file.buffer, { contentType: file.mimetype, upsert: false });
+        if (uploadError) throw uploadError;
+        uploadedPaths.push(filePath);
+        const { error: fileRowError } = await supabaseAdmin.from('proposal_files').insert([{
+          proposal_id: proposal.proposal_id,
+          file_name: file.originalname,
+          file_path: filePath,
+          file_size: file.size,
+          file_mime_type: file.mimetype,
+        }]);
+        if (fileRowError) throw fileRowError;
+      }
+    } catch (uploadErr) {
+      if (uploadedPaths.length) await supabaseAdmin.storage.from(PROPOSAL_BUCKET).remove(uploadedPaths);
+      await supabaseAdmin.from('proposals').delete().eq('proposal_id', proposal.proposal_id);
+      console.error('Proposal attachment upload failed:', uploadErr.message);
+      return res.status(500).json({
+        success: false,
+        error: 'Could not upload your files, so the proposal wasn\'t sent. Please try again (make sure migration 014 has been run).',
+      });
+    }
+
     await notify({
       user_id: job.client_id,
       type: 'proposal_received',
@@ -288,7 +355,41 @@ exports.getMyProposals = async (req, res) => {
 
     if (error) throw error;
 
-    return res.status(200).json({ success: true, data: (proposals || []).map(formatProposal) });
+    const formatted = (proposals || []).map(formatProposal);
+    return res.status(200).json({ success: true, data: await attachFiles(formatted) });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// GET /api/v1/proposals/:id/files/:fileId/download - A short-lived link to one attachment.
+// Only the freelancer who sent the proposal and the client who posted the job can open it.
+exports.getProposalFileUrl = async (req, res) => {
+  try {
+    const { data: proposal } = await supabaseAdmin
+      .from('proposals')
+      .select('proposal_id, freelancer_id, jobs(client_id)')
+      .eq('proposal_id', req.params.id)
+      .maybeSingle();
+    if (!proposal) return res.status(404).json({ success: false, error: 'Proposal not found' });
+    if (proposal.freelancer_id !== req.user.id && proposal.jobs?.client_id !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'You can\'t open files on this proposal' });
+    }
+
+    const { data: file } = await supabaseAdmin
+      .from('proposal_files')
+      .select('file_name, file_path')
+      .eq('file_id', req.params.fileId)
+      .eq('proposal_id', proposal.proposal_id)
+      .maybeSingle();
+    if (!file) return res.status(404).json({ success: false, error: 'File not found' });
+
+    const { data, error } = await supabaseAdmin.storage
+      .from(PROPOSAL_BUCKET)
+      .createSignedUrl(file.file_path, 3600, { download: file.file_name });
+    if (error) throw error;
+
+    return res.status(200).json({ success: true, data: { url: data.signedUrl, file_name: file.file_name } });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -369,7 +470,7 @@ exports.getProposalsForJob = async (req, res) => {
       };
     });
 
-    return res.status(200).json({ success: true, data: { job, proposals: proposalsWithRatings } });
+    return res.status(200).json({ success: true, data: { job, proposals: await attachFiles(proposalsWithRatings) } });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }

@@ -1,4 +1,6 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+// Used by the live-updates connection (utils/live.js)
+export const API_BASE = API_URL;
 
 let isRefreshing = false;
 let refreshSubscribers = [];
@@ -217,6 +219,11 @@ export function submitProposal(payload) {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+// A short-lived link to one proposal attachment (freelancer or the job's client only)
+export function getProposalFileUrl(proposalId, fileId) {
+  return request(`/proposals/${proposalId}/files/${fileId}/download`);
 }
 
 export function getMyProposals() {
@@ -489,6 +496,14 @@ export function getPayoutDetails() {
 }
 export function updatePayoutDetails(payload) {
   return request('/auth/payout', { method: 'PUT', body: JSON.stringify(payload) });
+}
+
+// Chats started from a profile ("Message"). Your current mode decides the roles.
+export function getProfileChat(userId) {
+  return request(`/conversations/direct/${userId}`);
+}
+export function startProfileChat(userId, content) {
+  return request('/conversations/direct', { method: 'POST', body: JSON.stringify({ user_id: userId, content }) });
 }
 
 // Delete your own account (anonymized). Needs your password; the UI also asks for "DELETE".

@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getNotifications, markNotificationRead, markAllNotificationsRead } from '../services/api';
+import { useLive } from '../utils/useLive';
+import { showToast } from '../utils/toast';
 
-// Checks for new notifications this often, plus whenever the page changes.
-const POLL_INTERVAL_MS = 30000;
+// New notifications arrive live (see utils/live.js); this slower check is only a fallback
+// in case the live connection drops.
+const POLL_INTERVAL_MS = 60000;
 
 const ROLE_TAGS = {
   customer: { label: 'Client', className: 'bg-primary-subtle text-primary-emphasis border border-primary-subtle' },
@@ -35,8 +38,20 @@ export default function NotificationBell() {
 
   useEffect(() => {
     const timer = setInterval(load, POLL_INTERVAL_MS);
-    return () => clearInterval(timer);
+    document.addEventListener('visibilitychange', load);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', load);
+    };
   }, [load]);
+
+  // Live: refresh the bell and show a pop-up the moment something happens
+  useLive(['notifications'], (event) => {
+    load();
+    if (event?.notification?.title) {
+      showToast(event.notification.title, { type: 'notice', link: event.notification.link });
+    }
+  }, 150);
 
   // Close when clicking anywhere outside the bell and its menu
   useEffect(() => {

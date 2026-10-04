@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useToast, dismissToast } from '../utils/toast';
 
 export default function Toaster() {
@@ -34,14 +35,28 @@ export default function Toaster() {
           />
         ) : toast.type === 'error' ? (
           <i className="bi bi-exclamation-octagon-fill text-danger flex-shrink-0" style={{ fontSize: '1rem' }} />
+        ) : toast.type === 'notice' ? (
+          <i className="bi bi-bell-fill flex-shrink-0" style={{ fontSize: '1rem', color: '#FF5A1E' }} />
         ) : toast.type === 'info' ? (
           <i className="bi bi-info-circle-fill text-info flex-shrink-0" style={{ fontSize: '1rem' }} />
         ) : (
           <i className="bi bi-check-circle-fill text-success flex-shrink-0" style={{ fontSize: '1rem' }} />
         )}
-        <span className="small fw-semibold text-truncate" style={{ maxWidth: '280px' }}>
-          {toast.message}
-        </span>
+        {toast.link ? (
+          <Link
+            to={toast.link}
+            onClick={dismissToast}
+            className="small fw-semibold text-truncate text-white text-decoration-none"
+            style={{ maxWidth: '280px' }}
+            title="Open"
+          >
+            {toast.message}
+          </Link>
+        ) : (
+          <span className="small fw-semibold text-truncate" style={{ maxWidth: '280px' }}>
+            {toast.message}
+          </span>
+        )}
         {!toast.loading && (
           <button
             type="button"

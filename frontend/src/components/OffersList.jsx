@@ -4,6 +4,7 @@ import { getReceivedOffers, getSentOffers, acceptOffer, declineOffer, withdrawOf
 import { showToast } from '../utils/toast';
 import OfferCard from './OfferCard';
 
+import { useLive } from '../utils/useLive';
 // "Offers received" (freelancer, on My Proposals) or "Sent offers" (client, on My Postings).
 export default function OffersList({ side }) {
   const [offers, setOffers] = useState([]);
@@ -26,6 +27,9 @@ export default function OffersList({ side }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Live: an offer was sent to you, or one you sent was accepted / declined / withdrawn
+  useLive(['offers'], () => load());
 
   async function run(offerId, action, successMessage, confirmText) {
     if (confirmText && !window.confirm(confirmText)) return;

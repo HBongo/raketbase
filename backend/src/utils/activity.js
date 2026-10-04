@@ -1,4 +1,12 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { publishToAdmins, publishToAll } = require('./live');
+
+// Actions that change what a job looks like to everyone (Explore and job pages refresh)
+const PUBLIC_JOB_ACTIONS = new Set([
+  'job.posted', 'job.edited', 'job.paused', 'job.resumed', 'job.cancelled',
+  'admin.job_removed', 'proposal.accepted', 'contract.payment_released',
+  'milestone.payment_released', 'dispute.resolved',
+]);
 
 const CATEGORIES = ['account', 'jobs', 'contracts', 'admin'];
 
@@ -27,6 +35,18 @@ async function logActivity(entries) {
     if (error) throw error;
   } catch (err) {
     console.error('Failed to write activity log:', err.message);
+  }
+
+  // Live: the admin page refreshes, and job changes reach everyone's Explore / job pages
+  publishToAdmins({ topics: ['admin'] });
+  for (const r of rows) {
+    if (PUBLIC_JOB_ACTIONS.has(r.action)) {
+      publishToAll({
+        topics: ['jobs'],
+        job_id: r.target_type === 'job' ? r.target_id : null,
+        change: r.action === 'job.posted' ? 'created' : 'updated',
+      });
+    }
   }
 }
 

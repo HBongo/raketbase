@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../config/supabase');
 const { logActivity } = require('../utils/activity');
+const { publishToUsers } = require('../utils/live');
 const { maskPayout } = require('../utils/payout');
 const { maskPaymentMethod } = require('../utils/paymentMethod');
 const { notify } = require('../utils/notify');
@@ -125,6 +126,8 @@ exports.updateUserStatus = async (req, res) => {
       target_type: 'user',
       target_id: updated.user_id,
     });
+
+    if (status === 'suspended') publishToUsers([user_id], { topics: ['account'] });
 
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {

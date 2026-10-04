@@ -11,6 +11,8 @@ import { getCurrencySymbol } from '../utils/formatters';
 import Money from '../components/Money';
 import BackToTop from '../components/BackToTop';
 
+import { useLive } from '../utils/useLive';
+import ProposalFiles from '../components/ProposalFiles';
 const FILTERS = [
   { value: 'active', label: 'Active Proposals' },
   { value: 'past', label: 'Past Proposals' }
@@ -79,6 +81,9 @@ export default function MyProposals() {
   useEffect(() => {
     load();
   }, []);
+
+  // Live: a proposal was accepted, declined, or its job closed
+  useLive(['proposals'], () => load());
 
   async function handleWithdraw(proposalId) {
     if (!window.confirm('Withdraw this proposal? You can restore it later from this page.')) return;
@@ -283,6 +288,11 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
           <p className="text-muted small mb-0" style={{ whiteSpace: 'pre-line' }}>
             {proposal.cover_letter}
           </p>
+        )}
+        {!editing && proposal.files?.length > 0 && (
+          <div className="mt-2">
+            <ProposalFiles proposalId={proposal.proposal_id} files={proposal.files} />
+          </div>
         )}
 
         {/* Pending: can withdraw */}

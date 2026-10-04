@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { getCached, setCached } from '../utils/cache';
 import BackToTop from '../components/BackToTop';
 import Money from '../components/Money';
+import { useLive } from '../utils/useLive';
+import { getMyProposals } from '../services/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -65,6 +67,66 @@ export default function Explore() {
   const [budget, setBudget] = useState(null);
   const [minRating, setMinRating] = useState(0);
   const [hideTaken, setHideTaken] = useState(false);
+
+  // Your own relationship to each job, for the badges on the cards:
+  // 'own' (you posted it), 'hired' (your proposal was accepted), 'applied' (proposal pending)
+  const [myProposalStatus, setMyProposalStatus] = useState({});
+  const loadMyProposals = async () => {
+    if (!localStorage.getItem('token')) return;
+    try {
+      const res = await getMyProposals();
+      const byJob = {};
+      for (const p of res.data || []) byJob[p.job_id] = p.status;
+      setMyProposalStatus(byJob);
+    } catch {
+      // badges are a nice-to-have; the page works without them
+    }
+  };
+  useEffect(() => {
+    loadMyProposals();
+  }, []);
+  useLive(['proposals'], () => loadMyProposals());
+  function relationTo(job) {
+    // Called while rendering the cards, after `user` below is defined
+    const myId = user.user_id || user.id;
+    if (myId && (job.client_id || job.users?.user_id) === myId) return 'own';
+    if (myProposalStatus[job.job_id] === 'accepted') return 'hired';
+    if (myProposalStatus[job.job_id] === 'pending') return 'applied';
+    return null;
+  }
+
+  // Live: jobs already on screen update in place (taken, paused, edited, removed); brand-new
+  // jobs wait behind a "N new jobs" button so the list doesn't jump while you're reading
+  const [newJobs, setNewJobs] = useState([]);
+  const latestJobs = useRef(null);
+  const shownJobs = useRef(jobs);
+  useEffect(() => {
+    shownJobs.current = jobs;
+  }, [jobs]);
+
+  useLive(['jobs'], async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/jobs`);
+      const body = await res.json();
+      if (!res.ok || !body.success) return;
+      const latest = body.data || [];
+      const shownIds = new Set(shownJobs.current.map((j) => j.job_id));
+      latestJobs.current = latest;
+      setJobs(latest.filter((j) => shownIds.has(j.job_id)));
+      setNewJobs(latest.filter((j) => !shownIds.has(j.job_id)));
+    } catch {
+      // keep what's on screen; the next update will try again
+    }
+  });
+
+  function showNewJobs() {
+    if (latestJobs.current) {
+      setJobs(latestJobs.current);
+      setCached('explore_jobs', latestJobs.current);
+    }
+    setNewJobs([]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   const user = (() => {
     try {
@@ -369,6 +431,15 @@ export default function Explore() {
               />
             )}
 
+            {newJobs.length > 0 && (
+              <div className="d-flex justify-content-center mb-3">
+                <button type="button" className="btn btn-dark btn-sm rounded-pill px-4 shadow-sm" onClick={showNewJobs}>
+                  <i className="bi bi-arrow-up me-1"></i>
+                  {newJobs.length} new {newJobs.length === 1 ? 'job' : 'jobs'} — show
+                </button>
+              </div>
+            )}
+
             {!loading && !loadError && visibleJobs.length === 0 && (
               <StateCard
                 title="No jobs match those filters"
@@ -381,7 +452,7 @@ export default function Explore() {
               <div className="row g-4">
                 {visibleJobs.map((job) => (
                   <div className="col-12 col-sm-6 col-xl-6" key={job.job_id}>
-                    <JobCard job={job} onOpen={() => navigate(`/jobs/${job.job_id}`)} />
+                    <JobCard job={job} relation={relationTo(job)} onOpen={() => navigate(`/jobs/${job.job_id}`)} />
                   </div>
                 ))}
               </div>
@@ -537,7 +608,14 @@ function isTakenJob(job) {
   return job.status === 'assigned' || job.status === 'completed';
 }
 
-function JobCard({ job, onOpen }) {
+// Badges for your own relationship to a job (see relationTo)
+const RELATION_BADGES = {
+  own: { label: 'Your posting', icon: 'bi-person-badge', className: 'bg-primary-subtle text-primary-emphasis border border-primary-subtle' },
+  hired: { label: 'Hired', icon: 'bi-check-circle-fill', className: 'bg-success-subtle text-success-emphasis border border-success-subtle' },
+  applied: { label: 'Applied', icon: 'bi-send-check', className: 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' },
+};
+
+function JobCard({ job, relation, onOpen }) {
   const isTaken = isTakenJob(job);
   const categoryName = job.categories?.category_name || 'Uncategorized';
   const posted = formatDate(job.created_at);
@@ -602,10 +680,20 @@ function JobCard({ job, onOpen }) {
             )}
           </div>
         </div>
-        {isTaken && (
-          <span className="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle align-self-start mb-2 px-3 py-2">
-            <i className="bi bi-lock-fill me-1"></i>Job taken
-          </span>
+        {(isTaken || relation) && (
+          <div className="d-flex flex-wrap gap-2 mb-2">
+            {relation && (
+              <span className={`badge rounded-pill px-3 py-2 ${RELATION_BADGES[relation].className}`}>
+                <i className={`bi ${RELATION_BADGES[relation].icon} me-1`}></i>{RELATION_BADGES[relation].label}
+              </span>
+            )}
+            {/* "Hired" already says the job is taken (by you) */}
+            {isTaken && relation !== 'hired' && (
+              <span className="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle px-3 py-2">
+                <i className="bi bi-lock-fill me-1"></i>Job taken
+              </span>
+            )}
+          </div>
         )}
         <h5 className="card-title text-dark fw-bold mb-3" style={{ fontSize: "1.15rem", lineHeight: "1.4" }}>
           {job.title || 'Untitled job'}
@@ -628,7 +716,11 @@ function JobCard({ job, onOpen }) {
         <p className="card-text small text-muted flex-grow-1" style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {job.description || 'No description provided.'}
         </p>
-        {isTaken ? (
+        {relation ? (
+          <button onClick={(e) => { e.stopPropagation(); onOpen(); }} className="btn btn-outline-dark w-100 mt-3 rounded-pill fw-medium">
+            {relation === 'own' ? 'View your posting' : 'View job'}
+          </button>
+        ) : isTaken ? (
           <button type="button" disabled className="btn btn-outline-secondary w-100 mt-3 rounded-pill fw-medium">
             No longer accepting proposals
           </button>

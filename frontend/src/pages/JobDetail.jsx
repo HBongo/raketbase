@@ -5,6 +5,7 @@ import Money from '../components/Money';
 import { showToast } from '../utils/toast';
 import { withdrawProposal } from '../services/api';
 
+import { useLive } from '../utils/useLive';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
 export default function JobDetail() {
@@ -21,13 +22,19 @@ export default function JobDetail() {
   })();
 
   const [job, setJob] = useState(null);
+  // Bumped by live updates when this job changes, to reload it quietly
+  const [liveTick, setLiveTick] = useState(0);
+  useLive(['jobs'], (event) => {
+    if (!event?.job_id || event.job_id === id) setLiveTick((t) => t + 1);
+  });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
   const [bidAmount, setBidAmount] = useState('');
   const [coverLetter, setCoverLetter] = useState('');
   const [portfolioLink, setPortfolioLink] = useState('');
-  const [attachment, setAttachment] = useState(null);
+  // Up to 3 files (10 MB each) sent with the proposal; same rules as the server
+  const [files, setFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
   const [alreadyApplied, setAlreadyApplied] = useState(false);
@@ -40,10 +47,10 @@ export default function JobDetail() {
   useEffect(() => {
     let cancelled = false;
     async function loadJob() {
-      setLoading(true);
+      if (liveTick === 0) setLoading(true);
       setLoadError(null);
       try {
-        const res = await fetch(`${API_BASE_URL}/jobs/${id}`);
+        res = await fetch(`${API_BASE_URL}/jobs/${id}`);
         const body = await res.json();
         if (!res.ok || !body.success) {
           throw new Error(body.error || 'Job not found.');
@@ -57,7 +64,7 @@ export default function JobDetail() {
     }
     loadJob();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, liveTick]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -158,18 +165,25 @@ export default function JobDetail() {
   const showMilestoneError = (touched.bidAmount || submitted) && errors.milestones;
   const showCoverLetterError = (touched.coverLetter || submitted) && errors.coverLetter;
 
-    const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setSubmitResult({ type: 'error', message: 'File size must be 5MB or less.' });
-        e.target.value = null;
-        return;
-      }
-      setAttachment(file);
-      setSubmitResult(null);
+  const MAX_FILES = 3;
+  const MAX_FILE_BYTES = 10 * 1024 * 1024;
+  const handleFileChange = (e) => {
+    const picked = Array.from(e.target.files || []);
+    e.target.value = '';
+    const tooBig = picked.find((f) => f.size > MAX_FILE_BYTES);
+    if (tooBig) {
+      setSubmitResult({ type: 'error', message: `"${tooBig.name}" is larger than 10 MB.` });
+      return;
     }
+    const next = [...files, ...picked];
+    if (next.length > MAX_FILES) {
+      setSubmitResult({ type: 'error', message: `You can attach up to ${MAX_FILES} files.` });
+      return;
+    }
+    setFiles(next);
+    setSubmitResult(null);
   };
+  const removeFile = (index) => setFiles((prev) => prev.filter((_, i) => i !== index));
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -227,6 +241,24 @@ export default function JobDetail() {
         });
       }
 
+      // With attachments or portfolio link, handle payload properly
+      if (portfolioLink.trim()) payload.portfolio_link = portfolioLink.trim();
+      let requestInit;
+      if (files.length > 0) {
+        const formData = new FormData();
+        for (const [key, value] of Object.entries(payload)) {
+          formData.append(key, key === 'milestones' ? JSON.stringify(value) : String(value));
+        }
+        for (const file of files) formData.append('files', file);
+        requestInit = { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData };
+      } else {
+        requestInit = {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
+        };
+      }
+      res = await fetch(`${API_BASE_URL}/proposals`, requestInit);
       const body = await res.json();
       if (body.error?.includes('already submitted')) {
         setAlreadyApplied(true);
@@ -242,7 +274,7 @@ export default function JobDetail() {
       setBidAmount('');
       setCoverLetter('');
       setPortfolioLink('');
-      setAttachment(null);
+      setFiles([]);
     } catch (err) {
       setSubmitResult({ type: 'error', message: err.message || 'Something went wrong while submitting.' });
     } finally {
@@ -772,60 +804,49 @@ export default function JobDetail() {
                             )}
                           </div>
 
-                          <div className="mb-4 p-3 bg-light rounded border">
-                            <label className="form-label fw-semibold small text-dark mb-1 d-flex align-items-center gap-1">
-                              <i className="bi bi-briefcase text-primary"></i> Portfolio / Sample Work (Optional)
+                          <div className="mb-3">
+                            <label className="form-label small fw-medium text-dark" htmlFor="proposal-portfolio">
+                              Portfolio / Sample Link <span className="text-muted fw-normal">(optional)</span>
                             </label>
-                            <p className="small text-muted mb-2" style={{ fontSize: '12px' }}>
-                              Share relevant work samples so the client can evaluate your skills.
-                            </p>
+                            <input
+                              id="proposal-portfolio"
+                              type="url"
+                              className="form-control form-control-sm"
+                              placeholder="https://github.com/yourname or Figma/portfolio link..."
+                              value={portfolioLink}
+                              onChange={(e) => setPortfolioLink(e.target.value)}
+                              disabled={submitting || alreadyApplied}
+                            />
+                          </div>
 
-                            <div className="mb-2">
-                              <div className="input-group input-group-sm">
-                                <span className="input-group-text"><i className="bi bi-link-45deg"></i></span>
-                                <input
-                                  type="url"
-                                  className="form-control"
-                                  placeholder="Link to GitHub, Behance, Figma, or portfolio..."
-                                  value={portfolioLink}
-                                  onChange={(e) => setPortfolioLink(e.target.value)}
-                                  disabled={submitting || alreadyApplied}
-                                />
-                              </div>
-                            </div>
-
-                            <div>
-                              {attachment ? (
-                                <div className="d-flex align-items-center justify-content-between p-2 bg-white rounded border small">
-                                  <div className="d-flex align-items-center gap-2 text-truncate me-2">
-                                    <i className="bi bi-file-earmark-check text-success fs-5"></i>
-                                    <div className="text-truncate">
-                                      <div className="fw-semibold text-truncate">{attachment.name}</div>
-                                      <div className="text-muted" style={{ fontSize: '11px' }}>{(attachment.size / 1024).toFixed(1)} KB</div>
-                                    </div>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm btn-link text-danger p-0 text-decoration-none"
-                                    onClick={() => setAttachment(null)}
-                                    title="Remove file"
-                                  >
-                                    <i className="bi bi-trash"></i>
-                                  </button>
-                                </div>
-                              ) : (
-                                <label className="btn btn-sm btn-outline-secondary rounded-pill px-3 mb-0" style={{ cursor: 'pointer' }}>
-                                  <i className="bi bi-upload me-1"></i> Attach Sample File (PDF, Image, Max 5MB)
-                                  <input
-                                    type="file"
-                                    className="d-none"
-                                    onChange={handleFileChange}
-                                    disabled={submitting || alreadyApplied}
-                                    accept="image/*,.pdf,.doc,.docx,.zip"
-                                  />
-                                </label>
-                              )}
-                            </div>
+                          {/* Optional attachments: samples, a CV, a quote... */}
+                          <div className="mb-4">
+                            <label className="form-label small fw-medium text-dark" htmlFor="proposal-files">
+                              Attachments <span className="text-muted fw-normal">(optional, up to 3 files, 10 MB each)</span>
+                            </label>
+                            <input
+                              id="proposal-files"
+                              type="file"
+                              multiple
+                              className="form-control form-control-sm"
+                              accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
+                              onChange={handleFileChange}
+                              disabled={submitting || alreadyApplied || files.length >= MAX_FILES}
+                            />
+                            {files.length > 0 && (
+                              <ul className="list-unstyled small mt-2 mb-0">
+                                {files.map((f, i) => (
+                                  <li key={`${f.name}-${i}`} className="d-flex align-items-center gap-2 py-1">
+                                    <i className="bi bi-paperclip text-muted"></i>
+                                    <span className="text-truncate flex-grow-1">{f.name}</span>
+                                    <span className="text-muted">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                                    <button type="button" className="btn btn-sm btn-link text-danger p-0" onClick={() => removeFile(i)} aria-label={`Remove ${f.name}`}>
+                                      <i className="bi bi-x-lg"></i>
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
                           </div>
                           
                           <button
