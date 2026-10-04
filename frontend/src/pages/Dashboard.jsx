@@ -43,6 +43,7 @@ export default function Dashboard() {
     }
   })();
 
+  const currentUserId = user.user_id || user.id;
   const isCustomer = user.active_role === 'customer';
 
   const [loading, setLoading] = useState(
@@ -839,7 +840,7 @@ export default function Dashboard() {
       <div className="row g-4 mt-1">
         {/* Left Column: Recent Activity Feed (7 cols) */}
         <div className="col-xl-7 col-lg-7">
-          <RecentActivityWidget isCustomer={isCustomer} userId={currentUserId} />
+          <RecentActivityWidget isCustomer={isCustomer} userId={user.user_id || user.id} />
         </div>
 
         {/* Right Column: Action Items & Attention Center (5 cols) */}
