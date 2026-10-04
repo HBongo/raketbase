@@ -4,6 +4,7 @@ import { getCurrencySymbol } from '../utils/formatters';
 import Money from '../components/Money';
 import { showToast } from '../utils/toast';
 
+import { useLive } from '../utils/useLive';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
 export default function JobDetail() {
@@ -20,12 +21,18 @@ export default function JobDetail() {
   })();
 
   const [job, setJob] = useState(null);
+  // Bumped by live updates when this job changes, to reload it quietly
+  const [liveTick, setLiveTick] = useState(0);
+  useLive(['jobs'], (event) => {
+    if (!event?.job_id || event.job_id === id) setLiveTick((t) => t + 1);
+  });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
   const [bidAmount, setBidAmount] = useState('');
   const [coverLetter, setCoverLetter] = useState('');
-  const [attachment, setAttachment] = useState(null);
+  // Up to 3 files (10 MB each) sent with the proposal; same rules as the server
+  const [files, setFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
   const [alreadyApplied, setAlreadyApplied] = useState(false);
@@ -36,7 +43,7 @@ export default function JobDetail() {
   useEffect(() => {
     let cancelled = false;
     async function loadJob() {
-      setLoading(true);
+      if (liveTick === 0) setLoading(true);
       setLoadError(null);
       try {
         const res = await fetch(`${API_BASE_URL}/jobs/${id}`);
@@ -53,7 +60,7 @@ export default function JobDetail() {
     }
     loadJob();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, liveTick]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -146,18 +153,25 @@ export default function JobDetail() {
   const showMilestoneError = (touched.bidAmount || submitted) && errors.milestones;
   const showCoverLetterError = (touched.coverLetter || submitted) && errors.coverLetter;
 
-    const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setSubmitResult({ type: 'error', message: 'File size must be 5MB or less.' });
-        e.target.value = null;
-        return;
-      }
-      setAttachment(file);
-      setSubmitResult(null);
+  const MAX_FILES = 3;
+  const MAX_FILE_BYTES = 10 * 1024 * 1024;
+  const handleFileChange = (e) => {
+    const picked = Array.from(e.target.files || []);
+    e.target.value = '';
+    const tooBig = picked.find((f) => f.size > MAX_FILE_BYTES);
+    if (tooBig) {
+      setSubmitResult({ type: 'error', message: `"${tooBig.name}" is larger than 10 MB.` });
+      return;
     }
+    const next = [...files, ...picked];
+    if (next.length > MAX_FILES) {
+      setSubmitResult({ type: 'error', message: `You can attach up to ${MAX_FILES} files.` });
+      return;
+    }
+    setFiles(next);
+    setSubmitResult(null);
   };
+  const removeFile = (index) => setFiles((prev) => prev.filter((_, i) => i !== index));
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -183,14 +197,23 @@ export default function JobDetail() {
         payload.bid_amount = Number(bidAmount);
       }
 
-      const res = await fetch(`${API_BASE_URL}/proposals`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      // With attachments the proposal goes as multipart form data (milestones as JSON text)
+      let requestInit;
+      if (files.length > 0) {
+        const formData = new FormData();
+        for (const [key, value] of Object.entries(payload)) {
+          formData.append(key, key === 'milestones' ? JSON.stringify(value) : String(value));
+        }
+        for (const file of files) formData.append('files', file);
+        requestInit = { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData };
+      } else {
+        requestInit = {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
+        };
+      }
+      const res = await fetch(`${API_BASE_URL}/proposals`, requestInit);
       const body = await res.json();
       if (body.error?.includes('already submitted')) {
         setAlreadyApplied(true);
@@ -204,7 +227,7 @@ export default function JobDetail() {
       showToast('Proposal sent! The client will review it soon.', { type: 'success' });
       setBidAmount('');
       setCoverLetter('');
-      setAttachment(null);
+      setFiles([]);
     } catch (err) {
       setSubmitResult({ type: 'error', message: err.message || 'Something went wrong while submitting.' });
     } finally {
@@ -586,6 +609,36 @@ export default function JobDetail() {
                               <div className="text-danger small mt-1 d-flex align-items-center gap-1">
                                 <i className="bi bi-exclamation-circle-fill"></i> {errors.coverLetter}
                               </div>
+                            )}
+                          </div>
+
+                          {/* Optional attachments: samples, a CV, a quote... */}
+                          <div className="mb-4">
+                            <label className="form-label small fw-medium text-dark" htmlFor="proposal-files">
+                              Attachments <span className="text-muted fw-normal">(optional, up to 3 files, 10 MB each)</span>
+                            </label>
+                            <input
+                              id="proposal-files"
+                              type="file"
+                              multiple
+                              className="form-control form-control-sm"
+                              accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
+                              onChange={handleFileChange}
+                              disabled={submitting || alreadyApplied || files.length >= MAX_FILES}
+                            />
+                            {files.length > 0 && (
+                              <ul className="list-unstyled small mt-2 mb-0">
+                                {files.map((f, i) => (
+                                  <li key={`${f.name}-${i}`} className="d-flex align-items-center gap-2 py-1">
+                                    <i className="bi bi-paperclip text-muted"></i>
+                                    <span className="text-truncate flex-grow-1">{f.name}</span>
+                                    <span className="text-muted">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                                    <button type="button" className="btn btn-sm btn-link text-danger p-0" onClick={() => removeFile(i)} aria-label={`Remove ${f.name}`}>
+                                      <i className="bi bi-x-lg"></i>
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
                             )}
                           </div>
                           

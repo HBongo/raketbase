@@ -7,6 +7,8 @@ import { showToast } from '../utils/toast';
 import OffersList from '../components/OffersList';
 import PageViewTabs from '../components/PageViewTabs';
 
+import { useLive } from '../utils/useLive';
+import ProposalFiles from '../components/ProposalFiles';
 export default function ClientJobView() {
   const { id } = useParams();
   return id ? <ProposalsForJob jobId={id} /> : <MyJobsList />;
@@ -30,11 +32,14 @@ function MyJobsList() {
   })();
   const isCustomer = user?.active_role === 'customer';
   const [switchingRole, setSwitchingRole] = useState(false);
+  // Bumped by live updates to reload the list quietly (no loading state)
+  const [liveTick, setLiveTick] = useState(0);
+  useLive(['proposals', 'contracts'], () => setLiveTick((t) => t + 1));
 
   useEffect(() => {
     let cancelled = false;
     async function loadJobs() {
-      setLoading(true);
+      if (liveTick === 0) setLoading(true);
       setLoadError(null);
       try {
         const res = await getMyJobs();
@@ -49,7 +54,7 @@ function MyJobsList() {
     return () => {
       cancelled = true;
     };
-  }, [isCustomer]);
+  }, [isCustomer, liveTick]);
 
   if (!isCustomer) {
     return (
@@ -226,8 +231,8 @@ function ProposalsForJob({ jobId }) {
   const [actioningId, setActioningId] = useState(null);
   const [actionError, setActionError] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true);
     setLoadError(null);
     try {
       const res = await getJobProposals(jobId);
@@ -243,6 +248,9 @@ function ProposalsForJob({ jobId }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Live: new proposals come in, or a withdrawn one disappears, without refreshing
+  useLive(['proposals', 'contracts'], () => load(true));
 
     async function handleAccept(proposalId) {
     setActionError(null);
@@ -518,6 +526,8 @@ function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject, currency 
         <p className="small text-secondary" style={{ whiteSpace: 'pre-line', lineHeight: '1.6' }}>
           {proposal.cover_letter}
         </p>
+
+        <ProposalFiles proposalId={proposal.proposal_id} files={proposal.files} />
 
         {jobIsOpen && proposal.status === 'pending' && (
           <div className="d-flex gap-2 mt-4 pt-3 border-top">

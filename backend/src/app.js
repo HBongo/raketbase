@@ -16,6 +16,7 @@ const ratesRoutes = require('./routes/rates');
 const usersRoutes = require('./routes/users');
 const notificationsRoutes = require('./routes/notifications');
 const activityRoutes = require('./routes/activity');
+const eventsRoutes = require('./routes/events');
 const offersRoutes = require('./routes/offers');
 
 const app = express();
@@ -42,6 +43,7 @@ app.use('/api/v1/rates', ratesRoutes);
 app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/notifications', notificationsRoutes);
 app.use('/api/v1/activity', activityRoutes);
+app.use('/api/v1/events', eventsRoutes);
 app.use('/api/v1/offers', offersRoutes);
 
 // 404 for anything unmatched (Must stay AFTER all route mounts)

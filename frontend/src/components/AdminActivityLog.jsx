@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { getAdminActivity } from '../services/api';
 import { ACTIVITY_CATEGORIES, categoryIcon, formatActivityTime } from '../utils/activity';
 
+import { useLive } from '../utils/useLive';
 const PAGE_SIZE = 25;
 
 // userFilter: { id, name } to show one person's activity, or null; onClearUser() removes it
@@ -17,6 +18,9 @@ export default function AdminActivityLog({ userFilter, onClearUser }) {
   const [result, setResult] = useState(null);
 
   const userId = userFilter?.id || '';
+  // Bumped by live updates so new entries appear without refreshing
+  const [liveTick, setLiveTick] = useState(0);
+  useLive(['admin'], () => setLiveTick((t) => t + 1), 800);
   const key = [category, query, from, to, page, userId].join('|');
 
   useEffect(() => {
@@ -25,10 +29,11 @@ export default function AdminActivityLog({ userFilter, onClearUser }) {
       .then((res) => { if (!cancelled) setResult({ key, ...res.data }); })
       .catch((err) => { if (!cancelled) setResult({ key, error: err.message || 'Could not load the activity log.' }); });
     return () => { cancelled = true; };
-  }, [key, category, query, from, to, page, userId]);
+  }, [key, category, query, from, to, page, userId, liveTick]);
 
   // Any filter change goes back to the first page
   const filterSetter = (setter) => (value) => { setter(value); setPage(0); };
+  // Keep showing the current page while a live refresh of the same filters loads
   const current = result?.key === key ? result : null;
   const totalPages = current?.total ? Math.ceil(current.total / PAGE_SIZE) : 1;
 

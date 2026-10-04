@@ -14,6 +14,7 @@ import { showToast } from "../utils/toast";
 import { supabase } from "../config/supabaseClient";
 import { getCached, setCached } from "../utils/cache";
 
+import { useLive } from "../utils/useLive";
 function formatFileSize(bytes) {
   if (!bytes && bytes !== 0) return "";
   if (bytes < 1024) return `${bytes} B`;
@@ -124,6 +125,9 @@ export default function Messages() {
     if (!token) { navigate("/login"); return; }
     loadConversations();
   }, [loadConversations, navigate]);
+
+  // Live: new chats, new messages in other chats, and delete requests update the list
+  useLive(["conversations", "contracts"], () => loadConversations());
 
   useEffect(() => {
     if (!selectedId) { setActive(null); setMessages([]); return; }
@@ -331,6 +335,8 @@ export default function Messages() {
   const other = isClient ? active?.freelancer : active?.client;
   const contractStatus = active?.contracts?.status;
   const isCompleted = contractStatus === "completed" || contractStatus === "refunded";
+  // Chats started from a profile have no contract and can be deleted any time
+  const isProfileChat = Boolean(active) && !active.contract_id;
 
   const myConfirmed = isClient ? active?.client_delete_confirmed : isFreelancer ? active?.freelancer_delete_confirmed : false;
   const otherConfirmed = isClient ? active?.freelancer_delete_confirmed : isFreelancer ? active?.client_delete_confirmed : false;
@@ -470,6 +476,8 @@ export default function Messages() {
         body.dark-mode .system-msg-text { color: #9EAAA3 !important; }
         body.dark-mode .deletion-banner { background: #2A2015 !important; border-bottom-color: #3A3025 !important; }
         body.dark-mode .file-attach-preview { background: #1F2D27 !important; border-color: #2A3832 !important; }
+        body.dark-mode .file-attach-preview span:first-of-type { color: #E8EDEB !important; }
+        body.dark-mode .file-attach-preview .bi { color: #B4F105 !important; }
         body.dark-mode .file-bubble-btn-theirs { background: #1F2D27 !important; color: #E8EDEB !important; }
         body.dark-mode .file-bubble-btn-theirs:hover { background: #2A3832 !important; }
         body.dark-mode .msg-loading-text { color: #9EAAA3 !important; }
@@ -607,7 +615,7 @@ export default function Messages() {
                 </div>
 
                 {/* Deletion Banner */}
-                {isCompleted && isParticipant && (
+                {(isCompleted || isProfileChat) && isParticipant && (
                   <div className="deletion-banner">
                     {myConfirmed && otherConfirmed ? (
                       <span style={{ fontSize: "12.5px", color: "#6C7E75" }}>Deleting conversation...</span>
@@ -632,7 +640,11 @@ export default function Messages() {
                     ) : (
                       <>
                         <span style={{ fontSize: "12.5px", color: "#6C7E75" }}>
-                          <i className="bi bi-lock me-1"></i> This job is complete — the conversation is now read-only.
+                          {isProfileChat ? (
+                            <><i className="bi bi-chat-dots me-1"></i> Direct message — either of you can ask to delete this chat at any time.</>
+                          ) : (
+                            <><i className="bi bi-lock me-1"></i> This job is complete — the conversation is now read-only.</>
+                          )}
                         </span>
                         <button onClick={handleConfirmDelete} disabled={deleteBusy} className="btn btn-sm btn-outline-danger rounded-pill px-3">
                           <i className="bi bi-trash me-1"></i> Delete

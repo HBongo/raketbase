@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { publishToUsers, topicsForNotification } = require('./live');
 
 // Best-effort: creates one or more notifications for the bell in the top bar.
 // A failure here must never fail the action that triggered it, so errors are
@@ -23,6 +24,14 @@ async function notify(items) {
     if (error) throw error;
   } catch (err) {
     console.error('Failed to create notifications:', err.message);
+  }
+
+  // Live: the bell updates and a pop-up shows right away, and the recipient's open pages refresh
+  for (const n of rows) {
+    publishToUsers([n.user_id], {
+      topics: topicsForNotification(n.type),
+      notification: { type: n.type, title: n.title, body: n.body, link: n.link },
+    });
   }
 }
 

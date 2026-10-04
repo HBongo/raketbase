@@ -6,8 +6,8 @@
 // 4. Add/remove experience & education entries
 // 5. Spark Admin layout (sidebar + navbar)
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { getFreelancerProfile, updateProfile, changePassword, getPayoutDetails, getPaymentMethodDetails } from '../services/api';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { getFreelancerProfile, updateProfile, changePassword, getPayoutDetails, getPaymentMethodDetails, getProfileChat } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
 import { showToast } from '../utils/toast';
 import Money from '../components/Money';
@@ -17,6 +17,7 @@ import ProfileReviews from '../components/ProfileReviews';
 import PaymentDetailsCard from '../components/PaymentDetailsCard';
 import ActivityList from '../components/ActivityList';
 import DeleteAccountCard from '../components/DeleteAccountCard';
+import StartChatModal from '../components/StartChatModal';
 
 function SecurityTab() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -234,6 +235,37 @@ export default function Profile() {
   }, [id, isOwnProfile]);
   const payoutLoading = payout.loading || payout.key !== id;
   const paymentMethodLoading = paymentMethod.loading || paymentMethod.key !== id;
+
+  // "Message" on someone's profile: in Client mode you message their Freelancer side, in
+  // Freelancer mode their Client side. Opens the existing chat, or a box for the first message.
+  const navigate = useNavigate();
+  const [chatModalOpen, setChatModalOpen] = useState(false);
+  const [checkingChat, setCheckingChat] = useState(false);
+  async function handleMessage() {
+    const needMode = side === 'client' ? 'freelancer' : 'customer';
+    if (user.active_role !== needMode) {
+      showToast(
+        side === 'client'
+          ? 'Switch to Freelancer mode to message this client.'
+          : 'Switch to Client mode to message this freelancer.',
+        { type: 'info' }
+      );
+      return;
+    }
+    setCheckingChat(true);
+    try {
+      const res = await getProfileChat(id);
+      if (res.data?.conversation_id) {
+        navigate(`/messages/${res.data.conversation_id}`);
+        return;
+      }
+      setChatModalOpen(true);
+    } catch {
+      setChatModalOpen(true);
+    } finally {
+      setCheckingChat(false);
+    }
+  }
 
   function switchSide(next) {
     if (next === side || editing) return;
@@ -595,6 +627,9 @@ export default function Profile() {
             setActiveTab={setActiveTab}
             avatarControl={avatarControl}
             securityTab={securityTab}
+            onMessage={handleMessage}
+            messageBusy={checkingChat}
+            canMessageAsFreelancer={user.active_role === 'freelancer'}
             activityTab={<ActivityList isAdmin={user.role === 'admin'} />}
             paymentsTab={paymentMethodTab}
           />
@@ -776,7 +811,15 @@ export default function Profile() {
                         >
                           <i className="bi bi-briefcase me-2"></i>Hire Me
                         </button>
-                        <button className="btn btn-outline-dark rounded-pill fw-medium py-2"><i className="bi bi-chat-dots me-2"></i>Message</button>
+                        <button
+                          type="button"
+                          className="btn btn-outline-dark rounded-pill fw-medium py-2"
+                          onClick={handleMessage}
+                          disabled={checkingChat}
+                          title={user.active_role === 'customer' ? 'Send this freelancer a message' : 'Switch to Client mode to message'}
+                        >
+                          <i className="bi bi-chat-dots me-2"></i>Message
+                        </button>
                       </div>
                     </>
                   )}
@@ -1076,6 +1119,15 @@ export default function Profile() {
             </div>
           </div>
         )}
+
+      {chatModalOpen && (
+        <StartChatModal
+          recipientId={id}
+          recipientName={[f.first_name, f.last_name].filter(Boolean).join(' ') || 'this user'}
+          asRole={side === 'client' ? 'client' : 'freelancer'}
+          onClose={() => setChatModalOpen(false)}
+        />
+      )}
 
       {showHireModal && (
         <HireMeModal

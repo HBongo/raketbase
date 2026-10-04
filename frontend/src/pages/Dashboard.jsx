@@ -24,6 +24,7 @@ import { formatCurrency } from '../utils/formatters';
 import Money from '../components/Money';
 import RateContractModal from '../components/RateContractModal';
 
+import { useLive } from '../utils/useLive';
 export default function Dashboard() {
   const navigate = useNavigate();
 
@@ -120,6 +121,9 @@ export default function Dashboard() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Live: refresh quietly when a contract, proposal or offer of yours changes
+  useLive(['contracts', 'proposals', 'offers'], () => loadData());
 
   // Open modal for submitting deliverables (either whole fixed contract or milestone stage)
   function openSubmitModal(contract, milestone = null) {

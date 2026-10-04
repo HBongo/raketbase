@@ -12,6 +12,7 @@ import {
 import Money from '../components/Money';
 import AdminActivityLog from '../components/AdminActivityLog';
 
+import { useLive } from '../utils/useLive';
 const CLIENT_TYPE_LABELS = {
   individual: 'Individual',
   small_business: 'Small Business',
@@ -127,6 +128,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Live: new users, disputes, jobs and activity show up without refreshing
+  useLive(['admin'], () => loadData(), 800);
 
   async function handleResolve(resolution) {
     if (!resolvingDispute) return;

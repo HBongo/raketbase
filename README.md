@@ -222,6 +222,33 @@ Changes 8
 - Admins see both, masked, in User Management (payout details and the client payment method)
 - Added the client payment methods table (011_client_payment_methods.sql)
 
+[Explore Badges, Proposal Attachments & Dark Mode]
+- Explore job cards now show your own relationship to each job: "Applied" (your proposal is pending), "Hired" (your proposal was accepted), or "Your posting" (you posted it), and the button reads "View job" / "View your posting" instead of "View & Apply"; badges update live
+- Freelancers can attach up to 3 files (10 MB each: images, PDF, Office files, text, zip) to a proposal, such as work samples or a CV
+- Attachments are private: only the freelancer and the job's client can open them, through short-lived links, from the proposal card in My Postings and in My Proposals
+- If a file fails to upload, the proposal isn't sent, so nothing is left half-finished
+- Added the proposal files table and a private file bucket (014_proposal_attachments.sql)
+- Dark mode: Bootstrap's own colours now switch to dark too, which fixes text that stayed near-black on the dark background, such as the job titles in the admin Dispute Resolution list, input add-ons, and the soft-coloured badges
+- Dark mode: the Terms and Privacy documents and the attached-file preview in Messages are now readable
+
+[Real-Time Updates]
+- The site now updates live without refreshing, using Server-Sent Events: each logged-in tab keeps one connection to the backend (/api/v1/events), which sends a small signal whenever something changes, and the page reloads just its own data through the normal API (so all permission checks stay the same)
+- Notifications arrive instantly: the bell updates and a pop-up appears (e.g. "Juan accepted your proposal"), and clicking the pop-up opens the related page
+- Dashboard (contracts, escrow, stages, proposals), My Proposals, My Postings, a job's incoming proposals, and direct offers refresh by themselves when something changes
+- Explore and job pages update live: jobs on screen change in place when they're taken, paused, edited, or removed, and brand-new jobs wait behind a "N new jobs — show" button so the list doesn't jump
+- The Messages chat list updates live with new chats, new messages in other chats, and delete requests (open chats were already live)
+- The admin page (users, disputes, jobs, and the Activity Log) updates live
+- Suspending an account now logs that person out immediately
+- If the connection drops, it reconnects by itself; the bell also re-checks every minute as a backup
+
+[Profile Messaging]
+- The Message button on profiles now works: in Client mode it messages a freelancer from their Freelancer side, and in Freelancer mode it messages a client from their Client side (switch modes first if needed)
+- The first message is written in a small pop-up; sending it creates the chat and opens it in Messages, so accidental clicks never leave empty chats
+- Each client and freelancer pair has one profile chat; clicking Message again reopens it. Contract chats are still separate, one per contract
+- Profile chats show as "Direct message" and can be deleted at any time (both people confirm, like contract chats), instead of only after a job is completed
+- The other person gets a notification with a preview of the message
+- Chats no longer need a contract (013_profile_chats.sql)
+
 [Account Deletion]
 - Users can delete their own account from Profile → Security → Danger Zone; admin and staff accounts can't
 - A warning window lists exactly what will be deleted, what happens to open items, and what stays, and the user must enter their password and type DELETE before the button works

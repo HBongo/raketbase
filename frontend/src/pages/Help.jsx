@@ -53,7 +53,7 @@ const SECTIONS = [
     items: [
       {
         q: 'Where do I message the other person?',
-        a: 'Every contract has its own chat. Use the Message button on the contract in your Dashboard or open Messages. Chats become read-only once the contract is finished.',
+        a: "Every contract has its own chat. Use the Message button on the contract in your Dashboard or open Messages. Contract chats become read-only once the contract is finished. You can also message someone before hiring: in Client mode, use Message on a freelancer's profile; in Freelancer mode, use Message on a client's profile. Either of you can ask to delete those chats at any time.",
       },
       {
         q: 'Something went wrong with a contract. What do I do?',

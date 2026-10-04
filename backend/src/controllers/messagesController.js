@@ -1,5 +1,16 @@
 const crypto = require('crypto');
 const { supabaseAdmin } = require('../config/supabase');
+const { notify, displayName } = require('../utils/notify');
+const { logActivity } = require('../utils/activity');
+const { publishToUsers } = require('../utils/live');
+
+// The other person in a chat
+function otherParticipant(user, conversation) {
+  return user.id === conversation.client_id ? conversation.freelancer_id : conversation.client_id;
+}
+
+const PROFILE_CHAT_TITLE = 'Direct message';
+const MESSAGE_MAX = 2000;
 
 // Files live at <bucket>/<conversation_id>/<uuid>-<original filename>
 // (bucket created by database/schema.sql).
@@ -212,6 +223,8 @@ exports.sendMessage = async (req, res) => {
       } catch {}
     }
 
+    publishToUsers([otherParticipant(req.user, conversation)], { topics: ['conversations'], conversation_id: id });
+
     return res.status(201).json({ success: true, data: message });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -270,7 +283,8 @@ exports.confirmDelete = async (req, res) => {
     if (!isParticipant(req.user, conversation)) {
       return res.status(403).json({ success: false, error: 'You are not a participant in this conversation' });
     }
-    if (!['completed', 'refunded'].includes(conversation.contracts?.status)) {
+    // Profile chats (no contract) can be deleted any time; contract chats once the contract is finished
+    if (conversation.contract_id && !['completed', 'refunded'].includes(conversation.contracts?.status)) {
       return res.status(409).json({
         success: false,
         error: 'This conversation can only be deleted once the contract is completed.',
@@ -279,6 +293,7 @@ exports.confirmDelete = async (req, res) => {
 
     const isClient = userId === conversation.client_id;
     const updates = isClient ? { client_delete_confirmed: true } : { freelancer_delete_confirmed: true };
+    publishToUsers([otherParticipant(req.user, conversation)], { topics: ['conversations'], conversation_id: id });
 
     const { data: updated, error } = await supabaseAdmin
       .from('conversations')
@@ -340,6 +355,7 @@ exports.cancelDeleteConfirm = async (req, res) => {
 
     const isClient = userId === conversation.client_id;
     const updates = isClient ? { client_delete_confirmed: false } : { freelancer_delete_confirmed: false };
+    publishToUsers([otherParticipant(req.user, conversation)], { topics: ['conversations'], conversation_id: id });
 
     const { data: updated, error } = await supabaseAdmin
       .from('conversations')
@@ -351,6 +367,115 @@ exports.cancelDeleteConfirm = async (req, res) => {
     if (error) throw error;
 
     return res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Profile chats ("Message" on someone's profile). Your current mode decides the roles:
+// in Client mode you message them as a freelancer; in Freelancer mode, as a client.
+// One profile chat per client/freelancer pair; contract chats are separate.
+function profileChatRoles(user, otherUserId) {
+  return user.active_role === 'freelancer'
+    ? { client_id: otherUserId, freelancer_id: user.id }
+    : { client_id: user.id, freelancer_id: otherUserId };
+}
+
+async function findProfileChat(roles) {
+  const { data, error } = await supabaseAdmin
+    .from('conversations')
+    .select('conversation_id')
+    .eq('client_id', roles.client_id)
+    .eq('freelancer_id', roles.freelancer_id)
+    .is('contract_id', null)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// GET /api/v1/conversations/direct/:userId - the existing profile chat with this person
+// (for your current mode), or null
+exports.getProfileChat = async (req, res) => {
+  try {
+    const otherId = req.params.userId;
+    if (otherId === req.user.id) return res.status(200).json({ success: true, data: null });
+    const existing = await findProfileChat(profileChatRoles(req.user, otherId));
+    return res.status(200).json({ success: true, data: existing ? { conversation_id: existing.conversation_id } : null });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// POST /api/v1/conversations/direct { user_id, content } - start (or reuse) a profile chat
+// with this person and send the first message
+exports.startProfileChat = async (req, res) => {
+  try {
+    const otherId = req.body?.user_id;
+    const content = typeof req.body?.content === 'string' ? req.body.content.trim() : '';
+
+    if (!otherId) return res.status(400).json({ success: false, error: 'Who do you want to message?' });
+    if (otherId === req.user.id) return res.status(400).json({ success: false, error: 'You can\'t message yourself.' });
+    if (!content) return res.status(400).json({ success: false, error: 'Write a message first.' });
+    if (content.length > MESSAGE_MAX) {
+      return res.status(400).json({ success: false, error: `Messages must be ${MESSAGE_MAX} characters or less.` });
+    }
+
+    const { data: other } = await supabaseAdmin
+      .from('users')
+      .select('user_id, first_name, last_name, status')
+      .eq('user_id', otherId)
+      .maybeSingle();
+    if (!other || other.status === 'suspended' || other.status === 'deleted') {
+      return res.status(404).json({ success: false, error: 'This person can\'t receive messages.' });
+    }
+
+    const roles = profileChatRoles(req.user, otherId);
+    let conversation = await findProfileChat(roles);
+    let created = false;
+    if (!conversation) {
+      const { data, error } = await supabaseAdmin
+        .from('conversations')
+        .insert([{ ...roles, contract_id: null, title: PROFILE_CHAT_TITLE }])
+        .select('conversation_id')
+        .single();
+      if (error) {
+        console.error('startProfileChat insert failed:', error.message);
+        return res.status(500).json({
+          success: false,
+          error: 'Could not start the chat. Make sure migration 013 has been run, then try again.',
+        });
+      }
+      conversation = data;
+      created = true;
+    }
+
+    const { error: messageError } = await supabaseAdmin
+      .from('messages')
+      .insert([{ conversation_id: conversation.conversation_id, sender_id: req.user.id, content }]);
+    if (messageError) throw messageError;
+
+    const iAmClient = roles.client_id === req.user.id;
+    await notify({
+      user_id: otherId,
+      type: 'message',
+      role: iAmClient ? 'freelancer' : 'customer',
+      title: `${displayName(req.user, 'Someone')} sent you a message`,
+      body: content.length > 120 ? `${content.slice(0, 117)}...` : content,
+      link: `/messages/${conversation.conversation_id}`,
+    });
+    if (created) {
+      await logActivity({
+        user_id: req.user.id,
+        category: 'jobs',
+        action: 'message.profile_chat_started',
+        description: `Started a chat with ${displayName(other, 'a user')} from their ${iAmClient ? 'freelancer' : 'client'} profile`,
+        target_type: 'conversation',
+        target_id: conversation.conversation_id,
+        link: `/messages/${conversation.conversation_id}`,
+      });
+    }
+
+    return res.status(created ? 201 : 200).json({ success: true, data: { conversation_id: conversation.conversation_id, created } });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
