@@ -464,22 +464,29 @@ export default function LegalDocViewer({ docType = 'terms' }) {
   };
 
   return (
+<<<<<<< HEAD
     <div className="legal-doc-content text-start" style={{ lineHeight: 1.6, fontSize: '14px' }}>
       {/* Title & Metadata */}
       <div className="mb-4">
         <h3 className="fw-bold mb-1 legal-doc-title">
+=======
+    <div className="legal-viewer">
+      {/* Title & Metadata */}
+      <div >
+        <h3 className="legal-viewer-title">
+>>>>>>> paulaver2+missingfeatures
           {doc.documentName}
         </h3>
-        <p className="text-muted small mb-0">
+        <p className="legal-viewer-subtitle">
           Last updated: {doc.lastUpdated}
         </p>
       </div>
 
       {/* PRIVACY POLICY: Preamble */}
       {isPrivacy && doc.sections[0] && (
-        <div className="mb-4">
+        <div >
           {doc.sections[0].content.map((p, idx) => (
-            <p key={idx} className="mb-2">
+            <p key={idx} >
               {p}
             </p>
           ))}
@@ -488,13 +495,18 @@ export default function LegalDocViewer({ docType = 'terms' }) {
 
       {/* PRIVACY POLICY: SUMMARY OF KEY POINTS */}
       {isPrivacy && doc.summary && (
+<<<<<<< HEAD
         <div className="mb-4">
           <h5 className="fw-bold mb-3 legal-doc-heading">
+=======
+        <div >
+          <h5 >
+>>>>>>> paulaver2+missingfeatures
             SUMMARY OF KEY POINTS
           </h5>
           {doc.summary.map((item, idx) => (
-            <div key={idx} className="mb-3">
-              <p className="mb-1">
+            <div key={idx} >
+              <p >
                 <strong>{item.q}</strong> {item.a}
               </p>
             </div>
@@ -504,12 +516,17 @@ export default function LegalDocViewer({ docType = 'terms' }) {
 
       {/* TERMS OF SERVICE: PREAMBLE */}
       {!isPrivacy && doc.preamble && (
+<<<<<<< HEAD
         <div className="mb-4">
           <h5 className="fw-bold mb-2 legal-doc-heading">
+=======
+        <div >
+          <h5 >
+>>>>>>> paulaver2+missingfeatures
             {doc.preamble.title}
           </h5>
           {doc.preamble.content.map((p, idx) => (
-            <p key={idx} className="mb-2">
+            <p key={idx} >
               {p}
             </p>
           ))}
@@ -518,8 +535,13 @@ export default function LegalDocViewer({ docType = 'terms' }) {
 
       {/* TERMS OF SERVICE: TABLE OF CONTENTS */}
       {!isPrivacy && doc.tableOfContents && (
+<<<<<<< HEAD
         <div className="mb-4">
           <h5 className="fw-bold mb-2 legal-doc-heading">
+=======
+        <div >
+          <h5 >
+>>>>>>> paulaver2+missingfeatures
             TABLE OF CONTENTS
           </h5>
           <ol className="ps-3 mb-0" style={{ lineHeight: '1.8' }}>
@@ -527,7 +549,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
               const sectionId = `terms-${idx + 1}`;
               const label = item.replace(/^\d+\.\s*/, '');
               return (
-                <li key={idx} className="mb-1">
+                <li key={idx} >
                   <a
                     href={`#${sectionId}`}
                     onClick={(e) => scrollToSection(e, sectionId)}
@@ -545,13 +567,18 @@ export default function LegalDocViewer({ docType = 'terms' }) {
 
       {/* SECTIONS */}
       {doc.sections.filter(s => isPrivacy ? s.id !== 'privacy-intro' : true).map((section, sIdx) => (
+<<<<<<< HEAD
         <div key={section.id || sIdx} id={section.id} className="mb-4 pt-1">
           <h5 className="fw-bold mb-2 legal-doc-heading">
+=======
+        <div key={section.id || sIdx} id={section.id} >
+          <h5 >
+>>>>>>> paulaver2+missingfeatures
             {section.title}
           </h5>
 
           {section.inShort && (
-            <p className="text-secondary small mb-2">
+            <p >
               <strong>In Short:</strong> {section.inShort}
             </p>
           )}
@@ -559,38 +586,43 @@ export default function LegalDocViewer({ docType = 'terms' }) {
           {section.content && section.content.map((p, pIdx) => {
             if (p.startsWith('•')) {
               return (
-                <li key={pIdx} className="ms-3 mb-1">
+                <li key={pIdx} >
                   {p.replace(/^•\s*/, '')}
                 </li>
               );
             }
             return (
-              <p key={pIdx} className="mb-2">
+              <p key={pIdx} >
                 {p}
               </p>
             );
           })}
 
           {section.subsections && section.subsections.map((sub, subIdx) => (
+<<<<<<< HEAD
             <div key={subIdx} className="mt-3 mb-3">
               <h6 className="fw-bold mb-1 legal-doc-subheading">
+=======
+            <div key={subIdx} >
+              <h6 className="legal-viewer-title">
+>>>>>>> paulaver2+missingfeatures
                 {sub.title}
               </h6>
               {sub.inShort && (
-                <p className="text-secondary small mb-2">
+                <p >
                   <strong>In Short:</strong> {sub.inShort}
                 </p>
               )}
               {sub.content && sub.content.map((subP, subPIdx) => {
                 if (subP.startsWith('•')) {
                   return (
-                    <li key={subPIdx} className="ms-3 mb-1">
+                    <li key={subPIdx} >
                       {subP.replace(/^•\s*/, '')}
                     </li>
                   );
                 }
                 return (
-                  <p key={subPIdx} className="mb-2">
+                  <p key={subPIdx} >
                     {subP}
                   </p>
                 );
@@ -602,7 +634,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
 
       {/* Basic Footer */}
       <hr className="my-4" />
-      <p className="text-muted small mb-0">
+      <p className="legal-viewer-subtitle">
         If you have questions about this document, please contact us at{' '}
         <a href={`mailto:${doc.email}`}>{doc.email}</a>.
       </p>

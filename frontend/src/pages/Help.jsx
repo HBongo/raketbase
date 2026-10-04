@@ -1,7 +1,6 @@
-// Help.jsx — Help & Support: short answers to the questions people ask most.
-import { Link } from 'react-router-dom';
-
-// Set this to the team's support inbox to show an email link at the bottom of the page.
+import { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import '../styles/help.css';
 const SUPPORT_EMAIL = 'rjsdelagua@mymail.mapua.edu.ph';
 
 const SECTIONS = [
@@ -85,56 +84,119 @@ const SECTIONS = [
 ];
 
 export default function Help() {
-  return (
-    <>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Help & Support</h1>
-          <p className="page-subtitle">Quick answers about hiring, working, payments, and your account.</p>
-        </div>
-      </div>
+  const location = useLocation();
+  const navigate = useNavigate();
 
-      <div className="row g-4 px-3 mb-4">
-        <div className="col-12 col-lg-8">
+  // Dark mode state
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('theme') === 'dark' || localStorage.getItem('darkMode') === 'true';
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      localStorage.setItem('theme', 'dark');
+      localStorage.setItem('darkMode', 'true');
+    } else {
+      localStorage.setItem('theme', 'light');
+      localStorage.setItem('darkMode', 'false');
+    }
+  }, [isDarkMode]);
+
+  const isLoggedIn = !!localStorage.getItem('token');
+  const backLink = isLoggedIn ? '/dashboard' : '/';
+  const backText = isLoggedIn ? 'Back to RaketBase' : 'Back to Home';
+  
+  const goBack = (e) => {
+    if (window.history.length > 1) {
+      e.preventDefault();
+      navigate(-1);
+    }
+  };
+
+  return (
+    <div className={`help-page ${isDarkMode ? 'help-page--dark' : ''}`}>
+      {/* Navbar */}
+      <nav className="help-navbar">
+        <div className="help-nav-content">
+          <Link to={isLoggedIn ? "/dashboard" : "/"} className="help-brand">
+            <img src="/raketbase-icon.svg" alt="RaketBase" onError={(e) => e.target.style.display="none"} />
+            <span className="help-brand-text">
+              <span className="help-brand-bold">RAKET</span><span className="help-brand-light">BASE</span>
+            </span>
+          </Link>
+          <div className="help-nav-right">
+            <button 
+              className="help-theme-toggle" 
+              onClick={() => setIsDarkMode(!isDarkMode)} 
+              aria-label="Toggle dark mode"
+              title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {isDarkMode ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+              )}
+            </button>
+            <Link to={backLink} onClick={goBack} className="help-back-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+              {backText}
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      <div className="help-container">
+        <div className="help-header">
+          <h1 className="help-title">Help & Support</h1>
+          <p className="help-subtitle">Quick answers about hiring, working, payments, and your account.</p>
+        </div>
+
+        <div className="row g-4">
+          <div className="col-12 col-lg-8">
           {SECTIONS.map((section) => (
-            <div className="card shadow-sm border-0 mb-4" key={section.title}>
-              <div className="card-body p-4">
-                <h2 className="h5 fw-bold text-dark mb-3">{section.title}</h2>
+            <div className="help-card" key={section.title}>
+              <div className="help-card-header">
+                <h2 className="help-card-title">{section.title}</h2>
+              </div>
+              <div className="help-card-body">
                 {section.items.map((item, i) => (
-                  <details key={item.q} className={i > 0 ? 'border-top pt-3 mt-3' : ''}>
-                    <summary className="fw-medium text-dark" style={{ cursor: 'pointer' }}>{item.q}</summary>
-                    <p className="text-muted small mt-2 mb-0" style={{ lineHeight: 1.7 }}>{item.a}</p>
+                  <details key={item.q} className="help-accordion">
+                    <summary className="help-accordion-summary">
+                      {item.q}
+                      <svg className="help-accordion-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </summary>
+                    <div className="help-accordion-content">{item.a}</div>
                   </details>
                 ))}
               </div>
             </div>
           ))}
-        </div>
+          </div>
 
-        <div className="col-12 col-lg-4">
-          <div className="card shadow-sm border-0">
-            <div className="card-body p-4">
-              <h2 className="h6 fw-bold text-dark mb-3">Still need help?</h2>
-              <p className="text-muted small mb-3">
+          <div className="col-12 col-lg-4">
+            <div className="help-sidebar-box">
+              <h2 className="help-sidebar-title">Still need help?</h2>
+              <p className="help-sidebar-text">
                 For a problem with a contract, filing a dispute from your Dashboard is the fastest way to reach an admin.
               </p>
-              <div className="d-grid gap-2">
-                <Link to="/dashboard" className="btn btn-dark rounded-pill fw-medium">Go to Dashboard</Link>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <Link to="/dashboard" className="help-btn-primary">Go to Dashboard</Link>
                 {SUPPORT_EMAIL && (
-                  <a href={`mailto:${SUPPORT_EMAIL}`} className="btn btn-outline-dark rounded-pill fw-medium">
-                    <i className="bi bi-envelope me-2"></i>Email support
+                  <a href={`mailto:${SUPPORT_EMAIL}`} className="help-btn-outline">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "8px" }}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    Email Support
                   </a>
                 )}
               </div>
-              <hr className="my-4" />
-              <div className="d-flex gap-3 small">
-                <Link to="/terms" className="text-decoration-none">Terms of Service</Link>
-                <Link to="/privacy" className="text-decoration-none">Privacy Notice</Link>
+              
+              <div className="help-links">
+                <Link to="/terms">Terms of Service</Link>
+                <Link to="/privacy">Privacy Notice</Link>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

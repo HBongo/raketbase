@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import './LandingPage.css';
 import {
   BRAND,
@@ -176,6 +176,13 @@ export default function LandingPage() {
   const [finalEmail, setFinalEmail] = useState('');
   const [finalEmailSuccess, setFinalEmailSuccess] = useState(false);
 
+  // Info Modal State
+  const [infoModal, setInfoModal] = useState(null);
+  const openInfoModal = (e, title, htmlContent) => {
+    e.preventDefault();
+    setInfoModal({ title, content: htmlContent });
+  };
+
   // Cookie Consent
   const [showCookies, setShowCookies] = useState(false);
 
@@ -316,7 +323,7 @@ export default function LandingPage() {
         <div className="lp-container lp-nav__inner">
           <div className="lp-nav__brand">
             <a href="/" aria-label="RaketBase Home">
-              <img src="/racketbaseSVG.svg" alt="" aria-hidden="true" className="lp-nav__logo" onError={(e) => e.target.style.display='none'} />
+              <img src="/raketbase-icon.svg" alt="" aria-hidden="true" className="lp-nav__logo" onError={(e) => e.target.style.display='none'} />
               <span className="lp-nav__brand-text"><strong>RAKET</strong>BASE</span>
             </a>
           </div>
@@ -360,35 +367,15 @@ export default function LandingPage() {
         <section className="lp-hero" id="hero">
           <div className="lp-container lp-hero__inner">
             <div className="lp-hero__content lp-reveal">
-              <h1 className="lp-hero__title">{BRAND.heroTitle}</h1>
-              <p className="lp-hero__sub">{BRAND.heroSub}</p>
+              <h1 className="lp-hero__title">
+                Launch your raket.<br />
+                Build your base.
+              </h1>
+              <p className="lp-hero__sub">
+                <strong>Welcome to RaketBase!</strong><br /><br />
               
-              <form className="lp-hero__search" onSubmit={handleSearch}>
-                <select 
-                  value={searchCategory} 
-                  onChange={(e) => setSearchCategory(e.target.value)}
-                  aria-label="Select category"
-                >
-                  <option value="">Any Category</option>
-                  {CATEGORIES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-                <div className="lp-hero__search-divider"></div>
-                <input 
-                  type="text" 
-                  placeholder="Keywords e.g. React Developer" 
-                  value={searchKeyword}
-                  onChange={(e) => setSearchKeyword(e.target.value)}
-                  aria-label="Search keywords"
-                />
-                <button type="submit" className="lp-btn-primary">Search</button>
-              </form>
-
-              <div className="lp-hero__popular">
-                <span>Popular:</span>
-                {POPULAR_SEARCHES.map((term, i) => (
-                  <button key={i} className="lp-chip" onClick={() => handlePopularSearch(term)}>{term}</button>
-                ))}
-              </div>
+                Whether you are an entrepreneur searching for reliable creatives, technical, or business solutions, or a freelancer looking to showcase your skills and turn your passion into rewarding opportunities, RaketBase makes finding the right match seamless, secure, and accessible. Discover verified local services, collaborate with total confidence, and power your next big idea forward, all within one unified platform.
+              </p>
 
               <div className="lp-hero__ctas">
                 <button className="lp-btn-primary lp-btn-large" onClick={() => navigate('/register')}>Hire a Freelancer</button>
@@ -676,18 +663,14 @@ export default function LandingPage() {
         <section className="lp-final-cta">
           <div className="lp-container lp-reveal">
             <h2>Your next great project starts here.</h2>
-            <form className="lp-final-form" onSubmit={handleFinalSubmit}>
-              <input 
-                type="email" 
-                placeholder="Enter your email address" 
-                value={finalEmail}
-                onChange={e => setFinalEmail(e.target.value)}
-                required
-                aria-label="Email address"
-              />
-              <button type="submit" className="lp-btn-primary">Get Started</button>
-            </form>
-            {finalEmailSuccess && <p className="lp-success-msg">Thanks! We'll be in touch soon.</p>}
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
+              <button 
+                className="lp-btn-white lp-btn-large" 
+                onClick={() => navigate('/register')}
+              >
+                Create an Account
+              </button>
+            </div>
           </div>
         </section>
       </main>
@@ -698,7 +681,7 @@ export default function LandingPage() {
           <div className="lp-footer-top lp-grid-5">
             <div className="lp-footer-brand">
               <a href="/" aria-label="RaketBase Home">
-                <img src="/racketbaseSVG.svg" alt="" aria-hidden="true" className="lp-footer-logo" onError={(e) => e.target.style.display='none'} />
+                <img src="/raketbase-icon.svg" alt="" aria-hidden="true" className="lp-footer-logo" onError={(e) => e.target.style.display='none'} />
                 <span className="lp-footer-brand-text"><strong>RAKET</strong>BASE</span>
               </a>
               <p>The premier freelance marketplace for top talent and top clients.</p>
@@ -712,49 +695,60 @@ export default function LandingPage() {
             
             <div className="lp-footer-col">
               <h4>For Clients</h4>
-              <a href="/explore">Find Talent</a>
-              <a href="/register">Post a Job</a>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>How to Hire</a>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Payment Protection</a>
+              <Link to="/explore">Find Talent</Link>
+              <a href="#how-it-works" onClick={(e) => { scrollToSection(e, 'how-it-works'); setActiveTab('clients'); }}>How to Hire</a>
+              <a href="#" onClick={(e) => openInfoModal(e, 'Payment Protection', 'Total peace of mind from start to finish. With our secure escrow system, your funds are safely held and only released when the agreed-upon milestones are met and you are 100% satisfied with the results.')}>Payment Protection</a>
             </div>
             
             <div className="lp-footer-col">
               <h4>For Freelancers</h4>
-              <a href="/explore">Find Work</a>
-              <a href="/register">Create Profile</a>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>How It Works</a>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Pro Membership</a>
+              <Link to="/explore">Find Work</Link>
+              <Link to="/register">Create Profile</Link>
+              <a href="#how-it-works" onClick={(e) => { scrollToSection(e, 'how-it-works'); setActiveTab('freelancers'); }}>How It Works</a>
             </div>
             
             <div className="lp-footer-col">
               <h4>Company</h4>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>About Us</a>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Careers</a>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Press</a>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Blog</a>
+              <a href="#" onClick={(e) => openInfoModal(e, 'About Us', '<strong>Launch your raket. Build your base.</strong><br/><br/>We are a dedicated team of Computer Science students from Mapúa University with a shared vision: to empower local talent and solve real-world freelance challenges. We built RaketBase because we believe finding great work and hiring great people should be seamless, transparent, and completely free of premium barriers. Our mission is to bridge the gap between skilled professionals and visionary clients, fostering a trusted community where every project can take flight.')}>About Us</a>
+              <a href="#" onClick={(e) => openInfoModal(e, 'Careers', 'We are currently a small team of student founders and are not actively hiring. Check back later!')}>Careers</a>
+              <a href="#" onClick={(e) => openInfoModal(e, 'Press', 'For press inquiries, please contact our team directly via email.<br/><br/><strong>Email:</strong> <a href=\'mailto:rjsdelagua@mymail.mapua.edu.ph\' style=\'color: var(--lp-primary);\'>rjsdelagua@mymail.mapua.edu.ph</a>')}>Press</a>
             </div>
             
             <div className="lp-footer-col">
               <h4>Support</h4>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Help Center</a>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Contact Us</a>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Trust & Safety</a>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Accessibility</a>
+              <Link to="/help">Help Center</Link>
+              <a href="#" onClick={(e) => openInfoModal(e, 'Contact Us', 'Have a question, feedback, or a partnership idea? We’d love to hear from you. Drop us a line and help us make RaketBase the best homebase for freelancers everywhere.<br/><br/><strong>Email:</strong> <a href=\'mailto:rjsdelagua@mymail.mapua.edu.ph\' style=\'color: var(--lp-primary);\'>rjsdelagua@mymail.mapua.edu.ph</a>')}>Contact Us</a>
+              <a href="#" onClick={(e) => openInfoModal(e, 'Trust & Safety', 'Your safety is our top priority. We employ strict verification processes and a fair, transparent dispute resolution system to ensure every collaboration goes smoothly. If you experience any issues or have immediate concerns, we are here to help.<br/><br/><strong>Contact us directly at:</strong> <a href=\'mailto:rjsdelagua@mymail.mapua.edu.ph\' style=\'color: var(--lp-primary);\'>rjsdelagua@mymail.mapua.edu.ph</a>')}>Trust & Safety</a>
+              <a href="#" onClick={(e) => openInfoModal(e, 'Accessibility', 'We are committed to making RaketBase accessible to everyone. If you encounter any accessibility barriers, please let us know.')}>Accessibility</a>
             </div>
           </div>
           
           <div className="lp-footer-bottom">
             <p>&copy; 2026 RaketBase. All rights reserved.</p>
             <div className="lp-footer-legal">
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Privacy</a>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Terms</a>
-              <a href="/" onClick={(e) => { e.preventDefault(); window.scrollTo({top: 0, behavior: 'smooth'}); }}>Cookies</a>
+              <Link to="/privacy">Privacy</Link>
+              <Link to="/terms">Terms</Link>
+              <Link to="/privacy">Cookies</Link>
             </div>
           </div>
         </div>
       </footer>
 
       {/* 17. Modals */}
+      {infoModal && (
+        <div className="lp-modal-overlay" onClick={() => setInfoModal(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="lp-modal-content" onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'var(--lp-surface)', borderRadius: 'var(--lp-radius)', padding: '2.5rem', width: '100%', maxWidth: '600px', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+            <button className="lp-modal-close" onClick={() => setInfoModal(null)} style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--lp-muted)' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <h3 style={{ fontSize: '1.75rem', marginBottom: '1.5rem', color: 'var(--lp-text)' }}>{infoModal.title}</h3>
+            <div style={{ color: 'var(--lp-muted)', lineHeight: '1.7', fontSize: '1.05rem' }} dangerouslySetInnerHTML={{ __html: infoModal.content }}></div>
+            <div style={{ marginTop: '2.5rem', textAlign: 'right' }}>
+              <button className="lp-btn-primary" onClick={() => setInfoModal(null)}>Got it</button>
+            </div>
+          </div>
+        </div>
+      )}
       
 
       

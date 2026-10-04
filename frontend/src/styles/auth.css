@@ -1,0 +1,821 @@
+:root {
+  --rb-bg: #F8FAFC;
+  --rb-surface: #FFFFFF;
+  --rb-surface-alt: #F1F5F9;
+  --rb-text: #0F172A;
+  --rb-text-secondary: #64748B;
+  --rb-text-muted: #94A3B8;
+  --rb-border: #E2E8F0;
+  --rb-border-focus: #FF5A1E;
+  --rb-primary: #FF5A1E;
+  --rb-primary-hover: #E04E15;
+  --rb-accent: #F97316;
+  --rb-success: #22C55E;
+  --rb-error: #EF4444;
+  --rb-input-bg: #FFFFFF;
+  --rb-sidebar-bg: #0F172A;
+  --rb-sidebar-text: #F1F5F9;
+  --rb-sidebar-muted: #64748B;
+}
+
+.rb-auth--dark {
+  --rb-bg: #0B1120;
+  --rb-surface: #151D2E;
+  --rb-surface-alt: #1A2435;
+  --rb-text: #F1F5F9;
+  --rb-text-secondary: #94A3B8;
+  --rb-text-muted: #64748B;
+  --rb-border: #1E293B;
+  --rb-border-focus: #FF5A1E;
+  --rb-primary: #FF5A1E;
+  --rb-primary-hover: #FF6B35;
+  --rb-accent: #F97316;
+  --rb-success: #4ADE80;
+  --rb-error: #F87171;
+  --rb-input-bg: #1A2435;
+  --rb-sidebar-bg: #060A14;
+  --rb-sidebar-text: #E2E8F0;
+  --rb-sidebar-muted: #475569;
+}
+
+.rb-auth {
+  display: flex;
+  min-height: 100vh;
+  background: var(--rb-bg);
+  color: var(--rb-text);
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.rb-auth *, .rb-auth *::before, .rb-auth *::after {
+  box-sizing: border-box;
+}
+
+.rb-auth__sidebar {
+  width: 45%;
+  max-width: 540px;
+  background: var(--rb-sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.rb-auth__sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,90,30,0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+.rb-auth__sidebar::after {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,90,30,0.15), transparent 70%);
+  pointer-events: none;
+}
+
+.rb-auth__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.rb-auth__logo {
+  height: 64px;
+  width: auto;
+}
+
+.rb-auth__brand-text {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.75rem;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  transform: translateY(8px); /* Optically center text with the asymmetric logo */
+  display: flex;
+  align-items: center;
+  color: var(--rb-sidebar-text);
+}
+
+.rb-auth__brand-bold {
+  font-weight: 800;
+}
+
+.rb-auth__brand-light {
+  font-weight: 300;
+}
+
+.rb-auth__hero {
+  position: relative;
+  z-index: 1;
+  max-width: 380px;
+}
+
+.rb-auth__tagline {
+  font-family: 'Montserrat', sans-serif;
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--rb-sidebar-text);
+  margin-bottom: 1rem;
+}
+
+.rb-auth__tagline-accent {
+  color: var(--rb-primary);
+}
+
+.rb-auth__subtitle {
+  color: var(--rb-sidebar-muted);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  margin-bottom: 2rem;
+}
+
+.rb-auth__stats {
+  display: flex;
+  gap: 0.75rem;
+  position: relative;
+  z-index: 1;
+  flex-wrap: wrap;
+}
+
+.rb-auth__stat-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  backdrop-filter: blur(8px);
+  flex: 1;
+  min-width: 100px;
+}
+
+.rb-auth__stat-value {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--rb-primary);
+  display: block;
+}
+
+.rb-auth__stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--rb-sidebar-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.rb-auth__sidebar-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.8rem;
+  color: var(--rb-sidebar-muted);
+}
+
+.rb-auth__sidebar-footer a {
+  color: var(--rb-sidebar-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.rb-auth__sidebar-footer a:hover {
+  color: var(--rb-sidebar-text);
+}
+
+.rb-auth__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 2rem;
+  position: relative;
+  overflow-y: auto;
+}
+
+.rb-auth__form-container {
+  width: 100%;
+  max-width: 420px;
+}
+
+.rb-auth__theme-toggle {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.5rem;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--rb-border);
+  background: var(--rb-surface);
+  color: var(--rb-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  cursor: pointer;
+  z-index: 10;
+  pointer-events: auto;
+  transition: all 0.2s ease;
+}
+
+.rb-auth__theme-toggle:hover {
+  border-color: var(--rb-primary);
+  color: var(--rb-primary);
+  transform: scale(1.05);
+}
+
+.rb-auth__theme-toggle:focus-visible {
+  outline: 2px solid var(--rb-primary);
+  outline-offset: 2px;
+}
+
+.rb-auth__mobile-brand {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 1.75rem;
+}
+
+.rb-auth__mobile-brand .rb-auth__brand-text {
+  color: var(--rb-text);
+}
+
+.rb-auth__title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: var(--rb-text);
+  margin-bottom: 0.35rem;
+  letter-spacing: -0.01em;
+}
+
+.rb-auth__description {
+  color: var(--rb-text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 1.75rem;
+}
+
+.rb-auth__step-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--rb-text-muted);
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--rb-border);
+  background: var(--rb-surface-alt);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rb-auth__alert {
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid;
+}
+
+.rb-auth__alert--success {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.2);
+  color: var(--rb-success);
+}
+
+.rb-auth__alert--error {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: var(--rb-error);
+}
+
+.rb-auth__alert--info {
+  background: rgba(255, 90, 30, 0.08);
+  border-color: rgba(255, 90, 30, 0.2);
+  color: var(--rb-primary);
+}
+
+.rb-auth__field {
+  margin-bottom: 1rem;
+}
+
+.rb-auth__row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.rb-auth__row > .rb-auth__field {
+  flex: 1;
+}
+
+.rb-auth__label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--rb-text-secondary);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rb-auth__label-optional {
+  font-weight: 400;
+  text-transform: none;
+  color: var(--rb-text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0;
+}
+
+.rb-auth__input {
+  width: 100%;
+  background: var(--rb-input-bg);
+  border: 1.5px solid var(--rb-border);
+  color: var(--rb-text);
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.3s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.rb-auth__input:focus {
+  border-color: var(--rb-border-focus);
+  box-shadow: 0 0 0 3px rgba(255, 90, 30, 0.12);
+}
+
+.rb-auth__input::placeholder {
+  color: var(--rb-text-muted);
+}
+
+.rb-auth__input--error {
+  border-color: var(--rb-error) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.rb-auth__input-wrapper {
+  position: relative;
+}
+
+.rb-auth__input-wrapper .rb-auth__input {
+  padding-right: 2.75rem;
+}
+
+.rb-auth__input-icon {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--rb-text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.rb-auth__input-icon:hover {
+  color: var(--rb-text);
+}
+
+select.rb-auth__input {
+  cursor: pointer;
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+}
+
+.rb-auth__field-error {
+  font-size: 0.75rem;
+  color: var(--rb-error);
+  margin-top: 0.3rem;
+}
+
+.rb-auth__btn-primary {
+  width: 100%;
+  padding: 0.8rem 1.5rem;
+  background: linear-gradient(135deg, var(--rb-primary), var(--rb-accent));
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-family: inherit;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 0.01em;
+}
+
+.rb-auth__btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.rb-auth__btn-primary:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.rb-auth__btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(255, 90, 30, 0.3);
+}
+
+.rb-auth__btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.rb-auth__btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.rb-auth__btn-primary:focus-visible {
+  outline: 2px solid var(--rb-primary);
+  outline-offset: 2px;
+}
+
+.rb-auth__btn-secondary {
+  padding: 0.7rem 1rem;
+  background: var(--rb-surface-alt);
+  border: 1.5px solid var(--rb-border);
+  color: var(--rb-text);
+  font-weight: 600;
+  font-size: 0.85rem;
+  font-family: inherit;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.rb-auth__btn-secondary:hover:not(:disabled) {
+  border-color: var(--rb-text-muted);
+  background: var(--rb-bg);
+}
+
+.rb-auth__btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rb-auth__btn-ghost {
+  background: none;
+  border: none;
+  color: var(--rb-text-muted);
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.rb-auth__btn-ghost:hover {
+  color: var(--rb-primary);
+}
+
+.rb-auth__btn-ghost--accent {
+  color: var(--rb-primary);
+  font-weight: 600;
+}
+
+.rb-auth__btn-ghost--accent:hover {
+  opacity: 0.8;
+}
+
+.rb-auth__divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  color: var(--rb-text-muted);
+  font-size: 0.8rem;
+}
+
+.rb-auth__divider::before,
+.rb-auth__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--rb-border);
+}
+
+.rb-auth__demo-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.rb-auth__demo-row > button {
+  flex: 1;
+}
+
+.rb-auth__checklist {
+  background: var(--rb-surface-alt);
+  border: 1px solid var(--rb-border);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.rb-auth__checklist-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--rb-text-secondary);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rb-auth__checklist-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.2rem 0.5rem;
+}
+
+.rb-auth__check-item {
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: color 0.2s;
+}
+
+.rb-auth__check-item--pass {
+  color: var(--rb-success);
+}
+
+.rb-auth__check-item--fail {
+  color: var(--rb-text-muted);
+}
+
+.rb-auth__checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.rb-auth__checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--rb-primary);
+  flex-shrink: 0;
+}
+
+.rb-auth__checkbox-label {
+  font-size: 0.85rem;
+  color: var(--rb-text);
+  cursor: pointer;
+  user-select: none;
+  line-height: 1.4;
+}
+
+.rb-auth__footer-text {
+  font-size: 0.875rem;
+  color: var(--rb-text-secondary);
+  text-align: center;
+  margin-top: 1.5rem;
+}
+
+.rb-auth__footer-text a {
+  color: var(--rb-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.rb-auth__footer-text a:hover {
+  opacity: 0.8;
+}
+
+.rb-auth__legal-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  color: var(--rb-text-muted);
+}
+
+.rb-auth__legal-disclaimer {
+  font-size: 0.78rem;
+  color: var(--rb-text-secondary);
+  text-align: center;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.rb-auth__action-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.rb-auth__action-row .rb-auth__btn-primary {
+  flex: 1;
+}
+
+.rb-auth__autocomplete {
+  position: relative;
+}
+
+.rb-auth__autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--rb-surface);
+  border: 1px solid var(--rb-border);
+  border-radius: 10px;
+  list-style: none;
+  padding: 4px 0;
+  margin: 4px 0 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.rb-auth--dark .rb-auth__autocomplete-list {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.rb-auth__autocomplete-item {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--rb-text);
+  padding: 0.5rem 0.85rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.rb-auth__autocomplete-item:hover {
+  background: var(--rb-surface-alt);
+}
+
+@keyframes rb-fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.rb-auth__form-container {
+  animation: rb-fadeIn 0.4s ease-out;
+}
+
+@keyframes rb-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.rb-auth__stat-card:nth-child(1) { animation: rb-float 5s ease-in-out infinite; }
+.rb-auth__stat-card:nth-child(2) { animation: rb-float 5s ease-in-out 0.5s infinite; }
+.rb-auth__stat-card:nth-child(3) { animation: rb-float 5s ease-in-out 1s infinite; }
+
+@keyframes rb-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.rb-auth__btn-primary .spinner-border {
+  width: 1rem;
+  height: 1rem;
+  border-width: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rb-auth__form-container { animation: none; }
+  .rb-auth__stat-card { animation: none !important; }
+  .rb-auth *, .rb-auth *::before, .rb-auth *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .rb-auth {
+    flex-direction: column;
+  }
+  
+  .rb-auth__sidebar {
+    width: 100%;
+    max-width: none;
+    padding: 2rem 1.5rem;
+    min-height: auto;
+  }
+  
+  .rb-auth__hero {
+    max-width: none;
+  }
+  
+  .rb-auth__main {
+    padding: 2rem 1.5rem;
+  }
+  
+  .rb-auth__mobile-brand {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .rb-auth__sidebar {
+    display: none;
+  }
+  
+  .rb-auth__mobile-brand {
+    display: flex;
+  }
+  
+  .rb-auth__main {
+    padding: 1.5rem 1.25rem;
+    min-height: 100vh;
+  }
+  
+  .rb-auth__form-container {
+    max-width: 100%;
+  }
+  
+  .rb-auth__row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .rb-auth__stats {
+    flex-direction: column;
+  }
+  
+  .rb-auth__theme-toggle {
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 38px;
+    height: 38px;
+  }
+}
+
+.rb-auth__input:focus-visible {
+  outline: none;
+  border-color: var(--rb-border-focus);
+  box-shadow: 0 0 0 3px rgba(255, 90, 30, 0.12);
+}
+
+.rb-auth__btn-secondary:focus-visible,
+.rb-auth__btn-ghost:focus-visible {
+  outline: 2px solid var(--rb-primary);
+  outline-offset: 2px;
+}
+
+.rb-auth__checkbox:focus-visible {
+  outline: 2px solid var(--rb-primary);
+  outline-offset: 2px;
+}
+
+.rb-auth__brand, .rb-auth__mobile-brand {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
