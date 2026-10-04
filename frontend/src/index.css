@@ -603,5 +603,33 @@ body.dark-mode .hover-card-action:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
+/* Option 2: Dark Mode Amber Glow Warning & Pending Status Pills */
+body.dark-mode .badge.bg-warning,
+body.dark-mode .badge.bg-warning.text-dark,
+body.dark-mode .btn.btn-warning,
+body.dark-mode .btn.btn-warning.text-dark,
+body.dark-mode span.bg-warning,
+body.dark-mode span.bg-warning.text-dark,
+body.dark-mode span.btn-warning,
+body.dark-mode span.btn-warning.text-dark {
+  background-color: rgba(245, 158, 11, 0.16) !important;
+  border: 1px solid rgba(245, 158, 11, 0.45) !important;
+  color: #FBBF24 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.08);
+}
 
+body.dark-mode .badge.bg-warning *,
+body.dark-mode .badge.bg-warning.text-dark *,
+body.dark-mode .btn.btn-warning *,
+body.dark-mode .btn.btn-warning.text-dark *,
+body.dark-mode span.bg-warning *,
+body.dark-mode span.btn-warning * {
+  color: #FBBF24 !important;
+}
 
+body.dark-mode .btn.btn-warning:hover {
+  background-color: rgba(245, 158, 11, 0.28) !important;
+  border-color: rgba(245, 158, 11, 0.7) !important;
+  color: #FDE68A !important;
+}
