@@ -178,6 +178,9 @@ CREATE TABLE public.conversations (
     created_at                   timestamp with time zone NOT NULL DEFAULT now(),
     client_delete_confirmed      boolean NOT NULL DEFAULT false,
     freelancer_delete_confirmed  boolean NOT NULL DEFAULT false,
+    client_last_read_at          timestamp with time zone,   -- unread tracking (015)
+    freelancer_last_read_at      timestamp with time zone,   -- unread tracking (015)
+    is_admin_chat                boolean NOT NULL DEFAULT false,  -- private chat between two admins (016)
     CONSTRAINT conversations_pkey PRIMARY KEY (conversation_id),
     CONSTRAINT conversations_contract_id_key UNIQUE (contract_id),
     CONSTRAINT conversations_contract_id_fkey FOREIGN KEY (contract_id)
@@ -486,10 +489,15 @@ ALTER TABLE public.client_payment_methods ENABLE ROW LEVEL SECURITY;
 -- Account deletion (migration 012): deleted accounts are anonymized, not removed.
 ALTER TABLE public.users ADD COLUMN deleted_at timestamp with time zone;
 
--- Chats started from a profile have no contract: one per client/freelancer pair (migration 013).
+-- Chats started from a profile have no contract: one per client/freelancer pair (migrations 013, 016).
 CREATE UNIQUE INDEX conversations_profile_chat_pair_key
     ON public.conversations (client_id, freelancer_id)
-    WHERE contract_id IS NULL;
+    WHERE contract_id IS NULL AND NOT is_admin_chat;
+
+-- Admin team chats: one per pair of admins, whoever started it (migration 016).
+CREATE UNIQUE INDEX conversations_admin_chat_pair_key
+    ON public.conversations (LEAST(client_id, freelancer_id), GREATEST(client_id, freelancer_id))
+    WHERE is_admin_chat;
 
 -- Proposal attachments: up to 3 files per proposal (migration 014). Backend-only; private bucket.
 CREATE TABLE public.proposal_files (

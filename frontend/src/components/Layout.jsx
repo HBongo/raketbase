@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams, Outlet } from 'react-router-dom';
 import { clearCached } from '../utils/cache';
-import { switchRole, getProfile } from '../services/api';
+import { switchRole, getProfile, getUnreadChatCount } from '../services/api';
 import { startLive, stopLive } from '../utils/live';
 import { useLive } from '../utils/useLive';
 import { showToast } from '../utils/toast';
@@ -77,6 +77,18 @@ export default function Layout() {
     startLive();
     return () => stopLive();
   }, []);
+
+  // Sidebar bubble: how many chats have unread messages. Reloads on page changes and live
+  // whenever a chat changes (new message, chat opened) or a notification arrives
+  // (system messages in contract chats come with one).
+  const [unreadChats, setUnreadChats] = useState(0);
+  const loadUnreadChats = () => {
+    getUnreadChatCount()
+      .then((res) => setUnreadChats(res?.data?.chats || 0))
+      .catch(() => {});
+  };
+  useEffect(loadUnreadChats, [location.pathname]);
+  useLive(['conversations', 'notifications'], loadUnreadChats);
 
   // An admin just suspended this account: getProfile() gets the suspended answer and logs out
   useLive(['account'], () => {
@@ -196,6 +208,15 @@ export default function Layout() {
               <li className="sidebar-menu-item">
                 <Link to="/messages" onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isActive('/messages')}`}>
                   <i className="bi bi-chat-dots"></i><span>Messages</span>
+                  {unreadChats > 0 && (
+                    <span
+                      className="badge rounded-pill bg-danger ms-auto"
+                      style={{ fontSize: '0.7rem' }}
+                      aria-label={`${unreadChats} chat${unreadChats === 1 ? '' : 's'} with unread messages`}
+                    >
+                      {unreadChats > 9 ? '9+' : unreadChats}
+                    </span>
+                  )}
                 </Link>
               </li>
               <li className="sidebar-menu-item">

@@ -16,9 +16,9 @@ const MESSAGE_MAX = 2000;
 // (bucket created by database/schema.sql).
 const CHAT_BUCKET = 'chat-attachments';
 
+// '*' so newer columns (is_admin_chat, last-read times) come along once their migrations run
 const CONVERSATION_SELECT = `
-  conversation_id, contract_id, client_id, freelancer_id, title, created_at,
-  client_delete_confirmed, freelancer_delete_confirmed,
+  *,
   contracts(status, submitted_at, created_at)
 `;
 
@@ -28,6 +28,67 @@ function isStaffOrAdmin(user) {
 
 function isParticipant(user, conversation) {
   return user.id === conversation.client_id || user.id === conversation.freelancer_id;
+}
+
+// Who may read a chat: the two people in it, or staff/admins for support. Admin team chats
+// (migration 016) stay private to the two admins in them.
+function canView(user, conversation) {
+  if (isParticipant(user, conversation)) return true;
+  return isStaffOrAdmin(user) && !conversation.is_admin_chat;
+}
+
+// ---- Unread tracking (migration 015) ----
+// Each side's last_read_at on the conversation. Messages from the other person (including
+// system messages their actions posted) newer than that are unread. Before the migration
+// the columns don't exist, so nothing counts as unread.
+function myLastReadColumn(user, conversation) {
+  if (user.id === conversation.client_id) return 'client_last_read_at';
+  if (user.id === conversation.freelancer_id) return 'freelancer_last_read_at';
+  return null;
+}
+
+// { [conversation_id]: number of unread messages } for the chats this user is in
+async function unreadCounts(user, conversationIds) {
+  if (!conversationIds.length) return {};
+  const { data: rows, error } = await supabaseAdmin
+    .from('conversations')
+    .select('*')
+    .in('conversation_id', conversationIds);
+  if (error || !rows) return {};
+
+  const readSince = {};
+  for (const c of rows) {
+    const column = myLastReadColumn(user, c);
+    if (column && column in c) readSince[c.conversation_id] = c[column];
+  }
+  const tracked = Object.keys(readSince);
+  if (!tracked.length) return {};
+
+  const { data: messages } = await supabaseAdmin
+    .from('messages')
+    .select('conversation_id, created_at')
+    .in('conversation_id', tracked)
+    .neq('sender_id', user.id);
+
+  const counts = {};
+  for (const m of messages || []) {
+    const since = readSince[m.conversation_id];
+    if (!since || new Date(m.created_at) > new Date(since)) {
+      counts[m.conversation_id] = (counts[m.conversation_id] || 0) + 1;
+    }
+  }
+  return counts;
+}
+
+// Marks the chat as read for this user; their other tabs (and the sidebar) update live
+async function markRead(user, conversation) {
+  const column = myLastReadColumn(user, conversation);
+  if (!column) return;
+  const { error } = await supabaseAdmin
+    .from('conversations')
+    .update({ [column]: new Date().toISOString() })
+    .eq('conversation_id', conversation.conversation_id);
+  if (!error) publishToUsers([user.id], { topics: ['conversations'], conversation_id: conversation.conversation_id });
 }
 
 async function loadConversation(conversation_id) {
@@ -59,8 +120,10 @@ exports.listConversations = async (req, res) => {
       query = query.or(`client_id.eq.${userId},freelancer_id.eq.${userId}`);
     }
 
-    const { data: conversations, error } = await query;
+    const { data: allConversations, error } = await query;
     if (error) throw error;
+    // Other admins' private team chats are never listed
+    const conversations = (allConversations || []).filter((c) => canView(req.user, c));
 
     // One extra query to grab each conversation's latest message for the sidebar preview.
     const ids = (conversations || []).map((c) => c.conversation_id);
@@ -76,14 +139,48 @@ exports.listConversations = async (req, res) => {
       });
     }
 
+    const unread = await unreadCounts(req.user, ids);
+
     // In a chat the client appears with their client photo (or their only photo if they haven't set one)
     const enriched = (conversations || []).map((c) => ({
       ...c,
       client: c.client && { ...c.client, avatar_url: c.client.client_avatar_url || c.client.avatar_url || null },
       last_message: lastByConversation[c.conversation_id] || null,
+      unread_count: unread[c.conversation_id] || 0,
     }));
 
     return res.status(200).json({ success: true, data: enriched });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// GET /api/v1/conversations/unread-count - How many chats have something new (sidebar bubble)
+exports.unreadChatCount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { data: mine, error } = await supabaseAdmin
+      .from('conversations')
+      .select('conversation_id')
+      .or(`client_id.eq.${userId},freelancer_id.eq.${userId}`);
+    if (error) throw error;
+    const counts = await unreadCounts(req.user, (mine || []).map((c) => c.conversation_id));
+    return res.status(200).json({ success: true, data: { chats: Object.keys(counts).length } });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// POST /api/v1/conversations/:id/read - Mark a chat read (e.g. a message arrived while it was open)
+exports.markConversationRead = async (req, res) => {
+  try {
+    const conversation = await loadConversation(req.params.id);
+    if (!conversation) return res.status(404).json({ success: false, error: 'Conversation not found' });
+    if (!isParticipant(req.user, conversation)) {
+      return res.status(403).json({ success: false, error: 'You are not a participant in this conversation' });
+    }
+    await markRead(req.user, conversation);
+    return res.status(200).json({ success: true });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -95,7 +192,7 @@ exports.getConversation = async (req, res) => {
     const { id } = req.params;
     const conversation = await loadConversation(id);
     if (!conversation) return res.status(404).json({ success: false, error: 'Conversation not found' });
-    if (!isParticipant(req.user, conversation) && !isStaffOrAdmin(req.user)) {
+    if (!canView(req.user, conversation)) {
       return res.status(403).json({ success: false, error: 'You are not a participant in this conversation' });
     }
     return res.status(200).json({ success: true, data: conversation });
@@ -110,7 +207,7 @@ exports.listMessages = async (req, res) => {
     const { id } = req.params;
     const conversation = await loadConversation(id);
     if (!conversation) return res.status(404).json({ success: false, error: 'Conversation not found' });
-    if (!isParticipant(req.user, conversation) && !isStaffOrAdmin(req.user)) {
+    if (!canView(req.user, conversation)) {
       return res.status(403).json({ success: false, error: 'You are not a participant in this conversation' });
     }
 
@@ -123,6 +220,9 @@ exports.listMessages = async (req, res) => {
       .order('created_at', { ascending: true });
 
     if (error) throw error;
+
+    // Opening a chat reads it (only for the two people in it, not staff reading along)
+    if (isParticipant(req.user, conversation)) await markRead(req.user, conversation);
 
     // Attach signed preview URLs for all messages with attachments
     const filesToSign = (messages || []).filter((m) => m.file_path);
@@ -259,7 +359,7 @@ exports.getAttachmentUrl = async (req, res) => {
     const { id, messageId } = req.params;
     const conversation = await loadConversation(id);
     if (!conversation) return res.status(404).json({ success: false, error: 'Conversation not found' });
-    if (!isParticipant(req.user, conversation) && !isStaffOrAdmin(req.user)) {
+    if (!canView(req.user, conversation)) {
       return res.status(403).json({ success: false, error: 'You are not a participant in this conversation' });
     }
 
@@ -404,13 +504,13 @@ function profileChatRoles(user, otherUserId) {
 async function findProfileChat(roles) {
   const { data, error } = await supabaseAdmin
     .from('conversations')
-    .select('conversation_id')
+    .select('*')
     .eq('client_id', roles.client_id)
     .eq('freelancer_id', roles.freelancer_id)
-    .is('contract_id', null)
-    .maybeSingle();
+    .is('contract_id', null);
   if (error) throw error;
-  return data;
+  const chat = (data || []).find((c) => !c.is_admin_chat);
+  return chat ? { conversation_id: chat.conversation_id } : null;
 }
 
 // GET /api/v1/conversations/direct/:userId - the existing profile chat with this person
@@ -489,6 +589,125 @@ exports.startProfileChat = async (req, res) => {
         category: 'jobs',
         action: 'message.profile_chat_started',
         description: `Started a chat with ${displayName(other, 'a user')} from their ${iAmClient ? 'freelancer' : 'client'} profile`,
+        target_type: 'conversation',
+        target_id: conversation.conversation_id,
+        link: `/messages/${conversation.conversation_id}`,
+      });
+    }
+
+    return res.status(created ? 201 : 200).json({ success: true, data: { conversation_id: conversation.conversation_id, created } });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ---- Admin team chats (migration 016) ----
+const ADMIN_CHAT_TITLE = 'Admin chat';
+
+async function findAdminChat(userA, userB) {
+  const { data, error } = await supabaseAdmin
+    .from('conversations')
+    .select('*')
+    .or(`and(client_id.eq.${userA},freelancer_id.eq.${userB}),and(client_id.eq.${userB},freelancer_id.eq.${userA})`)
+    .is('contract_id', null);
+  if (error) throw error;
+  return (data || []).find((c) => c.is_admin_chat) || null;
+}
+
+async function loadOtherAdmin(req, res, otherId) {
+  if (req.user.role !== 'admin') {
+    res.status(403).json({ success: false, error: 'Only admins can use admin chats.' });
+    return null;
+  }
+  if (!otherId) {
+    res.status(400).json({ success: false, error: 'Who do you want to message?' });
+    return null;
+  }
+  if (otherId === req.user.id) {
+    res.status(400).json({ success: false, error: 'You can\'t message yourself.' });
+    return null;
+  }
+  const { data: other } = await supabaseAdmin
+    .from('users')
+    .select('user_id, first_name, last_name, email, role, status')
+    .eq('user_id', otherId)
+    .maybeSingle();
+  if (!other || other.role !== 'admin' || other.status !== 'active') {
+    res.status(404).json({ success: false, error: 'That admin account was not found.' });
+    return null;
+  }
+  return other;
+}
+
+// GET /api/v1/conversations/admin/:userId - the existing admin chat with this admin, or null
+exports.getAdminChat = async (req, res) => {
+  try {
+    const other = await loadOtherAdmin(req, res, req.params.userId);
+    if (!other) return;
+    const chat = await findAdminChat(req.user.id, other.user_id);
+    return res.status(200).json({ success: true, data: chat ? { conversation_id: chat.conversation_id } : null });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// POST /api/v1/conversations/admin  { user_id, content } - message another admin. The first
+// message creates the chat (like profile chats), so an accidental click never leaves an empty one.
+exports.startAdminChat = async (req, res) => {
+  try {
+    const content = (req.body.content || '').trim();
+    const other = await loadOtherAdmin(req, res, req.body.user_id);
+    if (!other) return;
+    if (!content) return res.status(400).json({ success: false, error: 'Write a message first.' });
+    if (content.length > MESSAGE_MAX) {
+      return res.status(400).json({ success: false, error: `Messages must be ${MESSAGE_MAX} characters or less.` });
+    }
+
+    let conversation = await findAdminChat(req.user.id, other.user_id);
+    let created = false;
+    if (!conversation) {
+      const { data, error } = await supabaseAdmin
+        .from('conversations')
+        .insert([{
+          client_id: req.user.id,
+          freelancer_id: other.user_id,
+          contract_id: null,
+          title: ADMIN_CHAT_TITLE,
+          is_admin_chat: true,
+        }])
+        .select()
+        .single();
+      if (error) {
+        console.error('startAdminChat insert failed:', error.message);
+        return res.status(500).json({
+          success: false,
+          error: 'Could not start the chat. Make sure migration 016 has been run, then try again.',
+        });
+      }
+      conversation = data;
+      created = true;
+    }
+
+    const { error: messageError } = await supabaseAdmin
+      .from('messages')
+      .insert([{ conversation_id: conversation.conversation_id, sender_id: req.user.id, content }]);
+    if (messageError) throw messageError;
+
+    await notify({
+      user_id: other.user_id,
+      type: 'message',
+      role: null,
+      title: `${displayName(req.user, 'An admin')} sent you an admin message`,
+      body: content.length > 120 ? `${content.slice(0, 117)}...` : content,
+      link: `/messages/${conversation.conversation_id}`,
+    });
+    publishToUsers([other.user_id], { topics: ['conversations'], conversation_id: conversation.conversation_id });
+    if (created) {
+      await logActivity({
+        user_id: req.user.id,
+        category: 'admin',
+        action: 'message.admin_chat_started',
+        description: `Started an admin chat with ${displayName(other, 'an admin')}`,
         target_type: 'conversation',
         target_id: conversation.conversation_id,
         link: `/messages/${conversation.conversation_id}`,

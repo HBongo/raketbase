@@ -329,6 +329,9 @@ export function resolveDispute(disputeId, payload) {
 }
 // Messages API
 export function getConversations() { return request("/conversations"); }
+// How many chats have unread messages (sidebar bubble)
+export function getUnreadChatCount() { return request("/conversations/unread-count"); }
+export function markConversationRead(id) { return request(`/conversations/${id}/read`, { method: "POST" }); }
 export function getConversation(id) { return request(`/conversations/${id}`); }
 export function getConversationMessages(id) { return request(`/conversations/${id}/messages`); }
 export function sendMessage(id, payload) {
@@ -506,6 +509,13 @@ export function getProfileChat(userId) {
 }
 export function startProfileChat(userId, content) {
   return request('/conversations/direct', { method: 'POST', body: JSON.stringify({ user_id: userId, content }) });
+}
+// Admin team chats (admins only)
+export function startAdminChat(userId, content) {
+  return request('/conversations/admin', { method: 'POST', body: JSON.stringify({ user_id: userId, content }) });
+}
+export function getAdmins() {
+  return request('/admin/admins');
 }
 
 // Delete your own account (anonymized). Needs your password; the UI also asks for "DELETE".

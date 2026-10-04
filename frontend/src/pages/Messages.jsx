@@ -8,6 +8,7 @@ import {
   getAttachmentDownloadUrl,
   confirmDeleteConversation,
   cancelDeleteConversation,
+  markConversationRead,
 } from "../services/api";
 import { useCurrentUser } from "../utils/currentUser";
 import { showToast } from "../utils/toast";
@@ -126,6 +127,9 @@ export default function Messages() {
   const [error, setError] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // Admins: find a conversation between two people (applies to "All conversations")
+  const [showAdminFilter, setShowAdminFilter] = useState(false);
+  const [adminFilter, setAdminFilter] = useState({ personA: "", personB: "", type: "all" });
   const [previewImage, setPreviewImage] = useState(null);
   const [attachmentUrls, setAttachmentUrls] = useState({});
 
@@ -216,6 +220,10 @@ export default function Messages() {
           if (prev.some((m) => m.message_id === payload.new.message_id)) return prev;
           return [...prev, payload.new];
         });
+        // The chat is open, so a message from the other person is read right away
+        if (payload.new.sender_id !== (user?.user_id || user?.id)) {
+          markConversationRead(selectedId).catch(() => {});
+        }
         loadConversations();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations", filter: `conversation_id=eq.${selectedId}` }, (payload) => {
@@ -368,6 +376,54 @@ export default function Messages() {
     return (c.title || "").toLowerCase().includes(q) || label.toLowerCase().includes(q);
   });
 
+  // Admins see three sections: their private admin team chats, their own marketplace chats,
+  // and every other conversation on the platform (read-only), which the filter narrows down.
+  const myUserId = user?.user_id || user?.id;
+  const isAdminViewer = user?.role === "admin";
+  const adminFiltersActive = Boolean(adminFilter.personA.trim() || adminFilter.personB.trim() || adminFilter.type !== "all");
+
+  function personMatches(person, text) {
+    const name = [person?.first_name, person?.last_name].filter(Boolean).join(" ").toLowerCase();
+    return name.includes(text) || (person?.email || "").toLowerCase().includes(text);
+  }
+
+  function matchesAdminFilter(c) {
+    const a = adminFilter.personA.trim().toLowerCase();
+    const b = adminFilter.personB.trim().toLowerCase();
+    if (a && b) {
+      // Either person can be on either side of the chat
+      const forward = personMatches(c.client, a) && personMatches(c.freelancer, b);
+      const backward = personMatches(c.client, b) && personMatches(c.freelancer, a);
+      if (!forward && !backward) return false;
+    } else if (a || b) {
+      const text = a || b;
+      if (!personMatches(c.client, text) && !personMatches(c.freelancer, text)) return false;
+    }
+    if (adminFilter.type === "contract" && !c.contract_id) return false;
+    if (adminFilter.type === "direct" && c.contract_id) return false;
+    if (adminFilter.type === "disputed" && c.contracts?.status !== "disputed") return false;
+    return true;
+  }
+
+  const sectionedConversations = !isAdminViewer
+    ? filteredConversations.map((c) => ({ type: "conv", conv: c }))
+    : (() => {
+      const isMine = (c) => c.client_id === myUserId || c.freelancer_id === myUserId;
+      const team = filteredConversations.filter((c) => c.is_admin_chat);
+      const mine = filteredConversations.filter((c) => !c.is_admin_chat && isMine(c));
+      const others = filteredConversations.filter((c) => !c.is_admin_chat && !isMine(c)).filter(matchesAdminFilter);
+      const section = (id, title, icon, list, emptyText) => [
+        { type: "header", id, title, icon, count: list.length },
+        ...(list.length ? list.map((c) => ({ type: "conv", conv: c })) : [{ type: "empty", id, text: emptyText }]),
+      ];
+      return [
+        ...section("team", "Admin team", "bi-shield-lock", team, "No admin chats yet. Message another admin from Browse Users → Admins."),
+        ...section("mine", "My chats", "bi-person", mine, "No chats of your own."),
+        ...section("all", "All conversations", "bi-eye", others,
+          adminFiltersActive ? "No conversations match these filters." : "No other conversations yet."),
+      ];
+    })();
+
   const statusBadge = (status) => {
     if (!status) return null;
     const map = {
@@ -396,6 +452,9 @@ export default function Messages() {
         .conv-item.active { background: #F0FAE6; border-left-color: #B4F105; }
         .conv-item .conv-title { font-size: 13.5px; font-weight: 700; color: #0B130F; }
         .conv-item .conv-sub { font-size: 12px; color: #6C7E75; }
+        .conv-item .conv-sub.conv-unread { font-weight: 700; color: #0B130F; }
+        .conv-section-header { padding: 10px 16px 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #6C7E75; background: #F4F7F6; border-top: 1px solid #E9EFEF; border-bottom: 1px solid #E9EFEF; }
+        .conv-section-empty { padding: 10px 16px 14px; font-size: 12px; color: #8A9792; }
         .conv-item .conv-time { font-size: 11px; color: #6C7E75; flex-shrink: 0; }
         .chat-area { display: flex; flex-direction: column; height: 100%; background: #F4F6F5; }
         .chat-header { background: #fff; border-bottom: 1px solid #E9EFEF; padding: 14px 20px; display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
@@ -437,6 +496,9 @@ export default function Messages() {
         body.dark-mode .conv-item.active { background: #2A3832 !important; border-left-color: #B4F105 !important; }
         body.dark-mode .conv-item .conv-title { color: #E8EDEB !important; }
         body.dark-mode .conv-item .conv-sub { color: #9EAAA3 !important; }
+        body.dark-mode .conv-item .conv-sub.conv-unread { color: #E8EDEB !important; }
+        body.dark-mode .conv-section-header { background: #141824; color: #9EAAA3; border-color: #262B36; }
+        body.dark-mode .conv-section-empty { color: #7D8894; }
         body.dark-mode .conv-item .conv-time { color: #9EAAA3 !important; }
         body.dark-mode .chat-area { background: #111816 !important; }
         body.dark-mode .chat-header { background: #1A2420 !important; border-bottom-color: #2A3832 !important; }
@@ -490,6 +552,66 @@ export default function Messages() {
               />
             </div>
 
+            {isAdminViewer && (
+              <div className="msg-admin-filter" style={{ padding: "0 16px 10px" }}>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-link p-0 text-decoration-none"
+                  style={{ fontSize: "12px" }}
+                  onClick={() => setShowAdminFilter((v) => !v)}
+                  aria-expanded={showAdminFilter}
+                >
+                  <i className="bi bi-funnel me-1"></i>
+                  {showAdminFilter ? "Hide filters" : "Find a conversation between two people"}
+                  {adminFiltersActive && !showAdminFilter && <span className="badge rounded-pill bg-primary ms-1">on</span>}
+                </button>
+                {showAdminFilter && (
+                  <div className="d-flex flex-column gap-2 mt-2">
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Person 1 (name or email)"
+                      value={adminFilter.personA}
+                      onChange={(e) => setAdminFilter((f) => ({ ...f, personA: e.target.value }))}
+                      aria-label="Person 1"
+                    />
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Person 2 (name or email)"
+                      value={adminFilter.personB}
+                      onChange={(e) => setAdminFilter((f) => ({ ...f, personB: e.target.value }))}
+                      aria-label="Person 2"
+                    />
+                    <select
+                      className="form-select form-select-sm"
+                      value={adminFilter.type}
+                      onChange={(e) => setAdminFilter((f) => ({ ...f, type: e.target.value }))}
+                      aria-label="Chat type"
+                    >
+                      <option value="all">All chat types</option>
+                      <option value="contract">Contract chats</option>
+                      <option value="direct">Direct messages</option>
+                      <option value="disputed">Disputed contracts</option>
+                    </select>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span className="text-muted" style={{ fontSize: "11px" }}>Applies to All conversations</span>
+                      {adminFiltersActive && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-link p-0 text-decoration-none"
+                          style={{ fontSize: "12px" }}
+                          onClick={() => setAdminFilter({ personA: "", personB: "", type: "all" })}
+                        >
+                          Clear filters
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Conversation list */}
             <div style={{ flexGrow: 1, overflowY: "auto" }}>
               {loadingList ? (
@@ -505,7 +627,19 @@ export default function Messages() {
                   </div>
                 </div>
               ) : (
-                filteredConversations.map((c) => {
+                sectionedConversations.map((item) => {
+                  if (item.type === "header") {
+                    return (
+                      <div key={`section-${item.id}`} className="conv-section-header">
+                        <i className={`bi ${item.icon} me-1`}></i>{item.title}
+                        <span className="ms-1 opacity-75">({item.count})</span>
+                      </div>
+                    );
+                  }
+                  if (item.type === "empty") {
+                    return <div key={`empty-${item.id}`} className="conv-section-empty">{item.text}</div>;
+                  }
+                  const c = item.conv;
                   const isActiveConv = c.conversation_id === selectedId;
                   const amClient = c.client_id === (user?.user_id || user?.id);
                   const them = amClient ? c.freelancer : c.client;
@@ -528,8 +662,14 @@ export default function Messages() {
                           {c.last_message_at && (
                             <span className="conv-time">{formatSidebarTime(c.last_message_at)}</span>
                           )}
+                          {/* Unread count (never on the chat that's open, which is being read) */}
+                          {!isActiveConv && c.unread_count > 0 && (
+                            <span className="badge rounded-pill bg-danger ms-1" style={{ fontSize: "10px" }} aria-label={`${c.unread_count} unread`}>
+                              {c.unread_count > 9 ? "9+" : c.unread_count}
+                            </span>
+                          )}
                         </div>
-                        <div className="conv-sub text-truncate">{label}</div>
+                        <div className={`conv-sub text-truncate ${!isActiveConv && c.unread_count > 0 ? "conv-unread" : ""}`}>{label}</div>
                         {(amClient ? c.freelancer_delete_confirmed && !c.client_delete_confirmed : c.client_delete_confirmed && !c.freelancer_delete_confirmed) && (
                           <span
                             title={`${label} asked to delete this conversation`}

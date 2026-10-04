@@ -2,12 +2,13 @@
 // Sending it creates the chat (so accidental clicks never leave empty chats) and opens Messages.
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { startProfileChat } from '../services/api';
+import { startProfileChat, startAdminChat } from '../services/api';
 
 const MESSAGE_MAX = 2000;
 
-// recipientId / recipientName: who you're messaging; asRole: 'client' or 'freelancer' (their side)
-export default function StartChatModal({ recipientId, recipientName, asRole, onClose }) {
+// recipientId / recipientName: who you're messaging; asRole: 'client' or 'freelancer' (their side);
+// adminChat: a private chat between two admins (Browse Users → Admins)
+export default function StartChatModal({ recipientId, recipientName, asRole, adminChat = false, onClose }) {
   const navigate = useNavigate();
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
@@ -19,7 +20,9 @@ export default function StartChatModal({ recipientId, recipientName, asRole, onC
     setSending(true);
     setError('');
     try {
-      const res = await startProfileChat(recipientId, content.trim());
+      const res = adminChat
+        ? await startAdminChat(recipientId, content.trim())
+        : await startProfileChat(recipientId, content.trim());
       navigate(`/messages/${res.data.conversation_id}`);
     } catch (err) {
       setError(err.message || 'Could not send your message.');
@@ -39,10 +42,14 @@ export default function StartChatModal({ recipientId, recipientName, asRole, onC
           </div>
           <div className="modal-body">
             <p className="text-muted small">
-              {asRole === 'freelancer'
-                ? `Ask ${recipientName} about their work, availability, or a project you have in mind.`
-                : `Ask ${recipientName} about the work they're hiring for.`}
-              {' '}Your chat will appear in Messages, and either of you can ask to delete it at any time.
+              {adminChat
+                ? `This is a private admin chat: only you and ${recipientName} can see it. It will appear under Admin team in Messages.`
+                : <>
+                  {asRole === 'freelancer'
+                    ? `Ask ${recipientName} about their work, availability, or a project you have in mind.`
+                    : `Ask ${recipientName} about the work they're hiring for.`}
+                  {' '}Your chat will appear in Messages, and either of you can ask to delete it at any time.
+                </>}
             </p>
             {error && <div className="alert alert-danger py-2 small" role="alert">{error}</div>}
             <label className="form-label small fw-medium text-dark" htmlFor="start-chat-message">Your message</label>

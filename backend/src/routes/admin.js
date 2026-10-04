@@ -10,6 +10,7 @@ router.use(requireAuth, requireAdmin);
 
 router.get('/analytics', adminController.getAnalytics);
 router.get('/users', adminController.getAllUsers);
+router.get('/admins', adminController.listAdmins);
 router.patch('/users/:id', adminController.updateUserStatus);
 router.get('/jobs', adminController.getAllJobs);
 router.patch('/jobs/:id/takedown', adminController.takedownJob);

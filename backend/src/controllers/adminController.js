@@ -241,3 +241,44 @@ exports.takedownJob = async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// GET /api/v1/admin/admins - Every admin account (Browse Users → Admins), with the chat
+// the current admin already has with each one, if any.
+exports.listAdmins = async (req, res) => {
+  try {
+    const { data: admins, error } = await supabaseAdmin
+      .from('users')
+      .select('user_id, first_name, last_name, email, avatar_url, client_avatar_url, status, created_at')
+      .eq('role', 'admin')
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+
+    // Admin chats I'm in (none before migration 016)
+    const myChats = {};
+    const { data: chats } = await supabaseAdmin
+      .from('conversations')
+      .select('*')
+      .or(`client_id.eq.${req.user.id},freelancer_id.eq.${req.user.id}`)
+      .is('contract_id', null);
+    for (const c of chats || []) {
+      if (!c.is_admin_chat) continue;
+      const otherId = c.client_id === req.user.id ? c.freelancer_id : c.client_id;
+      myChats[otherId] = c.conversation_id;
+    }
+
+    const data = (admins || []).map((a) => ({
+      user_id: a.user_id,
+      first_name: a.first_name,
+      last_name: a.last_name,
+      email: a.email,
+      avatar_url: a.avatar_url || a.client_avatar_url || null,
+      status: a.status,
+      created_at: a.created_at,
+      is_me: a.user_id === req.user.id,
+      conversation_id: myChats[a.user_id] || null,
+    }));
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};

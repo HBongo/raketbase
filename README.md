@@ -434,6 +434,20 @@ Changes 10.1
 - The Explore budget filter's From / To boxes no longer accept negative numbers
 - Scrolling the mouse wheel over a number box (bid, budget, price filters) no longer changes its value; the page scrolls instead
 
+[Unread Messages]
+- The Messages link in the sidebar shows a red bubble with how many chats have unread messages, updated live
+- In Messages, chats with unread messages show in bold with a count; opening a chat marks it as read, and messages that arrive while it's open are read right away
+- Messages from the other person count as unread, including automatic ones their actions posted (stage approved, work submitted, dispute results); your own never do
+- Admins reading a chat for a dispute don't mark it as read for the people in it
+- Each side of a chat remembers when they last opened it; existing chats start as read (015_message_read_tracking.sql)
+
+[Admin Messaging & Admins List]
+- Admins can message each other: Browse Users has a new Admins view (next to Top users, only visible to admins) listing every admin account with a Message button
+- Admin chats are private to the two admins in them; other admins can't see them, even though admins can read other platform chats for dispute support
+- For admins, Messages is split into three sections: Admin team (admin-to-admin chats), My chats (chats they're part of), and All conversations (everything else, read-only)
+- Admins can find a conversation between two people: "Person 1" and "Person 2" boxes (name or email, in either order) and a chat type filter (contract chats, direct messages, disputed contracts) narrow down All conversations
+- Added the admin chat flag and one chat per pair of admins (016_admin_chats.sql)
+
 Roadmap
 - Make it so that people who choose the freelancer option also need to put in their bank details and phone number - Complete
 - Make it so that people who choose the client option choose whether or not they are a small business or a major contractor and need to put in their business name. - Complete

@@ -4,6 +4,8 @@ import { browseUsers } from '../services/api';
 import Money from '../components/Money';
 import BackToTop from '../components/BackToTop';
 import TopUsers from './TopUsers';
+import AdminsList from '../components/AdminsList';
+import { useCurrentUser } from '../utils/currentUser';
 
 const PAGE_SIZE = 12;
 
@@ -26,11 +28,15 @@ const TABS = [
   { id: 'clients', label: 'Clients' },
 ];
 
-// Browse every freelancer or client, or switch to the ranked Top users view.
-// URL params: tab=clients, view=top, q=<search>, sort=<id>
+// Browse every freelancer or client, or switch to the ranked Top users view
+// (or, for admins, the list of admin accounts).
+// URL params: tab=clients, view=top|admins, q=<search>, sort=<id>
 export default function BrowseUsers() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const view = searchParams.get('view') === 'top' ? 'top' : 'all';
+  const currentUser = useCurrentUser();
+  const isAdmin = currentUser?.role === 'admin';
+  const requestedView = searchParams.get('view');
+  const view = requestedView === 'top' ? 'top' : requestedView === 'admins' && isAdmin ? 'admins' : 'all';
   const tab = searchParams.get('tab') === 'clients' ? 'clients' : 'freelancers';
   const role = tab === 'clients' ? 'customer' : 'freelancer';
   const sort = SORTS.some((s) => s.id === searchParams.get('sort')) ? searchParams.get('sort') : 'top';
@@ -112,7 +118,9 @@ export default function BrowseUsers() {
           <p className="page-subtitle">
             {view === 'top'
               ? 'The highest-rated freelancers and clients on RaketBase.'
-              : 'Find freelancers and clients, see their ratings and what people say about them.'}
+              : view === 'admins'
+                ? 'Every admin account. Message another admin privately from here.'
+                : 'Find freelancers and clients, see their ratings and what people say about them.'}
           </p>
         </div>
         <div className="btn-group flex-shrink-0" role="group" aria-label="Choose view">
@@ -134,11 +142,24 @@ export default function BrowseUsers() {
           >
             <i className="bi bi-trophy me-1"></i>Top users
           </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className={`btn btn-sm px-3 fw-medium ${view === 'admins' ? 'text-white' : 'btn-outline-secondary'}`}
+              style={view === 'admins' ? { backgroundColor: '#FF5A1E', borderColor: '#FF5A1E' } : {}}
+              onClick={() => updateParams({ view: 'admins' })}
+              aria-pressed={view === 'admins'}
+            >
+              <i className="bi bi-shield-check me-1"></i>Admins
+            </button>
+          )}
         </div>
       </div>
 
       {view === 'top' ? (
         <TopUsers embedded />
+      ) : view === 'admins' ? (
+        <AdminsList />
       ) : (
         <>
           <div className="d-flex flex-wrap align-items-center gap-2 mb-4 border-bottom pb-3">
