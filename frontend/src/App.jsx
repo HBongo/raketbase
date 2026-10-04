@@ -17,6 +17,7 @@ import Messages from './pages/Messages';
 import BrowseUsers from './pages/BrowseUsers';
 import MyProposals from './pages/MyProposals';
 import LegalPage from './pages/LegalPage';
+import Help from './pages/Help';
 import LandingPage from './pages/landing/LandingPage';
 import Layout from './components/Layout';
 import Toaster from './components/Toaster';
@@ -107,6 +108,8 @@ function App() {
           <Route path="/profile/:id" element={<Profile />} />
           {/* If they just hit /profile, redirect to dashboard or read user from localstorage */}
           <Route path="/profile" element={<Profile />} />
+          <Route path="/help" element={<Help />} />
+          <Route path="/contact" element={<Navigate to="/help" replace />} />
 
           {/* Admin-only routes */}
           <Route element={<AdminRoute />}>

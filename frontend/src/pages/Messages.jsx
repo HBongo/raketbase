@@ -332,8 +332,8 @@ export default function Messages() {
   const contractStatus = active?.contracts?.status;
   const isCompleted = contractStatus === "completed" || contractStatus === "refunded";
 
-  const myConfirmed = isClient ? active?.client_deleted : isFreelancer ? active?.freelancer_deleted : false;
-  const otherConfirmed = isClient ? active?.freelancer_deleted : isFreelancer ? active?.client_deleted : false;
+  const myConfirmed = isClient ? active?.client_delete_confirmed : isFreelancer ? active?.freelancer_delete_confirmed : false;
+  const otherConfirmed = isClient ? active?.freelancer_delete_confirmed : isFreelancer ? active?.client_delete_confirmed : false;
 
   const filteredConversations = conversations.filter((c) => {
     if (!searchQuery.trim()) return true;
@@ -547,6 +547,14 @@ export default function Messages() {
                           )}
                         </div>
                         <div className="conv-sub text-truncate">{label}</div>
+                        {(amClient ? c.freelancer_delete_confirmed && !c.client_delete_confirmed : c.client_delete_confirmed && !c.freelancer_delete_confirmed) && (
+                          <span
+                            title={`${label} asked to delete this conversation`}
+                            style={{ fontSize: "10px", background: "#FEE2E2", color: "#991B1B", fontWeight: 700, padding: "2px 8px", borderRadius: "999px", display: "inline-block", marginTop: "4px", marginRight: "4px" }}
+                          >
+                            <i className="bi bi-trash me-1"></i>Wants to delete
+                          </span>
+                        )}
                         {c.contracts?.status === "completed" && (
                           <span style={{ fontSize: "10px", background: "#D1FAE5", color: "#065F46", fontWeight: 700, padding: "2px 8px", borderRadius: "999px", display: "inline-block", marginTop: "4px" }}>
                             Completed
@@ -761,7 +769,7 @@ export default function Messages() {
                             <div className="bubble-time">{formatClock(m.created_at)}</div>
                           </div>
                           {mine && (
-                            <Avatar src={user?.avatar_url} name={user?.first_name || "Me"} size={30} />
+                            <Avatar src={(isClient && user?.client_avatar_url) || user?.avatar_url} name={user?.first_name || "Me"} size={30} />
                           )}
                         </div>
                       );

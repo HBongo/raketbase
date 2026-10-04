@@ -39,7 +39,7 @@ exports.listConversations = async (req, res) => {
       .from('conversations')
       .select(`
         ${CONVERSATION_SELECT},
-        client:users!conversations_client_id_fkey(user_id, first_name, last_name, email, client_avatar_url),
+        client:users!conversations_client_id_fkey(user_id, first_name, last_name, email, client_avatar_url, avatar_url),
         freelancer:users!conversations_freelancer_id_fkey(user_id, first_name, last_name, email, avatar_url)
       `)
       .order('created_at', { ascending: false });
@@ -65,8 +65,10 @@ exports.listConversations = async (req, res) => {
       });
     }
 
+    // In a chat the client appears with their client photo (or their only photo if they haven't set one)
     const enriched = (conversations || []).map((c) => ({
       ...c,
+      client: c.client && { ...c.client, avatar_url: c.client.client_avatar_url || c.client.avatar_url || null },
       last_message: lastByConversation[c.conversation_id] || null,
     }));
 

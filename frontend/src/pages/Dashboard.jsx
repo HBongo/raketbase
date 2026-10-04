@@ -7,7 +7,7 @@
 //    - Freelancer: "Submit Work" deliverable action (transitions 'active' -> 'submitted')
 //    - Client: "Approve & Release Funds" escrow release action (transitions 'submitted'/'active' -> 'completed')
 // 4. Proposals tracking table with status badges
-import { useState, useEffect, useCallback } from 'react';
+import { Fragment, useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   getMyProposals,
@@ -364,8 +364,10 @@ export default function Dashboard() {
                       const currentUserId = user.user_id || user.id;
                       const isClient = currentUserId === c.client_id;
                       const partner = isClient ? c.freelancer : c.client;
-                      const partnerRole = isClient ? 'Freelancer' : 'customer';
+                      const partnerRole = isClient ? 'Freelancer' : 'Client';
                       const partnerName = partner ? `${partner.first_name || ''} ${partner.last_name || ''}`.trim() || partner.email : 'Participant';
+                      // The other person's photo for the side they're on in this contract
+                      const partnerAvatar = isClient ? partner?.avatar_url : (partner?.client_avatar_url || partner?.avatar_url);
                       const isMilestoneContract = Array.isArray(c.milestones) && c.milestones.length > 0;
                       const isExpanded = expandedContractId === c.contract_id;
 
@@ -380,7 +382,8 @@ export default function Dashboard() {
                         : 0;
 
                       return (
-                        <tr key={c.contract_id}>
+                        <Fragment key={c.contract_id}>
+                        <tr>
                           <td>
                             <div className="d-flex align-items-center gap-2">
                               {c.job_id ? (
@@ -419,9 +422,13 @@ export default function Dashboard() {
                           </td>
                           <td className="pe-2">
                             <div className="d-flex align-items-center gap-2">
-                              <div className="avatar-placeholder rounded-circle bg-light border d-flex align-items-center justify-content-center text-secondary fw-bold flex-shrink-0" style={{ width: 32, height: 32, fontSize: '0.8rem' }}>
-                                {(partnerName[0] || 'U').toUpperCase()}
-                              </div>
+                              {partnerAvatar ? (
+                                <img src={partnerAvatar} alt="" className="rounded-circle border flex-shrink-0" style={{ width: 32, height: 32, objectFit: 'cover' }} />
+                              ) : (
+                                <div className="avatar-placeholder rounded-circle bg-light border d-flex align-items-center justify-content-center text-secondary fw-bold flex-shrink-0" style={{ width: 32, height: 32, fontSize: '0.8rem' }}>
+                                  {(partnerName[0] || 'U').toUpperCase()}
+                                </div>
+                              )}
                               <div className="text-truncate" style={{ maxWidth: '160px' }}>
                                 <div className="fw-medium text-dark text-truncate">{partnerName}</div>
                                 <div className="small text-muted" style={{ fontSize: '0.75rem' }}>{partnerRole}</div>
@@ -603,109 +610,104 @@ export default function Dashboard() {
                             </div>
                           </td>
                         </tr>
+                        {isExpanded && isMilestoneContract && (
+                          <tr className="milestone-breakdown-row">
+                            <td colSpan={5} className="pt-0">
+                              <div className="p-3 bg-light rounded border">
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                  <span className="fw-semibold text-dark small text-uppercase">
+                                    Milestone Breakdown: {c.jobs?.title || 'Contract'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="btn-close btn-sm"
+                                    aria-label="Close"
+                                    onClick={() => setExpandedContractId(null)}
+                                  ></button>
+                                </div>
+                                <div className="table-responsive">
+                                  <table className="table table-sm align-middle mb-0 bg-white rounded border">
+                                    <thead className="bg-light">
+                                      <tr className="small text-muted">
+                                        <th>#</th>
+                                        <th>Stage Title</th>
+                                        <th>Escrow Amount</th>
+                                        <th>Status</th>
+                                        <th>Deliverable</th>
+                                        <th className="text-end">Action</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {c.milestones.map((m) => {
+                                        const isStageActive = m.status === 'active';
+                                        const isStageSubmitted = m.status === 'submitted';
+                                        const isStageCompleted = m.status === 'completed';
+                                        return (
+                                          <tr key={m.milestone_id}>
+                                            <td className="fw-bold">{m.sequence}</td>
+                                            <td>{m.title}</td>
+                                            <td className="fw-semibold text-success"><Money amount={m.amount} currency={c.jobs?.currency} /></td>
+                                            <td>
+                                              <span
+                                                className={`badge rounded-pill ${
+                                                  isStageCompleted
+                                                    ? 'bg-success text-white'
+                                                    : isStageSubmitted
+                                                    ? 'bg-warning text-dark'
+                                                    : isStageActive
+                                                    ? 'bg-info text-dark'
+                                                    : 'bg-secondary text-white'
+                                                }`}
+                                              >
+                                                {m.status}
+                                              </span>
+                                            </td>
+                                            <td>
+                                              {m.deliverable_url ? (
+                                                <button
+                                                  type="button"
+                                                  className="btn btn-link btn-sm p-0 text-decoration-none"
+                                                  onClick={() => openReviewModal(c, m)}
+                                                >
+                                                  <i className="bi bi-box-arrow-up-right me-1"></i> View Link
+                                                </button>
+                                              ) : (
+                                                <span className="text-muted small">—</span>
+                                              )}
+                                            </td>
+                                            <td className="text-end">
+                                              {!isClient && isStageActive && (
+                                                <button
+                                                  className="btn btn-sm btn-primary rounded-pill px-3 py-1"
+                                                  onClick={() => openSubmitModal(c, m)}
+                                                >
+                                                  Submit
+                                                </button>
+                                              )}
+                                              {isClient && isStageSubmitted && (
+                                                <button
+                                                  className="btn btn-sm btn-success rounded-pill px-3 py-1"
+                                                  onClick={() => openReviewModal(c, m)}
+                                                >
+                                                  Review & Release
+                                                </button>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        </Fragment>
                       );
                     })}
                   </tbody>
                 </table>
-
-                {/* Milestone Sub-Table Accordion when expanded */}
-                {contracts.some((c) => expandedContractId === c.contract_id && Array.isArray(c.milestones) && c.milestones.length > 0) && (
-                  (() => {
-                    const expandedContract = contracts.find((c) => c.contract_id === expandedContractId);
-                    if (!expandedContract) return null;
-                    const currentUserId = user.user_id || user.id;
-                    const isClient = currentUserId === expandedContract.client_id;
-                    return (
-                      <div className="mt-3 p-3 bg-light rounded border">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <span className="fw-semibold text-dark small text-uppercase">
-                            Milestone Breakdown: {expandedContract.jobs?.title || 'Contract'}
-                          </span>
-                          <button
-                            type="button"
-                            className="btn-close btn-sm"
-                            aria-label="Close"
-                            onClick={() => setExpandedContractId(null)}
-                          ></button>
-                        </div>
-                        <div className="table-responsive">
-                          <table className="table table-sm align-middle mb-0 bg-white rounded border">
-                            <thead className="bg-light">
-                              <tr className="small text-muted">
-                                <th>#</th>
-                                <th>Stage Title</th>
-                                <th>Escrow Amount</th>
-                                <th>Status</th>
-                                <th>Deliverable</th>
-                                <th className="text-end">Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {expandedContract.milestones.map((m) => {
-                                const isStageActive = m.status === 'active';
-                                const isStageSubmitted = m.status === 'submitted';
-                                const isStageCompleted = m.status === 'completed';
-                                return (
-                                  <tr key={m.milestone_id}>
-                                    <td className="fw-bold">{m.sequence}</td>
-                                    <td>{m.title}</td>
-                                    <td className="fw-semibold text-success"><Money amount={m.amount} currency={expandedContract.jobs?.currency} /></td>
-                                    <td>
-                                      <span
-                                        className={`badge rounded-pill ${
-                                          isStageCompleted
-                                            ? 'bg-success text-white'
-                                            : isStageSubmitted
-                                            ? 'bg-warning text-dark'
-                                            : isStageActive
-                                            ? 'bg-info text-dark'
-                                            : 'bg-secondary text-white'
-                                        }`}
-                                      >
-                                        {m.status}
-                                      </span>
-                                    </td>
-                                    <td>
-                                      {m.deliverable_url ? (
-                                        <button
-                                          type="button"
-                                          className="btn btn-link btn-sm p-0 text-decoration-none"
-                                          onClick={() => openReviewModal(expandedContract, m)}
-                                        >
-                                          <i className="bi bi-box-arrow-up-right me-1"></i> View Link
-                                        </button>
-                                      ) : (
-                                        <span className="text-muted small">—</span>
-                                      )}
-                                    </td>
-                                    <td className="text-end">
-                                      {!isClient && isStageActive && (
-                                        <button
-                                          className="btn btn-sm btn-primary rounded-pill px-3 py-1"
-                                          onClick={() => openSubmitModal(expandedContract, m)}
-                                        >
-                                          Submit
-                                        </button>
-                                      )}
-                                      {isClient && isStageSubmitted && (
-                                        <button
-                                          className="btn btn-sm btn-success rounded-pill px-3 py-1"
-                                          onClick={() => openReviewModal(expandedContract, m)}
-                                        >
-                                          Review & Release
-                                        </button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    );
-                  })()
-                )}
               </div>
             )}
           </div>

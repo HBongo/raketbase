@@ -212,6 +212,9 @@ export default function JobDetail() {
     }
   }
 
+  const isJobOwner = Boolean(job?.client_id) && [user?.user_id, user?.id].includes(job.client_id);
+  const showsProposalForm = Boolean(job) && !isJobOwner && (job.status === 'open' || alreadyApplied);
+
   return (
     <>
 
@@ -364,7 +367,12 @@ export default function JobDetail() {
               </div>
 
               <div className="col-xl-4 col-lg-4">
-                <div className="card border sticky-top" style={{ top: "90px" }}>
+                {/* Only the short budget card follows the page while scrolling; with the proposal form
+                    open it's taller than the screen and would run into the footer */}
+                <div
+                  className={`card border ${showsProposalForm ? '' : 'sticky-lg-top'}`}
+                  style={showsProposalForm ? undefined : { top: '90px', zIndex: 1 }}
+                >
                   <div className="card-body p-4">
                     <p className="text-muted small fw-medium text-uppercase mb-1">Budget</p>
                     <h3 className="fw-bold text-success mb-4">

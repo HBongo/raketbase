@@ -75,6 +75,8 @@ exports.getContracts = async (req, res) => {
         conversations ( conversation_id ),
         client:users!contracts_client_id_fkey (
           user_id,
+          avatar_url,
+          client_avatar_url,
           first_name,
           last_name,
           email,
@@ -82,6 +84,8 @@ exports.getContracts = async (req, res) => {
         ),
         freelancer:users!contracts_freelancer_id_fkey (
           user_id,
+          avatar_url,
+          client_avatar_url,
           first_name,
           last_name,
           email,
@@ -135,6 +139,8 @@ exports.getContracts = async (req, res) => {
           conversations ( conversation_id ),
           client:users!contracts_client_id_fkey (
             user_id,
+            avatar_url,
+            client_avatar_url,
             first_name,
             last_name,
             email,
@@ -142,6 +148,8 @@ exports.getContracts = async (req, res) => {
           ),
           freelancer:users!contracts_freelancer_id_fkey (
             user_id,
+            avatar_url,
+            client_avatar_url,
             first_name,
             last_name,
             email,
@@ -202,6 +210,8 @@ exports.getContractById = async (req, res) => {
         conversations ( conversation_id ),
         client:users!contracts_client_id_fkey (
           user_id,
+          avatar_url,
+          client_avatar_url,
           first_name,
           last_name,
           email,
@@ -209,6 +219,8 @@ exports.getContractById = async (req, res) => {
         ),
         freelancer:users!contracts_freelancer_id_fkey (
           user_id,
+          avatar_url,
+          client_avatar_url,
           first_name,
           last_name,
           email,
@@ -262,6 +274,8 @@ exports.getContractById = async (req, res) => {
           conversations ( conversation_id ),
           client:users!contracts_client_id_fkey (
             user_id,
+            avatar_url,
+            client_avatar_url,
             first_name,
             last_name,
             email,
@@ -269,6 +283,8 @@ exports.getContractById = async (req, res) => {
           ),
           freelancer:users!contracts_freelancer_id_fkey (
             user_id,
+            avatar_url,
+            client_avatar_url,
             first_name,
             last_name,
             email,

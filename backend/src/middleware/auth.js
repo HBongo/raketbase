@@ -29,7 +29,7 @@ async function requireAuth(req, res, next) {
   }
   
   if (profile.status === 'suspended') {
-    return res.status(403).json({ status: 403, message: 'This account has been suspended.' });
+    return res.status(403).json({ status: 403, code: 'ACCOUNT_SUSPENDED', message: 'This account has been suspended.' });
   }
 
   req.user = {

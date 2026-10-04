@@ -13,6 +13,7 @@ import { showToast } from '../utils/toast';
 import Money from '../components/Money';
 import HireMeModal from '../components/HireMeModal';
 import ClientProfileView from '../components/ClientProfileView';
+import ProfileReviews from '../components/ProfileReviews';
 
 function SecurityTab() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -120,7 +121,6 @@ function buildFormFromProfile(p) {
     title: p.title || '',
     phone: p.phone || '',
     location: p.location || '',
-    hourly_rate: p.hourly_rate || '',
     bio: p.bio || '',
     skills: Array.isArray(p.skills) ? p.skills.join(', ') : (p.skills || ''),
     linkedin_url: p.linkedin_url || '',
@@ -216,7 +216,7 @@ export default function Profile() {
     if (next === side || editing) return;
     setSide(next);
     setSaveMsg(null);
-    if (!['about', 'security'].includes(activeTab)) setActiveTab('about');
+    if (!['about', 'reviews', 'security'].includes(activeTab)) setActiveTab('about');
   }
 
   // Load profile data
@@ -373,7 +373,6 @@ export default function Profile() {
         title: form.title,
         phone: form.phone,
         location: form.location,
-        hourly_rate: form.hourly_rate ? Number(form.hourly_rate) : null,
         bio: form.bio,
         skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
         linkedin_url: form.linkedin_url,
@@ -609,12 +608,11 @@ export default function Profile() {
                     </div>
                     <div className="col-4">
                       <div className="bg-light rounded-3 p-2">
-                        {editing ? (
-                          <input type="number" className="form-control form-control-sm bg-white text-center fw-bold" value={form.hourly_rate} onChange={(e) => handleChange('hourly_rate', e.target.value)} placeholder="0" />
-                        ) : (
-                          <div className="fw-bold text-success fs-6">{f.hourly_rate ? <Money amount={Number(f.hourly_rate)} currency="PHP" /> : '—'}</div>
-                        )}
-                        <div className="text-muted" style={{ fontSize: '0.7rem' }}>/hour</div>
+                        {/* Average of their completed contracts, not something they type in */}
+                        <div className="fw-bold text-success fs-6" title="Average amount of this freelancer's completed contracts">
+                          {f.avg_price != null ? <Money amount={f.avg_price} currency="PHP" /> : '—'}
+                        </div>
+                        <div className="text-muted" style={{ fontSize: '0.7rem' }}>Avg rate</div>
                       </div>
                     </div>
                   </div>
@@ -756,6 +754,7 @@ export default function Profile() {
                       { id: 'about', label: 'About Me', icon: 'bi-person' },
                       { id: 'experience', label: 'Experience', icon: 'bi-building' },
                       { id: 'education', label: 'Education', icon: 'bi-mortarboard' },
+                      { id: 'reviews', label: `Reviews${f.rating_count ? ` (${f.rating_count})` : ''}`, icon: 'bi-star' },
                       ...(isOwnProfile ? [{ id: 'security', label: 'Security', icon: 'bi-shield-lock' }] : [])
                     ].map((tab) => (
                       <li className="nav-item" key={tab.id}>
@@ -980,6 +979,17 @@ export default function Profile() {
                         ))
                       )
                     )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'reviews' && (
+                <div className="card shadow-sm border-0 mb-4">
+                  <div className="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
+                    <h5 className="fw-bold text-dark mb-0"><i className="bi bi-star me-2 text-muted"></i>Reviews from Clients</h5>
+                  </div>
+                  <div className="card-body px-4 pb-4">
+                    <ProfileReviews userId={id} role="freelancer" />
                   </div>
                 </div>
               )}

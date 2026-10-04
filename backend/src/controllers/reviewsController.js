@@ -183,7 +183,7 @@ exports.getUserReviews = async (req, res) => {
         reviewer: {
           user_id: reviewer.user_id || r.reviewer_id,
           name: [reviewer.first_name, reviewer.last_name].filter(Boolean).join(' ') || 'RaketBase user',
-          avatar_url: (reviewerIsClient ? reviewer.client_avatar_url : reviewer.avatar_url) || null,
+          avatar_url: (reviewerIsClient ? reviewer.client_avatar_url || reviewer.avatar_url : reviewer.avatar_url) || null,
           role: reviewerIsClient ? 'customer' : 'freelancer',
         },
       };

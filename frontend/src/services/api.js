@@ -71,11 +71,27 @@ async function request(path, options = {}) {
     throw new Error('Your session has expired. Please log in again.');
   }
 
+  // An admin suspended this account while it was logged in: sign out right away
+  if (res.status === 403 && data.code === 'ACCOUNT_SUSPENDED') {
+    forceLogout('suspended');
+    throw new Error('This account has been suspended.');
+  }
+
   if (!res.ok) {
     throw new Error(data.message || data.error || 'Something went wrong');
   }
 
   return data;
+}
+
+// Clears the saved session and sends the user to the login page with a reason (?suspended=1)
+export function forceLogout(reason) {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+    window.location.href = `/login?${reason}=1`;
+  }
 }
 
 // Authentication & Profile API

@@ -212,6 +212,17 @@ Changes 8
 - The Message button on Dashboard contracts now opens that contract's chat instead of the general inbox
 - After accepting a proposal, the accepted freelancer's card shows a "Message" button that opens your contract chat with them
 - Added a Refunded contract status and the amount actually released after a split (009_dispute_outcomes.sql)
+- Clicking "View Stages" on a milestone contract now opens the stage breakdown right under that contract (it used to appear at the very bottom of the table, out of sight)
+- The proposal form on a job page no longer runs into the footer; only the short budget card follows you while scrolling
+- Footer links: Help & Support now opens a new Help page with answers about hiring, working, payments, disputes, and accounts, and Terms / Privacy now take logged-in users back to where they were instead of to the register page
+- Explore: the budget slider and From / To boxes now actually filter jobs, the client rating filter now uses the client's real rating, and job cards show the client's rating (★ 4.5) when they have one
+- Explore: the category buttons keep readable colours in light and dark mode, and the Filters button works on phones
+- Suspended users are now logged out on their next action, when they come back to the tab, or when they change pages, and the login page tells them their account was suspended
+- Messages: the "[Name] wants to delete this conversation" notice now actually shows (it was reading the wrong fields), and the chat list marks those conversations with a red "Wants to delete" tag
+- Messages and the Dashboard contracts table now show profile photos (clients appear with their client photo)
+- The Freelancer side of a profile now has a Reviews tab listing every review from clients, like the Client side has for reviews from freelancers
+- The navbar shows a "Freelancer" (green) or "Client" (orange) pill so you always know which mode you're in
+- The Freelancer side of a profile now shows the freelancer's average rate (the average amount of their completed contracts, same as Browse Users) instead of a typed-in hourly rate
 
 
 

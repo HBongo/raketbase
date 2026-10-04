@@ -13,6 +13,7 @@ export default function Login() {
   const [searchParams] = useSearchParams();
   const justRegistered = searchParams.get('registered') === '1';
   const sessionExpired = searchParams.get('expired') === '1';
+  const accountSuspended = searchParams.get('suspended') === '1';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -182,6 +183,13 @@ export default function Login() {
             <div style={{ backgroundColor: 'rgba(231, 178, 75, 0.1)', borderColor: 'rgba(231, 178, 75, 0.3)', color: 'var(--auth-accent)' }} className="text-sm mb-4 px-3 py-2.5 rounded-md border flex items-center gap-2">
               <i className="bi bi-clock-history"></i>
               <span>Your session has expired. Please log in again.</span>
+            </div>
+          )}
+
+          {accountSuspended && (
+            <div role="alert" style={{ backgroundColor: 'rgba(229, 72, 77, 0.1)', borderColor: 'rgba(229, 72, 77, 0.3)', color: '#E5484D' }} className="text-sm mb-4 px-3 py-2.5 rounded-md border flex items-center gap-2">
+              <i className="bi bi-slash-circle"></i>
+              <span>Your account has been suspended by an admin, so you've been logged out.</span>
             </div>
           )}
 

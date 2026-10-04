@@ -34,7 +34,16 @@ exports.getAllJobs = async (req, res) => {
       (a, b) => Number(b.status === 'open') - Number(a.status === 'open')
     );
 
-    return res.status(200).json({ success: true, data: sorted });
+    // Each poster's rating as a client (from freelancers' reviews), for the job cards and the rating filter
+    const clientIds = [...new Set(sorted.map((j) => j.client_id).filter(Boolean))];
+    const ratings = clientIds.length ? await getRatingSummaries(clientIds, 'customer') : {};
+    const withRatings = sorted.map((j) => ({
+      ...j,
+      client_rating: ratings[j.client_id]?.average ?? null,
+      client_rating_count: ratings[j.client_id]?.count ?? 0,
+    }));
+
+    return res.status(200).json({ success: true, data: withRatings });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }

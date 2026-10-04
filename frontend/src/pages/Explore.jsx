@@ -60,7 +60,7 @@ export default function Explore() {
   const [loadError, setLoadError] = useState(null);
 
   const [activeCategory, setActiveCategory] = useState('all');
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [budget, setBudget] = useState(null);
   const [minRating, setMinRating] = useState(0);
   const [hideTaken, setHideTaken] = useState(false);
@@ -181,10 +181,12 @@ export default function Explore() {
         if (!t.includes(q) && !d.includes(q) && !cn.includes(q)) return false;
       }
       if (budget) {
-        if (j.budget < budget[0] || j.budget > budget[1]) return false;
+        const amount = Number(j.budget) || 0;
+        if (amount < budget.min || amount > budget.max) return false;
       }
       if (minRating > 0) {
-        const rating = j.users?.client_rating || j.users?.rating || 0;
+        // Unrated clients are left out once a minimum rating is picked
+        const rating = j.client_rating ?? 0;
         if (rating < minRating) return false;
       }
       return true;
@@ -264,8 +266,8 @@ export default function Explore() {
                 <button
                   key={c.id}
                   onClick={() => setActiveCategory(c.id)}
-                  className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium category-filter-btn ${isActive ? 'text-white' : 'btn-outline-secondary'}`}
-                  style={isActive ? { backgroundColor: '#FF5A1E', borderColor: '#FF5A1E', color: '#fff' } : {}}
+                  className={`btn rounded-pill px-4 py-2 flex-shrink-0 fw-medium category-filter-btn ${isActive ? 'is-active' : ''}`}
+                  aria-pressed={isActive}
                 >
                   {c.label} <span className="small opacity-75">({c.count})</span>
                 </button>
@@ -276,8 +278,7 @@ export default function Explore() {
             <div className="dropdown d-inline-block flex-shrink-0">
               <button
                 type="button"
-                className={`btn rounded-pill px-4 py-2 fw-medium dropdown-toggle category-filter-btn ${isOthersActive ? 'text-white' : 'btn-outline-secondary'}`}
-                style={isOthersActive ? { backgroundColor: '#FF5A1E', borderColor: '#FF5A1E', color: '#fff' } : {}}
+                className={`btn rounded-pill px-4 py-2 fw-medium dropdown-toggle category-filter-btn ${isOthersActive ? 'is-active' : ''}`}
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
               >
@@ -350,7 +351,7 @@ export default function Explore() {
             )}
           </div>
 
-                      <div className={"col-xl-3 col-lg-4 order-1 sticky-filter ${!filtersOpen ? 'd-none d-lg-block' : 'd-block'}"}>
+                      <div className={`col-xl-3 col-lg-4 order-1 sticky-filter ${!filtersOpen ? 'd-none d-lg-block' : 'd-block'}`}>
               {budget && (
                 <FiltersSidebar
                   budget={budget}
@@ -410,7 +411,7 @@ function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRati
           onReset={() => setBudget(budgetBounds)}
         />
         <hr className="my-4" />
-        <button className="btn btn-dark w-100 mb-2 fw-medium rounded-pill">Show {resultCount} results</button>
+        <button onClick={onClose} className="btn btn-dark w-100 mb-2 fw-medium rounded-pill">Show {resultCount} results</button>
         <button onClick={resetFilters} className="btn btn-outline-secondary w-100 fw-medium rounded-pill">Reset all</button>
       </div>
     </div>
@@ -516,6 +517,14 @@ function JobCard({ job, onOpen }) {
                 Posted by <strong className="text-dark fw-medium" style={{ textDecoration: 'underline' }}>{clientName}</strong>
               </span>
             </Link>
+            {job.client_rating != null && (
+              <span
+                className="small text-muted text-nowrap flex-shrink-0"
+                title={`Client rating from ${job.client_rating_count} ${job.client_rating_count === 1 ? 'review' : 'reviews'}`}
+              >
+                <i className="bi bi-star-fill text-warning me-1"></i>{job.client_rating}
+              </span>
+            )}
           </div>
         </div>
         {isTaken && (

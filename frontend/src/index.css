@@ -322,15 +322,39 @@ img.rocket-logo {
   animation: indeterminate-bar 1.4s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;
 }
 
+/* Explore category pills. Set through Bootstrap's button variables so hover, click,
+   focus and the open "Others" dropdown all keep the same colours. */
 .category-filter-btn {
-  background-color: #fff;
-  border: 1px solid #dee2e6;
-  color: #212529;
+  --bs-btn-color: #212529;
+  --bs-btn-bg: #fff;
+  --bs-btn-border-color: #ced4da;
+  --bs-btn-hover-color: #212529;
+  --bs-btn-hover-bg: #f1f3f5;
+  --bs-btn-hover-border-color: #adb5bd;
+  --bs-btn-active-color: #212529;
+  --bs-btn-active-bg: #e9ecef;
+  --bs-btn-active-border-color: #adb5bd;
+  --bs-btn-focus-shadow-rgb: 255, 90, 30;
   transition: background-color 0.2s, color 0.2s;
 }
-.category-filter-btn:hover {
-  background-color: #e9ecef;
-  color: #212529;
+.category-filter-btn.is-active,
+.category-filter-btn.is-active:hover,
+.category-filter-btn.is-active:active,
+.category-filter-btn.is-active.show {
+  color: #fff;
+  background-color: #FF5A1E;
+  border-color: #FF5A1E;
+}
+body.dark-mode .category-filter-btn:not(.is-active) {
+  --bs-btn-color: var(--text-main);
+  --bs-btn-bg: var(--card-background);
+  --bs-btn-border-color: var(--border-light);
+  --bs-btn-hover-color: var(--text-main);
+  --bs-btn-hover-bg: #2A3832;
+  --bs-btn-hover-border-color: var(--border-light);
+  --bs-btn-active-color: var(--text-main);
+  --bs-btn-active-bg: #2A3832;
+  --bs-btn-active-border-color: var(--border-light);
 }
 
 @keyframes fadeIn {

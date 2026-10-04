@@ -84,6 +84,9 @@ async function getPublicProfile(req, res) {
 
     const client = await getClientSide(id);
 
+    // Average price: what their completed contracts as a freelancer were worth on average
+    const freelancerPrice = await getAverageAmountForUser(id, 'freelancer');
+
     // Strip sensitive fields
     const { role, status, ...publicProfile } = profile;
 
@@ -94,7 +97,7 @@ async function getPublicProfile(req, res) {
         title: meta.title || '',
         phone: meta.phone || '',
         location: meta.location || '',
-        hourly_rate: meta.hourly_rate || null,
+        avg_price: freelancerPrice.average,
         linkedin_url: meta.linkedin_url || '',
         github_url: meta.github_url || '',
         website_url: meta.website_url || '',

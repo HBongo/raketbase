@@ -8,7 +8,14 @@ export default function LegalPage({ defaultDoc = 'terms' }) {
 
   const isLoggedIn = !!localStorage.getItem('token');
   const backLink = isLoggedIn ? '/dashboard' : '/register';
-  const backText = isLoggedIn ? 'Back to Dashboard' : 'Back to Register';
+  const backText = isLoggedIn ? 'Back to RaketBase' : 'Back to Register';
+  // Logged-in users usually arrive from the footer, so take them back to the page they were on
+  const goBack = (e) => {
+    if (isLoggedIn && window.history.length > 1) {
+      e.preventDefault();
+      navigate(-1);
+    }
+  };
 
   const isPrivacyPath = location.pathname.includes('privacy');
   const [docType, setDocType] = useState(isPrivacyPath ? 'privacy' : defaultDoc);
@@ -33,12 +40,12 @@ export default function LegalPage({ defaultDoc = 'terms' }) {
       {/* Basic Navbar */}
       <nav className="navbar navbar-light bg-white border-bottom py-2">
         <div className="container-lg d-flex align-items-center justify-content-between">
-          <Link to="/" className="navbar-brand text-dark fw-bold mb-0">
+          <Link to={isLoggedIn ? '/dashboard' : '/'} className="navbar-brand text-dark fw-bold mb-0">
             RaketBase
           </Link>
           <div className="d-flex align-items-center gap-2">
-            <Link to="/register" className="btn btn-outline-secondary btn-sm">
-              &larr; Back to Register
+            <Link to={backLink} onClick={goBack} className="btn btn-outline-secondary btn-sm">
+              &larr; {backText}
             </Link>
           </div>
         </div>
@@ -72,8 +79,8 @@ export default function LegalPage({ defaultDoc = 'terms' }) {
             </div>
 
             <div className="text-center mt-3">
-              <Link to="/register" className="text-muted small">
-                Back to Register
+              <Link to={backLink} onClick={goBack} className="text-muted small">
+                {backText}
               </Link>
             </div>
           </div>

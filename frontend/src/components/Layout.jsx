@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams, Outlet } from 'react-router-dom';
 import { clearCached } from '../utils/cache';
-import { switchRole } from '../services/api';
+import { switchRole, getProfile } from '../services/api';
 import { showToast } from '../utils/toast';
 import NotificationBell from './NotificationBell';
 import CurrencySelector from './CurrencySelector';
@@ -48,6 +48,27 @@ export default function Layout() {
       navigate(val.trim() ? `/explore?q=${encodeURIComponent(val)}` : '/explore', { replace: true });
     }
   }
+
+  // Re-check the account when the user changes pages or comes back to the tab, so someone an admin
+  // suspends gets logged out even if they're idle. getProfile() logs out on a suspended response.
+  // At most once every 30 seconds.
+  const lastAccountCheck = useRef(0);
+  useEffect(() => {
+    function checkAccount() {
+      if (document.visibilityState === 'hidden' || !localStorage.getItem('token')) return;
+      const now = Date.now();
+      if (now - lastAccountCheck.current < 30000) return;
+      lastAccountCheck.current = now;
+      getProfile().catch(() => {});
+    }
+    checkAccount();
+    document.addEventListener('visibilitychange', checkAccount);
+    window.addEventListener('focus', checkAccount);
+    return () => {
+      document.removeEventListener('visibilitychange', checkAccount);
+      window.removeEventListener('focus', checkAccount);
+    };
+  }, [location.pathname]);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false);
@@ -286,6 +307,16 @@ export default function Layout() {
               <i className={isFullscreen ? "bi bi-fullscreen-exit" : "bi bi-arrows-fullscreen"}></i>
             </button>
             
+            {/* Which mode you're in; switching still happens from the profile menu */}
+            <span
+              className="badge rounded-pill d-inline-flex align-items-center gap-1 me-2 px-2 py-1 fw-semibold"
+              style={{ backgroundColor: user?.active_role === 'customer' ? '#C2410C' : '#146C43', color: '#fff', fontSize: '0.72rem' }}
+              title={`You're in ${user?.active_role === 'customer' ? 'Client' : 'Freelancer'} mode`}
+            >
+              <i className={`bi ${user?.active_role === 'customer' ? 'bi-briefcase' : 'bi-person-workspace'}`}></i>
+              {user?.active_role === 'customer' ? 'Client' : 'Freelancer'}
+            </span>
+
             <div className="dropdown">
               <button className="navbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <img src={(user?.active_role === "customer" && user?.client_avatar_url) || user?.avatar_url || "/default-avatar.png"} alt="Profile" className="navbar-profile-img" />
@@ -349,7 +380,7 @@ export default function Layout() {
               <div className="d-flex gap-3 gap-md-4">
                 <Link to="/terms" className="text-decoration-none text-muted">Terms</Link>
                 <Link to="/privacy" className="text-decoration-none text-muted">Privacy</Link>
-                <Link to="/contact" className="text-decoration-none text-muted">Help & Support</Link>
+                <Link to="/help" className="text-decoration-none text-muted">Help & Support</Link>
               </div>
             </div>
           </footer>
