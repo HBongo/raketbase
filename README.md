@@ -298,6 +298,32 @@ Changes 9
 - Added a "Both (Freelancer & Client)" role choice during sign-up to register users for both modes
 - Added an "Others" option with a custom explanation text field when filing a dispute ticket
 
+Changes 10
+
+[Explore & Milestone Search]
+- Searching "milestone", "milestones", or "milestone developer" on the Explore page now accurately matches jobs with milestone-based budgets alongside title, description, skills, and tags
+- Added a dedicated Project Type filter (All Project Types, Milestone-Based, Fixed Price) in the Explore sidebar and active filter tag chips
+- Added clean text-only "Milestone" and "Fixed Price" badges on Explore job cards and the Job Details page
+- Added resilient JSON response parsing and an in-place retry handler on job loading to prevent "unexpected end of data" network failures
+
+[Dashboard Refinements & Modernization]
+- Fixed a blank-screen crash on the dashboard caused by an undefined currentUserId reference
+- Standardized contract action buttons (View Deliverables, Message, Dispute, Rate) to single-line pill buttons with uniform heights and no awkward text wrapping
+- Rebalanced contract table column widths (Job / Contract, Counterparty, Escrow Amount, Status, Actions) to ensure all action buttons fit comfortably on one line
+- Capitalized contract status labels (e.g. "Completed") and removed unclickable released badges from the Actions column
+- Removed the green background boxes from "In progress or submitted" and "Secured via Supabase" on top stat cards for a clean, cohesive dark-mode appearance
+- Modernized Incoming Proposals, My Proposals, and Action Item cards with sleek dark-mode cards and subtle borders, replacing legacy green blocks
+- Removed the "+ Post a New Job" button from the Action Items empty state for a cleaner "All caught up!" presentation
+- Deduplicated repetitive "USER LOGIN" entries in the Recent Activity feed so only the latest login session is shown, prioritizing substantive business actions (jobs posted, bids submitted, milestones, deliverables, and escrow releases)
+
+[Profile & Navigation]
+- Made the /profile route self-healing: visiting /profile or /profile?tab=activity without a user ID parameter now automatically loads the logged-in user's profile instead of showing "User not found"
+- Restored the "My Account" navigation link and user icon in the sidebar
+- Connected the Recent Activity widget footer link to open the user's full activity history tab directly (/profile/:id?tab=activity)
+
+[Branch Integration & Safety]
+- Cleanly integrated upstream account deletion, payout methods, and activity log updates into the development branch without regressions
+- Created a safety rollback branch (backup-before-merge-ebf1d02) to preserve local state prior to merging
 
 
 Roadmap
