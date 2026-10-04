@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { getCached, setCached } from '../utils/cache';
 import BackToTop from '../components/BackToTop';
@@ -74,45 +74,51 @@ export default function Explore() {
     }
   })();
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadJobs() {
-      const cached = getCached('explore_jobs');
-      if (!cached) {
-        setLoading(true);
-      }
-      setLoadError(null);
-      try {
-        const res = await fetch(`${API_BASE_URL}/jobs`);
-        const body = await res.json();
-        if (!res.ok || !body.success) {
-          throw new Error(body.error || `Request failed (${res.status})`);
-        }
-        if (cancelled) return;
-
-        const data = body.data || [];
-        setJobs(data);
-        setCached('explore_jobs', data);
-
-        if (data.length) {
-          const amounts = data.map((j) => Number(j.budget) || 0);
-          setBudget({ min: Math.min(...amounts), max: Math.max(...amounts) });
-        } else {
-          setBudget({ min: 0, max: 0 });
-        }
-      } catch (err) {
-        if (!cancelled) setLoadError(err.message || 'Could not load jobs.');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const fetchJobs = useCallback(async () => {
+    const cached = getCached('explore_jobs');
+    if (!cached) {
+      setLoading(true);
     }
+    setLoadError(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/jobs`);
+      if (!res.ok) {
+        throw new Error(`Server returned status ${res.status}`);
+      }
+      const text = await res.text();
+      if (!text || !text.trim()) {
+        throw new Error('Server returned an empty response. Please try again.');
+      }
+      let body;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        throw new Error('Invalid response received from server. Please try again.');
+      }
+      if (!body.success) {
+        throw new Error(body.error || `Request failed (${res.status})`);
+      }
 
-    loadJobs();
-    return () => {
-      cancelled = true;
-    };
+      const data = body.data || [];
+      setJobs(data);
+      setCached('explore_jobs', data);
+
+      if (data.length) {
+        const amounts = data.map((j) => Number(j.budget) || 0);
+        setBudget({ min: Math.min(...amounts), max: Math.max(...amounts) });
+      } else {
+        setBudget({ min: 0, max: 0 });
+      }
+    } catch (err) {
+      setLoadError(err.message || 'Could not load jobs.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
 
   const budgetBounds = useMemo(() => {
     if (!jobs.length) return { min: 0, max: 0 };
@@ -359,7 +365,7 @@ export default function Explore() {
               <StateCard
                 title="Couldn't load jobs"
                 body={loadError}
-                action={{ label: 'Try again', onClick: () => window.location.reload() }}
+                action={{ label: 'Try again', onClick: () => fetchJobs() }}
               />
             )}
 
