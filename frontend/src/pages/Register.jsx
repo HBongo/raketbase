@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser, updateProfile } from '../services/api';
 import LegalModal from '../components/LegalModal';
+import '../styles/auth.css';
 
 function CustomAutocomplete({ value, onChange, options, placeholder, disabled, isLoading }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,10 +12,10 @@ function CustomAutocomplete({ value, onChange, options, placeholder, disabled, i
   );
 
   return (
-    <div style={{ position: 'relative', overflow: 'visible' }}>
+    <div className="rb-auth__autocomplete">
       <input 
         type="text" 
-        className="auth-input" 
+        className="rb-auth__input" 
         placeholder={isLoading ? "Loading..." : placeholder}
         value={value || ''}
         disabled={disabled}
@@ -29,42 +30,16 @@ function CustomAutocomplete({ value, onChange, options, placeholder, disabled, i
         autoComplete="off"
       />
       {isOpen && !disabled && filteredOptions.length > 0 && (
-        <ul style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          right: 0,
-          zIndex: 50,
-          maxHeight: '180px',
-          overflowY: 'auto',
-          backgroundColor: '#1D2129',
-          border: '1px solid #262B36',
-          borderRadius: '6px',
-          listStyle: 'none',
-          padding: '4px 0',
-          margin: '4px 0 0',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
-        }}>
+        <ul className="rb-auth__autocomplete-list">
           {filteredOptions.map((opt, i) => (
             <li key={i}>
               <button 
                 type="button" 
+                className="rb-auth__autocomplete-item"
                 onClick={() => {
                   onChange(opt);
                   setIsOpen(false);
                 }}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  background: 'none',
-                  border: 'none',
-                  color: '#EDEEF2',
-                  padding: '7px 12px',
-                  fontSize: '13px',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#252B37'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
               >
                 {opt}
               </button>
@@ -77,57 +52,51 @@ function CustomAutocomplete({ value, onChange, options, placeholder, disabled, i
 }
 
 const ALLOWED_EMAIL_DOMAINS = [
-  'gmail.com',
-  'googlemail.com',
-  'yahoo.com',
-  'yahoo.com.ph',
-  'ymail.com',
-  'outlook.com',
-  'hotmail.com',
-  'live.com',
-  'msn.com',
-  'icloud.com',
-  'me.com',
-  'mac.com',
-  'proton.me',
-  'protonmail.com',
-  'zoho.com',
-  'aol.com',
+  'gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.com.ph', 'ymail.com',
+  'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
+  'icloud.com', 'me.com', 'mac.com',
+  'proton.me', 'protonmail.com', 'zoho.com', 'aol.com',
 ];
 
 export default function Register() {
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('darkMode') === 'true';
+  });
+
   useEffect(() => {
-    document.body.classList.remove('dark-mode');
-  }, []);
+    if (isDarkMode) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+    localStorage.setItem('darkMode', isDarkMode);
+  }, [isDarkMode]);
 
   const navigate = useNavigate();
 
-  // Step state (1: Core details, 2: Role profile & Password)
   const [step, setStep] = useState(1);
 
-  // Step 1 fields (No middle initial, no suffix)
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('freelancer');
 
-  // Step 2 fields
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [over18, setOver18] = useState(false);
-  
-  // Step 2 freelancer fields
+
+  // Freelancer fields
   const [professionalTitle, setProfessionalTitle] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [region, setRegion] = useState('');
   const [city, setCity] = useState('');
-  
+
   // Locations Data
   const [regionsList, setRegionsList] = useState([]);
   const [citiesList, setCitiesList] = useState([]);
   const [isFetchingCities, setIsFetchingCities] = useState(false);
-  
-  // Step 2 client fields
+
+  // Client fields
   const [companyName, setCompanyName] = useState('');
 
   // UI state
@@ -143,7 +112,6 @@ export default function Register() {
     setLegalModalOpen(true);
   };
 
-  // Fetch Regions when reaching Step 2 as Freelancer
   useEffect(() => {
     if (step === 2 && role === 'freelancer' && regionsList.length === 0) {
       fetch('https://psgc.gitlab.io/api/regions/')
@@ -156,7 +124,6 @@ export default function Register() {
     }
   }, [step, role, regionsList.length]);
 
-  // Fetch Cities when a valid Region is selected
   useEffect(() => {
     let cancelled = false;
     if (region) {
@@ -176,7 +143,6 @@ export default function Register() {
             cleanedCities.sort((a, b) => a.name.localeCompare(b.name));
             setCitiesList(cleanedCities);
             setIsFetchingCities(false);
-            
             if (city && !cleanedCities.some(c => c.name === city)) {
               setCity('');
             }
@@ -193,7 +159,7 @@ export default function Register() {
       setCitiesList([]);
     }
     return () => { cancelled = true; };
-  }, [region, regionsList]);
+  }, [region, regionsList, city]);
 
   const isNameValid = (name) => /^[A-Za-z\s\-']{2,50}$/.test(name.trim());
   const isEmailFormatValid = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
@@ -263,416 +229,329 @@ export default function Register() {
   }
 
   return (
-    <div className="auth-split-wrapper position-relative">
-      <button
-        type="button"
-        className="btn btn-outline-secondary position-absolute top-0 end-0 m-4 rounded-circle d-flex align-items-center justify-content-center border-0 shadow-sm "
-        style={{ width: '40px', height: '40px', zIndex: 1000, transition: 'all 0.2s', backgroundColor: isDarkMode ? '#1D2129' : '#FFFFFF', borderColor: isDarkMode ? '#262B36' : '#E2E8F0', border: '1px solid' }}
-        onClick={() => setIsDarkMode(!isDarkMode)}
-        aria-label="Toggle Dark Mode"
-        title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-      >
-        <i className={isDarkMode ? "bi bi-sun-fill text-warning" : "bi bi-moon-fill text-secondary"} style={{ fontSize: '1.2rem' }}></i>
-      </button>
-      {/* Left branding banner (GitHub main split layout) */}
-      <div className="hidden md:flex auth-split-sidebar">
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
-          <img 
-            src="/racketbaseSVG.svg" 
-            alt="RaketBase Logo" 
-            className="logo-shake" 
-            style={{ height: '46px', width: 'auto', objectFit: 'contain' }} 
-          />
-          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.5rem', letterSpacing: '0.5px', display: 'flex', alignItems: 'center' }}>
-            <span style={{ fontWeight: 800, color: '#EDEEF2' }}>RAKET</span>
-            <span style={{ fontWeight: 400, color: '#EDEEF2' }}>BASE</span>
+    <div className={`rb-auth ${isDarkMode ? 'rb-auth--dark' : ''}`}>
+      <div className="rb-auth__sidebar">
+        <Link to="/" className="rb-auth__brand" style={{ textDecoration: 'none' }}>
+          <img src="/raketbase-icon.svg" alt="RaketBase Logo" className="rb-auth__logo" />
+          <div className="rb-auth__brand-text">
+            <span className="rb-auth__brand-bold">RAKET</span>
+            <span className="rb-auth__brand-light">BASE</span>
+          </div>
+        </Link>
+        
+        <div className="rb-auth__hero">
+          <h1 className="rb-auth__tagline">
+            Launch your <span className="rb-auth__tagline-accent">raket</span>.<br/>
+            Build your <span className="rb-auth__tagline-accent">base</span>.
+          </h1>
+          <p className="rb-auth__subtitle">
+            Join thousands of professionals. Whether you hire or get hired, RaketBase is your launchpad.
+          </p>
+          <div className="rb-auth__stats">
+            <div className="rb-auth__stat-card">
+              <span className="rb-auth__stat-value">50K+</span>
+              <span className="rb-auth__stat-label">Freelancers</span>
+            </div>
+            <div className="rb-auth__stat-card">
+              <span className="rb-auth__stat-value">120K+</span>
+              <span className="rb-auth__stat-label">Projects</span>
+            </div>
+            <div className="rb-auth__stat-card">
+              <span className="rb-auth__stat-value">4.9/5</span>
+              <span className="rb-auth__stat-label">Rating</span>
+            </div>
           </div>
         </div>
-
-        <div style={{ maxWidth: '320px' }}>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.875rem', fontWeight: 500, lineHeight: 1.3, marginBottom: '0.75rem', color: '#EDEEF2' }}>
-            Built for the people who get things done.
-          </h1>
-          <p style={{ color: '#8D93A3', fontSize: '15px', lineHeight: 1.6 }}>
-            Post the work. Find the work. RaketBase connects clients and freelancers directly.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: '#262B36', width: '70%' }} />
-          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: '#262B36', width: '45%' }} />
-          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: '#262B36', width: '85%' }} />
-          <div style={{ height: '10px', borderRadius: '3px', backgroundColor: '#262B36', width: '30%' }} />
+        
+        <div className="rb-auth__sidebar-footer">
+          <button type="button" className="rb-auth__btn-ghost" onClick={() => openLegalModal('terms')}>Terms</button>
+          <button type="button" className="rb-auth__btn-ghost" onClick={() => openLegalModal('privacy')}>Privacy</button>
         </div>
       </div>
 
-      {/* Right form container */}
-      <div className="auth-split-content">
-        <div className="auth-split-card">
-          {/* Brand header for mobile */}
-          <div className="md:hidden" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-              <img 
-                src="/racketbaseSVG.svg" 
-                alt="RaketBase Logo" 
-                className="logo-shake" 
-                style={{ height: '38px', width: 'auto', objectFit: 'contain' }} 
-              />
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.35rem', letterSpacing: '0.5px', display: 'flex', alignItems: 'center' }}>
-                <span style={{ fontWeight: 800, color: '#EDEEF2' }}>RAKET</span>
-                <span style={{ fontWeight: 400, color: '#EDEEF2' }}>BASE</span>
-              </div>
-            </div>
-          </div>
+      <div className="rb-auth__main">
+        <button 
+          type="button"
+          className="rb-auth__theme-toggle" 
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          aria-label="Toggle theme"
+        >
+          <i className={`bi ${isDarkMode ? 'bi-sun-fill' : 'bi-moon-fill'}`}></i>
+        </button>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 500, margin: 0, color: '#EDEEF2' }}>
-              Create your account
-            </h2>
-            <span style={{ fontSize: '12px', color: '#8D93A3', padding: '3px 8px', borderRadius: '12px', border: '1px solid #262B36', backgroundColor: '#141824' }}>
-              Step {step} of 2
-            </span>
+        <div className="rb-auth__form-container">
+          <Link to="/" className="rb-auth__mobile-brand" style={{ textDecoration: 'none' }}>
+            <img src="/raketbase-icon.svg" alt="RaketBase Logo" className="rb-auth__logo" />
+            <div className="rb-auth__brand-text">
+              <span className="rb-auth__brand-bold">RAKET</span>
+              <span className="rb-auth__brand-light">BASE</span>
+            </div>
+          </Link>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+            <h2 className="rb-auth__title">Create your account</h2>
+            <span className="rb-auth__step-badge">Step {step} of 2</span>
           </div>
-          <p style={{ color: '#8D93A3', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-            {step === 1 ? 'Start posting jobs or picking up work.' : 'Complete your profile credentials.'}
+          
+          <p className="rb-auth__description">
+            {step === 1 ? 'Start posting jobs or picking up work.' : 'Set up your credentials.'}
           </p>
 
           {error && (
-            <div style={{ backgroundColor: 'rgba(229, 72, 77, 0.1)', borderColor: 'rgba(229, 72, 77, 0.3)', color: '#E5484D' }} className="text-sm mb-4 px-3 py-2.5 rounded-md border">
-              {error}
+            <div className="rb-auth__alert rb-auth__alert--error">
+              <i className="bi bi-exclamation-circle-fill"></i>
+              <span>{error}</span>
             </div>
           )}
 
           {step === 1 ? (
             <form onSubmit={handleNext}>
-              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="first-name">
-                    First name
-                  </label>
+              <div className="rb-auth__row">
+                <div className="rb-auth__field">
+                  <label className="rb-auth__label">First name</label>
                   <input
-                    id="first-name"
                     type="text"
-                    required
-                    autoComplete="given-name"
-                    placeholder="First"
+                    className={`rb-auth__input ${firstName && !isNameValid(firstName) ? 'rb-auth__input--error' : ''}`}
                     value={firstName}
-                    onChange={(e) => setFirstName(e.target.value.replace(/[^A-Za-z\s\-']/g, ''))}
-                    className="auth-input"
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Juan"
+                    autoFocus
                   />
                   {firstName && !isNameValid(firstName) && (
-                    <div style={{ color: '#E5484D', fontSize: '11px', marginTop: '4px' }}>2-50 letters.</div>
+                    <div className="rb-auth__error-text">2-50 letters/spaces allowed</div>
                   )}
                 </div>
-
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="last-name">
-                    Last name
-                  </label>
+                <div className="rb-auth__field">
+                  <label className="rb-auth__label">Last name</label>
                   <input
-                    id="last-name"
                     type="text"
-                    required
-                    autoComplete="family-name"
-                    placeholder="Last"
+                    className={`rb-auth__input ${lastName && !isNameValid(lastName) ? 'rb-auth__input--error' : ''}`}
                     value={lastName}
-                    onChange={(e) => setLastName(e.target.value.replace(/[^A-Za-z\s\-']/g, ''))}
-                    className="auth-input"
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Dela Cruz"
                   />
                   {lastName && !isNameValid(lastName) && (
-                    <div style={{ color: '#E5484D', fontSize: '11px', marginTop: '4px' }}>2-50 letters.</div>
+                    <div className="rb-auth__error-text">2-50 letters/spaces allowed</div>
                   )}
                 </div>
               </div>
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="email">
-                  Email
-                </label>
+              <div className="rb-auth__field">
+                <label className="rb-auth__label">Email</label>
                 <input
-                  id="email"
                   type="email"
-                  required
-                  autoComplete="email"
-                  placeholder="name@example.com"
+                  className={`rb-auth__input ${email && (!isEmailFormatValid(email) || !isLegitEmailDomain(email)) ? 'rb-auth__input--error' : ''}`}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className={`auth-input ${email && (!isEmailFormatValid(email) || !isLegitEmailDomain(email)) ? 'auth-input-error' : ''}`}
+                  placeholder="juandelacruz@example.com"
                 />
                 {email && !isEmailFormatValid(email) && (
-                  <div style={{ color: '#E5484D', fontSize: '11px', marginTop: '4px' }}>Please enter a valid email.</div>
+                  <div className="rb-auth__error-text">Invalid email format</div>
                 )}
                 {email && isEmailFormatValid(email) && !isLegitEmailDomain(email) && (
-                  <div style={{ color: '#E5484D', fontSize: '11px', marginTop: '4px' }}>
-                    Please use a recognized provider (Gmail, Yahoo, Outlook, etc.) or school email (.edu). Disposable emails are not allowed.
-                  </div>
+                  <div className="rb-auth__error-text">Please use a recognized email provider</div>
                 )}
               </div>
 
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="role">
-                  I want to join as a:
-                </label>
+              <div className="rb-auth__field">
+                <label className="rb-auth__label">I want to join as a:</label>
                 <select
-                  id="role"
+                  className="rb-auth__input"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="auth-input"
-                  style={{ cursor: 'pointer' }}
                 >
                   <option value="freelancer">Freelancer — I want to find work</option>
                   <option value="customer">Client — I want to hire someone</option>
                 </select>
               </div>
 
-                              <button
-                  type="submit"
-                  disabled={!isStep1Complete}
-                  className="auth-btn-primary"
-                  style={{ opacity: !isStep1Complete ? 0.6 : 1, cursor: !isStep1Complete ? 'not-allowed' : 'pointer' }}
-                >
-                <span>Continue to Step 2</span>
-                <i className="bi bi-arrow-right"></i>
+              <button 
+                type="submit" 
+                className="rb-auth__btn-primary"
+                disabled={!isStep1Complete}
+              >
+                Continue <i className="bi bi-arrow-right" />
               </button>
             </form>
           ) : (
             <form onSubmit={handleSubmit}>
               {role === 'freelancer' ? (
                 <>
-                  <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="title">
-                        Title <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
-                      </label>
+                  <div className="rb-auth__row">
+                    <div className="rb-auth__field">
+                      <label className="rb-auth__label">Professional Title <span className="rb-auth__label-optional">(Optional)</span></label>
                       <input
-                        id="title"
                         type="text"
-                        placeholder="e.g. Web Developer"
+                        className="rb-auth__input"
                         value={professionalTitle}
                         onChange={(e) => setProfessionalTitle(e.target.value)}
-                        className="auth-input"
+                        placeholder="e.g. Graphic Designer"
                       />
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="rate">
-                        Rate (₱) <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
-                      </label>
+                    <div className="rb-auth__field">
+                      <label className="rb-auth__label">Hourly Rate ($) <span className="rb-auth__label-optional">(Optional)</span></label>
                       <input
-                        id="rate"
                         type="number"
-                        placeholder="0.00"
+                        className="rb-auth__input"
                         value={hourlyRate}
                         onChange={(e) => setHourlyRate(e.target.value)}
-                        className="auth-input"
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
                       />
                     </div>
                   </div>
-
-                  <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }}>
-                        Region <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
-                      </label>
+                  <div className="rb-auth__row">
+                    <div className="rb-auth__field">
+                      <label className="rb-auth__label">Region <span className="rb-auth__label-optional">(Optional)</span></label>
                       <CustomAutocomplete
                         value={region}
                         onChange={setRegion}
                         options={regionsList.map(r => r.name)}
-                        placeholder="Search region..."
+                        placeholder="Select Region"
                       />
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }}>
-                        City <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
-                      </label>
+                    <div className="rb-auth__field">
+                      <label className="rb-auth__label">City <span className="rb-auth__label-optional">(Optional)</span></label>
                       <CustomAutocomplete
                         value={city}
                         onChange={setCity}
                         options={citiesList.map(c => c.name)}
-                        placeholder={!region ? "Pick region first" : "Search city..."}
-                        disabled={!region || isFetchingCities}
+                        placeholder={region ? "Select City" : "Select Region first"}
+                        disabled={!region}
                         isLoading={isFetchingCities}
                       />
                     </div>
                   </div>
                 </>
               ) : (
-                <div style={{ marginBottom: '0.85rem' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="company">
-                    Company Name <span style={{ color: '#6A7285', fontSize: '11px' }}>(Optional)</span>
-                  </label>
+                <div className="rb-auth__field">
+                  <label className="rb-auth__label">Company Name <span className="rb-auth__label-optional">(Optional)</span></label>
                   <input
-                    id="company"
                     type="text"
-                    placeholder="Your Company Inc."
+                    className="rb-auth__input"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    className="auth-input"
+                    placeholder="Your Company Inc."
                   />
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="password">
-                    Password
-                  </label>
-                  <div style={{ position: 'relative' }}>
+              <div className="rb-auth__row">
+                <div className="rb-auth__field">
+                  <label className="rb-auth__label">Password</label>
+                  <div className="rb-auth__input-wrapper">
                     <input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      autoComplete="new-password"
-                      placeholder="••••••••"
+                      type={showPassword ? 'text' : 'password'}
+                      className="rb-auth__input"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="auth-input"
-                      style={{ paddingRight: '2rem' }}
+                      placeholder="Create a password"
                     />
                     <button
                       type="button"
+                      className="rb-auth__toggle-pwd"
                       onClick={() => setShowPassword(!showPassword)}
-                      aria-label="Toggle password visibility"
-                      style={{ position: 'absolute', right: '0.65rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#8D93A3', cursor: 'pointer', padding: 0 }}
+                      tabIndex="-1"
                     >
-                      <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`} style={{ fontSize: '12px' }}></i>
+                      <i className={`bi ${showPassword ? 'bi-eye-slash-fill' : 'bi-eye-fill'}`}></i>
                     </button>
                   </div>
                 </div>
-
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8D93A3', marginBottom: '0.35rem' }} htmlFor="confirmPassword">
-                    Confirm
-                  </label>
-                  <div style={{ position: 'relative' }}>
+                <div className="rb-auth__field">
+                  <label className="rb-auth__label">Confirm</label>
+                  <div className="rb-auth__input-wrapper">
                     <input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      required
-                      autoComplete="new-password"
-                      placeholder="••••••••"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      className={`rb-auth__input ${confirmPassword && password !== confirmPassword ? 'rb-auth__input--error' : ''}`}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="auth-input"
-                      style={{ paddingRight: '2rem' }}
+                      placeholder="Confirm password"
                     />
                     <button
                       type="button"
+                      className="rb-auth__toggle-pwd"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      aria-label="Toggle confirm password visibility"
-                      style={{ position: 'absolute', right: '0.65rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#8D93A3', cursor: 'pointer', padding: 0 }}
+                      tabIndex="-1"
                     >
-                      <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`} style={{ fontSize: '12px' }}></i>
+                      <i className={`bi ${showConfirmPassword ? 'bi-eye-slash-fill' : 'bi-eye-fill'}`}></i>
                     </button>
+                  </div>
+                  {confirmPassword && password !== confirmPassword && (
+                    <div className="rb-auth__error-text">Passwords do not match</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rb-auth__checklist">
+                <p className="rb-auth__checklist-title">Password must contain:</p>
+                <div className="rb-auth__checklist-grid">
+                  <div className={`rb-auth__check-item ${/.{8,}/.test(password) ? 'rb-auth__check-item--pass' : 'rb-auth__check-item--fail'}`}>
+                    <i className={`bi ${/.{8,}/.test(password) ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}></i> 8+ chars
+                  </div>
+                  <div className={`rb-auth__check-item ${/[A-Z]/.test(password) ? 'rb-auth__check-item--pass' : 'rb-auth__check-item--fail'}`}>
+                    <i className={`bi ${/[A-Z]/.test(password) ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}></i> Uppercase
+                  </div>
+                  <div className={`rb-auth__check-item ${/[a-z]/.test(password) ? 'rb-auth__check-item--pass' : 'rb-auth__check-item--fail'}`}>
+                    <i className={`bi ${/[a-z]/.test(password) ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}></i> Lowercase
+                  </div>
+                  <div className={`rb-auth__check-item ${/\d/.test(password) ? 'rb-auth__check-item--pass' : 'rb-auth__check-item--fail'}`}>
+                    <i className={`bi ${/\d/.test(password) ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}></i> Number
+                  </div>
+                  <div className={`rb-auth__check-item ${/[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'rb-auth__check-item--pass' : 'rb-auth__check-item--fail'}`}>
+                    <i className={`bi ${/[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}></i> Special
                   </div>
                 </div>
               </div>
 
-              {confirmPassword && password !== confirmPassword && (
-                <div style={{ color: '#E5484D', fontSize: '11px', marginBottom: '0.5rem' }}>Passwords do not match.</div>
-              )}
+              <p className="rb-auth__legal-disclaimer">
+                By creating an account, you agree to our <button type="button" className="rb-auth__link-btn" onClick={() => openLegalModal('terms')}>Terms</button> and <button type="button" className="rb-auth__link-btn" onClick={() => openLegalModal('privacy')}>Privacy Policy</button>.
+              </p>
 
-              {/* Password checklist in clean dark panel */}
-              <div className="auth-checklist" style={{ marginBottom: '1rem' }}>
-                <div style={{ color: '#8D93A3', fontWeight: 500, marginBottom: '4px' }}>Password must have:</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 8px' }}>
-                  <span style={{ color: password.length >= 8 ? '#4EBA6F' : '#6A7285' }}>
-                    <i className={`bi ${password.length >= 8 ? 'bi-check-circle-fill' : 'bi-circle'}`} style={{ marginRight: '4px' }}></i>
-                    8+ chars
-                  </span>
-                  <span style={{ color: /[A-Z]/.test(password) ? '#4EBA6F' : '#6A7285' }}>
-                    <i className={`bi ${/[A-Z]/.test(password) ? 'bi-check-circle-fill' : 'bi-circle'}`} style={{ marginRight: '4px' }}></i>
-                    1 uppercase
-                  </span>
-                  <span style={{ color: /\d/.test(password) ? '#4EBA6F' : '#6A7285' }}>
-                    <i className={`bi ${/\d/.test(password) ? 'bi-check-circle-fill' : 'bi-circle'}`} style={{ marginRight: '4px' }}></i>
-                    1 number
-                  </span>
-                  <span style={{ color: /[!@#$%^&*(),.?":{}|<>]/.test(password) ? '#4EBA6F' : '#6A7285' }}>
-                    <i className={`bi ${/[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'bi-check-circle-fill' : 'bi-circle'}`} style={{ marginRight: '4px' }}></i>
-                    1 symbol
-                  </span>
-                </div>
+              <div className="rb-auth__checkbox-row">
+                <input
+                  type="checkbox"
+                  id="over18"
+                  checked={over18}
+                  onChange={(e) => setOver18(e.target.checked)}
+                />
+                <label htmlFor="over18">I confirm that I am at least 18 years of age.</label>
               </div>
 
-              {/* Legal disclaimer */}
-              <div style={{ fontSize: '11.5px', color: '#8D93A3', marginBottom: '1rem', lineHeight: 1.5, textAlign: 'center' }}>
-                By creating an account, you agree to our{' '}
+              <div className="rb-auth__action-row">
                 <button
                   type="button"
-                  onClick={() => openLegalModal('terms')}
-                  style={{ background: 'transparent', border: 'none', color: '#E7B24B', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontWeight: 500 }}
-                  className="hover:underline"
-                >
-                  Terms of Service
-                </button>{' '}
-                and acknowledge our{' '}
-                <button
-                  type="button"
-                  onClick={() => openLegalModal('privacy')}
-                  style={{ background: 'transparent', border: 'none', color: '#E7B24B', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontWeight: 500 }}
-                  className="hover:underline"
-                >
-                  Privacy Notice
-                </button>
-                .
-              </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
-              <input 
-                type="checkbox" 
-                id="over18" 
-                checked={over18} 
-                onChange={(e) => setOver18(e.target.checked)} 
-                style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#FF5A1E' }}
-              />
-              <label htmlFor="over18" style={{ fontSize: '13px', color: '#EDEEF2', cursor: 'pointer', margin: 0, userSelect: 'none' }}>
-                I confirm that I am at least 18 years of age.
-              </label>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  type="button"
+                  className="rb-auth__btn-secondary"
                   onClick={handleBack}
-                  disabled={loading}
-                  className="auth-btn-secondary"
-                  style={{ flex: '0 0 auto', padding: '0.75rem 1rem' }}
                 >
-                  <i className="bi bi-arrow-left"></i>
-                  <span>Back</span>
+                  <i className="bi bi-arrow-left"></i> Back
                 </button>
-                                <button
+                <button
                   type="submit"
+                  className="rb-auth__btn-primary"
                   disabled={!isStep2Complete || loading}
-                  className="auth-btn-primary"
-                  style={{ flex: 1, opacity: (!isStep2Complete || loading) ? 0.6 : 1, cursor: (!isStep2Complete || loading) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                 >
-                  {loading && <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>}
-                  {loading ? 'Creating account...' : 'Create account'}
+                  {loading ? (
+                    <span className="rb-auth__spinner"></span>
+                  ) : (
+                    'Create Account'
+                  )}
                 </button>
               </div>
             </form>
           )}
 
-          <div style={{ marginTop: '1.5rem', fontSize: '0.875rem', color: '#8D93A3', textAlign: 'center' }}>
-            Already have an account?{' '}
-            <Link to="/login" style={{ color: '#E7B24B', fontWeight: 500 }} className="hover:underline">
-              Log in
-            </Link>
+          <div className="rb-auth__footer-text">
+            Already have an account? <Link to="/login">Log in</Link>
           </div>
         </div>
       </div>
-
-      <LegalModal
-        isOpen={legalModalOpen}
-        onClose={() => setLegalModalOpen(false)}
-        defaultTab={legalModalDoc}
+      
+      <LegalModal 
+        isOpen={legalModalOpen} 
+        onClose={() => setLegalModalOpen(false)} 
+        docType={legalModalDoc} 
       />
     </div>
   );
 }
-
-
-
-
-

@@ -316,7 +316,7 @@ export default function LandingPage() {
         <div className="lp-container lp-nav__inner">
           <div className="lp-nav__brand">
             <a href="/" aria-label="RaketBase Home">
-              <img src="/racketbaseSVG.svg" alt="" aria-hidden="true" className="lp-nav__logo" onError={(e) => e.target.style.display='none'} />
+              <img src="/raketbase-icon.svg" alt="" aria-hidden="true" className="lp-nav__logo" onError={(e) => e.target.style.display='none'} />
               <span className="lp-nav__brand-text"><strong>RAKET</strong>BASE</span>
             </a>
           </div>
@@ -698,7 +698,7 @@ export default function LandingPage() {
           <div className="lp-footer-top lp-grid-5">
             <div className="lp-footer-brand">
               <a href="/" aria-label="RaketBase Home">
-                <img src="/racketbaseSVG.svg" alt="" aria-hidden="true" className="lp-footer-logo" onError={(e) => e.target.style.display='none'} />
+                <img src="/raketbase-icon.svg" alt="" aria-hidden="true" className="lp-footer-logo" onError={(e) => e.target.style.display='none'} />
                 <span className="lp-footer-brand-text"><strong>RAKET</strong>BASE</span>
               </a>
               <p>The premier freelance marketplace for top talent and top clients.</p>

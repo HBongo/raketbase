@@ -149,7 +149,7 @@ export default function Layout() {
     <>
       <div className={`sidebar-wrapper ${isMobileSidebarOpen ? 'show' : ''}`} id="sidebar">
         <Link to="/dashboard" className="sidebar-brand text-decoration-none d-flex align-items-center gap-1" style={{ padding: '10px 0' }}>
-          <img src="/racketbaseSVG.svg" alt="RaketBase Logo" className="logo-shake" style={{ height: '48px', objectFit: 'contain', marginTop: '-8px' }} />
+          <img src="/raketbase-icon.svg" alt="RaketBase Logo" className="logo-shake" style={{ height: '48px', objectFit: 'contain', marginTop: '-8px' }} />
           <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '23px', color: '#fff', letterSpacing: '0.5px', display: 'flex', alignItems: 'center' }}>
             <span style={{ fontWeight: 800 }}>RAKET</span><span style={{ fontWeight: 400 }}>BASE</span>
           </div>
@@ -174,8 +174,8 @@ export default function Layout() {
                 </Link>
               </li>
               <li className="sidebar-menu-item">
-                <Link to={`/profile/${user.user_id || user.id}?tab=security`} onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isProfileActive ? 'active' : ''}`}>
-                  <i className="bi bi-gear"></i><span>Settings</span>
+                <Link to={`/profile/${user.user_id || user.id}`} onClick={() => setIsMobileSidebarOpen(false)} className={`sidebar-menu-link ${isProfileActive ? 'active' : ''}`}>
+                  <i className="bi bi-person"></i><span>My Account</span>
                 </Link>
               </li>
             </ul>

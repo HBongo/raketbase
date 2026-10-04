@@ -274,7 +274,7 @@ export default function Dashboard() {
                     )}
                   </div>
                 </div>
-                <img src="/racketbaseSVG.svg" className="alert-green-bg-shape rocket-logo" alt="Raketbase Logo" />
+                <img src="/raketbase-icon.svg" className="alert-green-bg-shape rocket-logo" alt="Raketbase Logo" />
               </div>
             </div>
 
