@@ -97,15 +97,79 @@ export default function JobDetail() {
   }, [id]);
 
   const [milestones, setMilestones] = useState([ { title: 'Stage 1 Deliverables', description: '', amount: '' } ]);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [draftSavedTime, setDraftSavedTime] = useState(null);
+
+  // Restore proposal draft from localStorage on mount
+  useEffect(() => {
+    if (!id || alreadyApplied) return;
+    try {
+      const saved = localStorage.getItem(`raketbase_proposal_draft_${id}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.coverLetter) setCoverLetter(parsed.coverLetter);
+        if (parsed.bidAmount) setBidAmount(parsed.bidAmount);
+        if (parsed.portfolioLink) setPortfolioLink(parsed.portfolioLink);
+        if (Array.isArray(parsed.milestones) && parsed.milestones.length > 0) {
+          setMilestones(parsed.milestones);
+        }
+        setDraftRestored(true);
+        if (parsed.updatedAt) setDraftSavedTime(parsed.updatedAt);
+      }
+    } catch (e) {
+      console.warn('Could not read proposal draft', e);
+    }
+  }, [id, alreadyApplied]);
+
+  // Real-time auto-save proposal draft to localStorage
+  useEffect(() => {
+    if (!id || alreadyApplied) return;
+    const hasContent = Boolean(
+      coverLetter.trim() ||
+      String(bidAmount).trim() ||
+      portfolioLink.trim() ||
+      (milestones.length > 1 || (milestones[0] && (milestones[0].amount || milestones[0].description)))
+    );
+
+    if (hasContent) {
+      const draftData = {
+        coverLetter,
+        bidAmount,
+        portfolioLink,
+        milestones,
+        updatedAt: Date.now(),
+      };
+      try {
+        localStorage.setItem(`raketbase_proposal_draft_${id}`, JSON.stringify(draftData));
+        setDraftSavedTime(draftData.updatedAt);
+      } catch (e) {
+        console.warn('Could not save proposal draft', e);
+      }
+    }
+  }, [id, coverLetter, bidAmount, portfolioLink, milestones, alreadyApplied]);
+
+  function handleClearDraft() {
+    if (!id) return;
+    localStorage.removeItem(`raketbase_proposal_draft_${id}`);
+    setCoverLetter('');
+    setBidAmount('');
+    setPortfolioLink('');
+    setMilestones([{ title: 'Stage 1 Deliverables', description: '', amount: '' }]);
+    setDraftRestored(false);
+    setDraftSavedTime(null);
+  }
 
   const isMilestoneJob = job?.budget_type === 'milestone';
   const milestoneTotal = milestones.reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
 
   function handleAddMilestone() {
-    setMilestones((prev) => [
-      ...prev,
-      { title: `Stage ${prev.length + 1} Deliverables`, amount: '' },
-    ]);
+    setMilestones((prev) => {
+      if (prev.length >= 10) return prev;
+      return [
+        ...prev,
+        { title: `Stage ${prev.length + 1} Deliverables`, amount: '' },
+      ];
+    });
   }
 
   function handleRemoveMilestone(index) {
@@ -125,14 +189,20 @@ export default function JobDetail() {
     const errors = {};
 
     if (isMilestoneJob) {
+      const minAmount = job?.currency === 'USD' ? 2 : 100;
+      const currencySymbol = job?.currency === 'USD' ? '$' : '₱';
       if (!milestones.length) {
         errors.milestones = 'At least one milestone stage is required.';
+      } else if (milestones.length > 10) {
+        errors.milestones = 'A proposal can have a maximum of 10 milestone stages.';
       } else {
-        const invalidMilestone = milestones.some(
-          (m) => !m.title.trim() || isNaN(Number(m.amount)) || Number(m.amount) <= 0
-        );
+        const invalidMilestone = milestones.some((m) => {
+          const t = (m.title || '').trim();
+          const amt = Number(m.amount);
+          return t.length < 3 || t.length > 100 || isNaN(amt) || amt < minAmount;
+        });
         if (invalidMilestone) {
-          errors.milestones = 'Each milestone requires a title and an amount greater than 0.';
+          errors.milestones = `Each milestone requires a title (3–100 chars) and an amount of at least ${currencySymbol}${minAmount.toFixed(2)}.`;
         } else if (milestoneTotal <= 0) {
           errors.milestones = 'Total milestone sum must be greater than 0.';
         }
@@ -238,6 +308,9 @@ export default function JobDetail() {
       setAlreadyApplied(true);
       if (body.data) setUserProposal(body.data);
       showToast('Proposal sent! The client will review it soon.', { type: 'success' });
+      localStorage.removeItem(`raketbase_proposal_draft_${id}`);
+      setDraftRestored(false);
+      setDraftSavedTime(null);
       setBidAmount('');
       setCoverLetter('');
       setPortfolioLink('');
@@ -626,6 +699,22 @@ export default function JobDetail() {
                     ) : (
                       <>
                         <h5 className="fw-bold text-dark mb-3">Submit a Proposal</h5>
+
+                        {draftRestored && (
+                          <div className="alert alert-success bg-success bg-opacity-10 border-success border-opacity-25 rounded-3 py-2 px-3 mb-3 d-flex align-items-center justify-content-between">
+                            <div className="small text-success d-flex align-items-center gap-1.5 fw-medium">
+                              <i className="bi bi-cloud-check-fill"></i> Your previous draft was restored automatically!
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn-link btn-sm text-secondary p-0 text-decoration-none"
+                              style={{ fontSize: '0.78rem' }}
+                              onClick={handleClearDraft}
+                            >
+                              <i className="bi bi-trash3 me-1"></i> Discard
+                            </button>
+                          </div>
+                        )}
                         
                         <form onSubmit={handleSubmit} noValidate>
                           {isMilestoneJob ? (
@@ -702,13 +791,20 @@ export default function JobDetail() {
                               </div>
 
                               <div className="d-flex justify-content-between align-items-center mt-2">
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-outline-secondary rounded-pill px-3"
-                                  onClick={handleAddMilestone}
-                                >
-                                  <i className="bi bi-plus-lg me-1"></i> Add Stage
-                                </button>
+                                <div className="d-flex align-items-center gap-2">
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                                    onClick={handleAddMilestone}
+                                    disabled={submitting || alreadyApplied || milestones.length >= 10}
+                                    title={milestones.length >= 10 ? 'Maximum 10 milestone stages reached' : ''}
+                                  >
+                                    <i className="bi bi-plus-lg me-1"></i> Add Stage
+                                  </button>
+                                  <span className="small text-muted" style={{ fontSize: '0.8rem' }}>
+                                    {milestones.length}/10 stages
+                                  </span>
+                                </div>
                                 <div className="text-end">
                                   <span className="small text-muted me-2">Total Bid:</span>
                                   <span className="fw-bold text-success"><Money amount={milestoneTotal} currency={job?.currency} /></span>
@@ -816,6 +912,22 @@ export default function JobDetail() {
                             )}
                           </div>
                           
+                          {draftSavedTime && !alreadyApplied && (
+                            <div className="d-flex align-items-center justify-content-between mb-2 px-1">
+                              <span className="small text-muted d-inline-flex align-items-center gap-1" style={{ fontSize: '0.78rem' }}>
+                                <i className="bi bi-cloud-check-fill text-success"></i> Real-time draft auto-saved
+                              </span>
+                              <button
+                                type="button"
+                                className="btn btn-link btn-sm text-secondary p-0 text-decoration-none"
+                                style={{ fontSize: '0.78rem' }}
+                                onClick={handleClearDraft}
+                              >
+                                Clear draft
+                              </button>
+                            </div>
+                          )}
+
                           <button
                             type="submit"
                             disabled={submitting}

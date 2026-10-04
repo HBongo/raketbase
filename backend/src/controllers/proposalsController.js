@@ -156,14 +156,28 @@ exports.createProposal = async (req, res) => {
           error: 'This job is milestone-based — break your bid into at least one milestone.',
         });
       }
+      if (milestones.length > 10) {
+        return res.status(400).json({
+          success: false,
+          error: 'Proposals cannot exceed a maximum of 10 milestone stages.',
+        });
+      }
+      const minStageAmount = job.currency === 'USD' ? 2 : 100;
+      const currencySymbol = job.currency === 'USD' ? '$' : '₱';
       for (const m of milestones) {
         const title = (m?.title || '').trim();
         const amount = Number(m?.amount);
         if (!title) {
           return res.status(400).json({ success: false, error: 'Every milestone needs a title.' });
         }
-        if (!Number.isFinite(amount) || amount <= 0) {
-          return res.status(400).json({ success: false, error: `Milestone "${title}" needs an amount greater than ₱0.` });
+        if (title.length < 3 || title.length > 100) {
+          return res.status(400).json({ success: false, error: `Milestone "${title}" title must be between 3 and 100 characters.` });
+        }
+        if (!Number.isFinite(amount) || amount < minStageAmount) {
+          return res.status(400).json({
+            success: false,
+            error: `Milestone "${title}" needs an amount of at least ${currencySymbol}${minStageAmount.toFixed(2)}.`,
+          });
         }
         cleanMilestones.push({ title, amount });
       }

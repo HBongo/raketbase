@@ -137,6 +137,7 @@ exports.createJob = async (req, res) => {
     const validation = validateJobInput({
       title,
       description,
+      custom_category,
       budget,
       currency: currency || 'PHP',
     });
@@ -154,33 +155,21 @@ exports.createJob = async (req, res) => {
     }
 
     let finalCategoryId = category_id;
+    let finalDescription = description.trim();
     if (custom_category && typeof custom_category === 'string' && custom_category.trim()) {
       const trimmedCat = custom_category.trim();
-      if (/<[^>]*>/.test(trimmedCat)) {
-        return res.status(400).json({ success: false, error: 'Category name cannot contain HTML tags.' });
-      }
-
-      // Check if this category name already exists (case-insensitive)
-      const { data: existingCat } = await supabaseAdmin
+      // Ensure job links to the official 'Others' category without polluting the global categories table
+      const { data: othersCat } = await supabaseAdmin
         .from('categories')
-        .select('category_id, category_name')
-        .ilike('category_name', trimmedCat)
+        .select('category_id')
+        .ilike('category_name', 'others')
         .maybeSingle();
 
-      if (existingCat) {
-        finalCategoryId = existingCat.category_id;
-      } else {
-        const { data: newCat, error: newCatErr } = await supabaseAdmin
-          .from('categories')
-          .insert([{
-            category_name: trimmedCat,
-            description: `Others: ${trimmedCat}`,
-          }])
-          .select()
-          .single();
-
-        if (newCatErr) throw newCatErr;
-        finalCategoryId = newCat.category_id;
+      if (othersCat) {
+        finalCategoryId = othersCat.category_id;
+      }
+      if (!finalDescription.includes(`[Category: ${trimmedCat}]`)) {
+        finalDescription = `[Category: ${trimmedCat}]\n\n${finalDescription}`;
       }
     }
 
@@ -191,7 +180,7 @@ exports.createJob = async (req, res) => {
     const insertPayload = {
       client_id,
       title: title.trim(),
-      description: description.trim(),
+      description: finalDescription,
       category_id: finalCategoryId,
       budget_type: budget_type || 'fixed',
       budget: Number(budget),
@@ -304,7 +293,7 @@ exports.updateJob = async (req, res) => {
     const currentBudgetType = job.budget_type || 'fixed';
     const nextBudgetType = budget_type || currentBudgetType;
 
-    const validation = validateJobInput({ title, description, budget, currency: nextCurrency });
+    const validation = validateJobInput({ title, description, custom_category, budget, currency: nextCurrency });
     if (!validation.valid) {
       return res.status(400).json({
         success: false,
@@ -330,29 +319,20 @@ exports.updateJob = async (req, res) => {
     }
 
     let finalCategoryId = category_id;
+    let finalDescription = description.trim();
     if (custom_category && typeof custom_category === 'string' && custom_category.trim()) {
       const trimmedCat = custom_category.trim();
-      if (/<[^>]*>/.test(trimmedCat)) {
-        return res.status(400).json({ success: false, error: 'Category name cannot contain HTML tags.' });
-      }
-
-      const { data: existingCat } = await supabaseAdmin
+      const { data: othersCat } = await supabaseAdmin
         .from('categories')
         .select('category_id')
-        .ilike('category_name', trimmedCat)
+        .ilike('category_name', 'others')
         .maybeSingle();
 
-      if (existingCat) {
-        finalCategoryId = existingCat.category_id;
-      } else {
-        const { data: newCat, error: newCatErr } = await supabaseAdmin
-          .from('categories')
-          .insert([{ category_name: trimmedCat, description: `Others: ${trimmedCat}` }])
-          .select()
-          .single();
-
-        if (newCatErr) throw newCatErr;
-        finalCategoryId = newCat.category_id;
+      if (othersCat) {
+        finalCategoryId = othersCat.category_id;
+      }
+      if (!finalDescription.includes(`[Category: ${trimmedCat}]`)) {
+        finalDescription = `[Category: ${trimmedCat}]\n\n${finalDescription}`;
       }
     }
 
@@ -366,7 +346,7 @@ exports.updateJob = async (req, res) => {
 
     const updates = {
       title: title.trim(),
-      description: description.trim(),
+      description: finalDescription,
       category_id: finalCategoryId,
       budget_type: nextBudgetType,
       budget: Number(budget),

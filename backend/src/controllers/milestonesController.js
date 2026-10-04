@@ -310,4 +310,93 @@ exports.approveMilestone = async (req, res) => {
   }
 };
 
+// PATCH /api/v1/contracts/:id/milestones/:milestoneId/request-revision
+// Client requests changes on a 'submitted' milestone instead of approving.
+// Returns status back to 'active' so the freelancer can address feedback and resubmit.
+exports.requestRevision = async (req, res) => {
+  try {
+    const { id: contract_id, milestoneId } = req.params;
+    const userId = req.user.id;
+    const revision_notes = (req.body.revision_notes || '').trim();
+
+    if (!revision_notes || revision_notes.length < 5) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please explain what needs to be changed (minimum 5 characters).',
+      });
+    }
+
+    const contract = await loadContract(contract_id);
+    if (!contract) return res.status(404).json({ success: false, error: 'Contract not found' });
+    if (contract.client_id !== userId) {
+      return res.status(403).json({ success: false, error: 'Only the client can request milestone revisions' });
+    }
+
+    if (contract.status !== 'active') {
+      return res.status(409).json({ success: false, error: `Cannot request changes on a contract that is '${contract.status}'` });
+    }
+
+    const { data: milestone, error: fetchError } = await supabaseAdmin
+      .from('milestones')
+      .select('milestone_id, contract_id, title, status, sequence')
+      .eq('milestone_id', milestoneId)
+      .eq('contract_id', contract_id)
+      .single();
+
+    if (fetchError || !milestone) return res.status(404).json({ success: false, error: 'Milestone not found' });
+    if (milestone.status !== 'submitted') {
+      return res.status(409).json({
+        success: false,
+        error: `This milestone is '${milestone.status}' — only submitted work can have revisions requested.`,
+      });
+    }
+
+    const formattedNotes = `[Revision Requested]: ${revision_notes}`;
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from('milestones')
+      .update({
+        status: 'active',
+        deliverable_notes: formattedNotes,
+      })
+      .eq('milestone_id', milestoneId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    await postSystemMessage(
+      contract_id,
+      userId,
+      `Revision requested on Milestone "${milestone.title}": "${revision_notes}"`
+    );
+
+    await notify({
+      user_id: contract.freelancer_id,
+      type: 'milestone_revision_requested',
+      role: 'freelancer',
+      title: `Changes requested on Stage ${milestone.sequence} (${milestone.title})`,
+      body: `Client feedback: "${revision_notes}"`,
+      link: '/dashboard',
+    });
+
+    await logActivity({
+      user_id: userId,
+      category: 'contracts',
+      action: 'milestone.revision_requested',
+      description: `Requested revisions on stage "${milestone.title}" for "${contract.jobs?.title || 'a contract'}"`,
+      target_type: 'contract',
+      target_id: contract.contract_id,
+      link: '/dashboard',
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Revision request sent to the freelancer.',
+      data: updated,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 

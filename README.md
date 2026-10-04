@@ -357,6 +357,33 @@ Changes 10
 - Cleanly integrated upstream account deletion, payout methods, and activity log updates into the development branch without regressions
 - Created a safety rollback branch (backup-before-merge-ebf1d02) to preserve local state prior to merging
 
+Changes 10.1
+
+[Milestone System Enhancements & Validation (Phases 1–3)]
+- Implemented a strict 10-stage maximum cap on milestone proposals to prevent UI overflow and protect against payload bloat
+- Enforced a minimum budget floor of ₱100.00 / $2.00 per milestone stage, alongside 3–100 character title length validation, to eliminate micro-transaction spam
+- Added real-time frontend milestone validation and a live counter ("x/10 stages") on the Job Details proposal form, automatically disabling the "+ Add Stage" button once 10 stages are reached
+- Implemented a formal "Request Revision" review workflow (PATCH /api/v1/contracts/:id/milestones/:milestoneId/request-revision), enabling clients to request changes with required feedback notes instead of being forced to approve or dispute deliverables
+- Replaced the single-option deliverable approval with a dual-action review modal: clients can either approve & release escrow or submit revision requests directly back to the freelancer
+- Added automatic notification (milestone_revision_requested), system chat messaging, and activity audit logging when milestone revisions are requested
+- Built the new MilestoneStepper component featuring an interactive visual progress bar, released vs. total budget metrics, and color-coded stage cards (Completed, In Review, Needs Revision, In Progress, Pending)
+- Integrated the visual stepper and live revision alert banners directly into the expanded contract view on the Dashboard for seamless progress tracking
+
+[Anti-Slop & Linguistic Keyboard-Smash Protection]
+- Upgraded slopFilter.js with a comprehensive keyboard-smash detection algorithm that analyzes character diversity ratios, consonant clustering, and repetitive key cycling
+- Blocked home-row mashing (e.g. "ahdhsadhasdh", "asdsaddsadsadasasd") across Job Titles, Descriptions, Custom Categories, and Proposal Cover Letters
+- Enforced a 5-word minimum requirement on job descriptions and proposals to eliminate single giant unbroken word bypasses (e.g. 50-character strings)
+- Added smart exemptions for code snippets, technical acronyms (AWS, PHP, CSS), and external repository/portfolio URLs
+
+[Real-Time Proposal Draft Auto-Save]
+- Implemented automated local draft caching on Job Details: proposals auto-save continuously as the user types cover letters, bid amounts, portfolio links, or custom milestone breakdowns
+- Protected freelancers from losing proposal work when navigating away to configure payment/payout methods, with an instant one-click recovery banner and clean discard option
+- Automatically clears stored drafts upon successful proposal submission
+
+[Category Architecture & Pollution Cleanup]
+- Fixed category pollution vulnerability where user-typed custom categories under "Others" were being inserted into the global categories table
+- Routed custom job specialties cleanly to the official "Others" category ID without mutating the global catalog, embedding custom specialties directly into the job posting
+- Purged polluted test categories (e.g. "Chibi Artist", "Cloud Solutions Architect", test gibberish) from Supabase and re-linked legacy jobs back to the official Others category
 
 Roadmap
 - Make it so that people who choose the freelancer option also need to put in their bank details and phone number - Complete
