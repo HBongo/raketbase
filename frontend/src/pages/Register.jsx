@@ -96,10 +96,14 @@ const ALLOWED_EMAIL_DOMAINS = [
 ];
 
 export default function Register() {
-  // Auth pages always open in light mode; the corner button toggles dark mode for this page only.
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  // Persist dark mode preference in localStorage and sync with document.body
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('darkMode') === 'true';
+  });
+
   useEffect(() => {
     document.body.classList.toggle('dark-mode', isDarkMode);
+    localStorage.setItem('darkMode', isDarkMode);
   }, [isDarkMode]);
 
   const navigate = useNavigate();
@@ -147,7 +151,7 @@ export default function Register() {
 
   // Fetch Regions when reaching Step 2 as Freelancer
   useEffect(() => {
-    if (step === 2 && role === 'freelancer' && regionsList.length === 0) {
+    if (step === 2 && (role === 'freelancer' || role === 'both') && regionsList.length === 0) {
       fetch('https://psgc.gitlab.io/api/regions/')
         .then(res => res.json())
         .then(data => {
@@ -229,7 +233,7 @@ export default function Register() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!isStep2Complete) return;
+    if (!isStep2Complete || loading) return;
     setError('');
     setLoading(true);
     try {
@@ -239,9 +243,9 @@ export default function Register() {
         lastName: lastName.trim(),
         email: email.trim(),
         password,
-        role,
+        role: role === 'both' ? 'freelancer' : role,
       };
-      if (role === 'freelancer') {
+      if (role === 'freelancer' || role === 'both') {
         payload.title = professionalTitle.trim();
         payload.hourlyRate = hourlyRate;
         payload.location = [city, region].filter(Boolean).join(', ');
@@ -417,7 +421,13 @@ export default function Register() {
                 >
                   <option value="freelancer">Freelancer — I want to find work</option>
                   <option value="customer">Client — I want to hire someone</option>
+                  <option value="both">Both — I want to find work and hire</option>
                 </select>
+                {role === 'both' && (
+                  <div style={{ color: 'var(--auth-muted)', fontSize: '12px', marginTop: '6px' }}>
+                    <i className="bi bi-info-circle me-1"></i> Every RaketBase account gives you access to both Freelancer and Client modes with instant switching.
+                  </div>
+                )}
               </div>
 
                               <button
@@ -432,7 +442,12 @@ export default function Register() {
             </form>
           ) : (
             <form onSubmit={handleSubmit}>
-              {role === 'freelancer' ? (
+              {role === 'both' && (
+                <div style={{ backgroundColor: 'rgba(52, 211, 153, 0.1)', borderColor: 'rgba(52, 211, 153, 0.3)', color: '#34D399', fontSize: '12px', padding: '10px 14px', borderRadius: '8px', marginBottom: '1rem', border: '1px solid' }}>
+                  <i className="bi bi-stars me-1"></i> <strong>Dual-Role Account:</strong> Set up your freelancer profile below. You can seamlessly switch to Client mode to hire anytime!
+                </div>
+              )}
+              {role === 'freelancer' || role === 'both' ? (
                 <>
                   <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem' }}>
                     <div style={{ flex: 1 }}>

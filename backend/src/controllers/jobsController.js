@@ -2,6 +2,7 @@ const { supabaseAdmin } = require('../config/supabase');
 const { getRatingSummaries, emptySummary } = require('../utils/ratings');
 const { validateJobInput } = require('../utils/slopFilter');
 const { notify } = require('../utils/notify');
+const { logActivity } = require('../utils/activityLogger');
 
 // GET /api/v1/jobs - Fetch all jobs (with optional category filtering).
 // Open jobs come first (newest first); assigned/completed jobs follow so the
@@ -220,6 +221,13 @@ exports.createJob = async (req, res) => {
 
     if (insertRes.error) throw insertRes.error;
     job = insertRes.data;
+
+    logActivity({
+      userId: client_id,
+      action: 'CREATE_JOB',
+      details: { job_id: job.job_id, title: job.title, budget: job.budget },
+      ip: req.ip || req.headers['x-forwarded-for'] || null,
+    }).catch(() => {});
 
     return res.status(201).json({ success: true, data: job });
   } catch (error) {

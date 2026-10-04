@@ -7,13 +7,139 @@
 // 5. Spark Admin layout (sidebar + navbar)
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { getFreelancerProfile, updateProfile, changePassword } from '../services/api';
+import { getFreelancerProfile, updateProfile, changePassword, getActivityLogs } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
 import { showToast } from '../utils/toast';
 import Money from '../components/Money';
 import HireMeModal from '../components/HireMeModal';
 import ClientProfileView from '../components/ClientProfileView';
 import ProfileReviews from '../components/ProfileReviews';
+
+function ActivityTab() {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchLogs() {
+      try {
+        const res = await getActivityLogs();
+        if (!cancelled && res.success) {
+          setLogs(res.data || []);
+        }
+      } catch (err) {
+        if (!cancelled) setError(err.message || 'Could not load activity logs');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchLogs();
+    return () => { cancelled = true; };
+  }, []);
+
+  const actionMeta = (action) => {
+    switch (action) {
+      case 'USER_LOGIN':
+        return { label: 'Account Login', icon: 'bi-box-arrow-in-right', color: 'text-primary' };
+      case 'USER_REGISTER':
+        return { label: 'Account Created', icon: 'bi-person-check', color: 'text-success' };
+      case 'PASSWORD_CHANGE':
+        return { label: 'Password Changed', icon: 'bi-key', color: 'text-warning' };
+      case 'PROFILE_UPDATE':
+        return { label: 'Profile Updated', icon: 'bi-pencil-square', color: 'text-info' };
+      case 'CREATE_JOB':
+        return { label: 'Job Posted', icon: 'bi-briefcase', color: 'text-success' };
+      case 'SUBMIT_PROPOSAL':
+        return { label: 'Proposal Submitted', icon: 'bi-send', color: 'text-info' };
+      case 'ACCEPT_PROPOSAL':
+        return { label: 'Proposal Accepted', icon: 'bi-check2-circle', color: 'text-success' };
+      case 'CONTRACT_ACTIVE':
+        return { label: 'Contract Active', icon: 'bi-file-earmark-text', color: 'text-secondary' };
+      default:
+        return { label: (action || 'activity').replace(/_/g, ' '), icon: 'bi-activity', color: 'text-secondary' };
+    }
+  };
+
+  const formatLogTime = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+  return (
+    <div className="card shadow-sm border-0 mb-4">
+      <div className="card-header bg-transparent border-bottom-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+        <h5 className="fw-bold mb-0">
+          <i className="bi bi-activity me-2 text-muted"></i>Activity Log
+        </h5>
+        <span className="badge bg-light text-secondary border rounded-pill">
+          {logs.length} {logs.length === 1 ? 'event' : 'events'}
+        </span>
+      </div>
+      <div className="card-body px-4 pb-4 mt-3">
+        {loading ? (
+          <div className="text-center py-4 text-muted">
+            <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+            Loading activity log...
+          </div>
+        ) : error ? (
+          <div className="alert alert-danger py-2 small">{error}</div>
+        ) : logs.length === 0 ? (
+          <div className="text-center py-5 text-muted">
+            <i className="bi bi-clock-history fs-2 d-block mb-2 opacity-50"></i>
+            <p className="mb-0 small">No activity recorded yet.</p>
+          </div>
+        ) : (
+          <div className="timeline-list d-flex flex-column gap-3">
+            {logs.map((log) => {
+              const meta = actionMeta(log.action);
+              return (
+                <div
+                  key={log.log_id}
+                  className="p-3 rounded-3 border bg-light d-flex align-items-start gap-3"
+                >
+                  <div
+                    className="rounded-circle bg-white border d-flex align-items-center justify-content-center flex-shrink-0"
+                    style={{ width: '40px', height: '40px' }}
+                  >
+                    <i className={`bi ${meta.icon} ${meta.color} fs-5`}></i>
+                  </div>
+                  <div className="flex-grow-1 min-w-0">
+                    <div className="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-1">
+                      <span className="fw-semibold text-dark small">{meta.label}</span>
+                      <span className="text-muted" style={{ fontSize: '11px' }}>
+                        {formatLogTime(log.created_at)}
+                      </span>
+                    </div>
+                    {log.details && Object.keys(log.details).length > 0 && (
+                      <p className="text-muted small mb-0 text-truncate" style={{ fontSize: '12px' }}>
+                        {log.details.title || log.details.job_title
+                          ? `Project: ${log.details.title || log.details.job_title}`
+                          : log.details.role
+                          ? `Active Role: ${log.details.role}`
+                          : log.details.email
+                          ? `Registered as ${log.details.email}`
+                          : JSON.stringify(log.details).slice(0, 100)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function SecurityTab() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -47,8 +173,8 @@ function SecurityTab() {
 
   return (
     <div className="card shadow-sm border-0 mb-4">
-      <div className="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
-        <h5 className="fw-bold text-dark mb-0"><i className="bi bi-shield-lock me-2 text-muted"></i>Account Security</h5>
+      <div className="card-header bg-transparent border-bottom-0 pt-4 px-4 pb-0">
+        <h5 className="fw-bold mb-0"><i className="bi bi-shield-lock me-2 text-muted"></i>Account Security</h5>
       </div>
       <div className="card-body px-4 pb-4 mt-3">
         <form onSubmit={handleUpdatePassword}>
@@ -56,11 +182,11 @@ function SecurityTab() {
             <div className="alert alert-danger py-2 small" role="alert">{formError}</div>
           )}
           <div className="mb-3">
-            <label className="form-label small fw-medium text-dark" htmlFor="current-password">Current Password</label>
+            <label className="form-label small fw-medium" htmlFor="current-password">Current Password</label>
             <input
               id="current-password"
               type="password"
-              className="form-control bg-light"
+              className="form-control"
               placeholder="Enter your current password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
@@ -69,11 +195,11 @@ function SecurityTab() {
             />
           </div>
           <div className="mb-3">
-            <label className="form-label small fw-medium text-dark" htmlFor="new-password">New Password</label>
+            <label className="form-label small fw-medium" htmlFor="new-password">New Password</label>
             <input
               id="new-password"
               type="password"
-              className={`form-control bg-light ${newPassword && !meetsRule ? 'is-invalid border-danger' : ''}`}
+              className={`form-control ${newPassword && !meetsRule ? 'is-invalid border-danger' : ''}`}
               placeholder="At least 8 characters, 1 uppercase letter, 1 number"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
@@ -85,10 +211,10 @@ function SecurityTab() {
             )}
           </div>
           <div className="mb-4">
-            <label className="form-label small fw-medium text-dark">Confirm New Password</label>
+            <label className="form-label small fw-medium">Confirm New Password</label>
             <input 
               type="password" 
-              className={`form-control bg-light ${confirmPassword && newPassword !== confirmPassword ? 'is-invalid border-danger' : ''}`}
+              className={`form-control ${confirmPassword && newPassword !== confirmPassword ? 'is-invalid border-danger' : ''}`}
               placeholder="Confirm new password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -755,7 +881,10 @@ export default function Profile() {
                       { id: 'experience', label: 'Experience', icon: 'bi-building' },
                       { id: 'education', label: 'Education', icon: 'bi-mortarboard' },
                       { id: 'reviews', label: `Reviews${f.rating_count ? ` (${f.rating_count})` : ''}`, icon: 'bi-star' },
-                      ...(isOwnProfile ? [{ id: 'security', label: 'Security', icon: 'bi-shield-lock' }] : [])
+                      ...(isOwnProfile ? [
+                        { id: 'activity', label: 'Activity Log', icon: 'bi-activity' },
+                        { id: 'security', label: 'Security', icon: 'bi-shield-lock' }
+                      ] : [])
                     ].map((tab) => (
                       <li className="nav-item" key={tab.id}>
                         <button
@@ -994,6 +1123,7 @@ export default function Profile() {
                 </div>
               )}
 
+              {activeTab === 'activity' && <ActivityTab />}
               {activeTab === 'security' && <SecurityTab />}
             </div>
           </div>

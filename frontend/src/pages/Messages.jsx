@@ -82,6 +82,32 @@ function Avatar({ src, name, size = 40 }) {
   );
 }
 
+function LinkifiedText({ content, mine }) {
+  if (!content) return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = content.split(urlRegex);
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: mine ? '#B4F105' : '#0056b3',
+            textDecoration: 'underline',
+            wordBreak: 'break-all',
+          }}
+        >
+          {part}
+        </a>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 export default function Messages() {
   const navigate = useNavigate();
   const { id: selectedId } = useParams();
@@ -150,19 +176,8 @@ export default function Messages() {
         if (!cancelled) setLoadingMessages(false);
       }
     })();
-      const renderMessageContent = (content, mine) => {
-    if (!content) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = content.split(urlRegex);
-    return parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
 
-  return () => { cancelled = true; };
+    return () => { cancelled = true; };
   }, [selectedId]);
 
   useEffect(() => {
@@ -203,19 +218,8 @@ export default function Messages() {
         setConversations((prev) => prev.map((c) => (c.conversation_id === selectedId ? { ...c, ...payload.new } : c)));
       })
       .subscribe();
-      const renderMessageContent = (content, mine) => {
-    if (!content) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = content.split(urlRegex);
-    return parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
 
-  return () => { supabase.removeChannel(channel); };
+    return () => { supabase.removeChannel(channel); };
   }, [selectedId, user, loadConversations]);
 
   // Preload signed URLs for attachments if not returned as direct public file_url
@@ -330,7 +334,17 @@ export default function Messages() {
   const isParticipant = isClient || isFreelancer;
   const other = isClient ? active?.freelancer : active?.client;
   const contractStatus = active?.contracts?.status;
-  const isCompleted = contractStatus === "completed" || contractStatus === "refunded";
+  const isContractComplete = contractStatus === "completed" || contractStatus === "refunded";
+
+  // 1-Week Grace Period calculation
+  const completedBaseDate = active?.contracts?.submitted_at || active?.contracts?.created_at || active?.created_at;
+  const lastMsgDate = messages.length > 0 ? messages[messages.length - 1].created_at : completedBaseDate;
+  const lastActiveTime = lastMsgDate ? new Date(lastMsgDate).getTime() : Date.now();
+  const gracePeriodMs = 7 * 24 * 60 * 60 * 1000;
+  const msSinceActive = Date.now() - lastActiveTime;
+  const isGracePeriodActive = isContractComplete && msSinceActive < gracePeriodMs;
+  const daysLeftInGrace = isContractComplete ? Math.max(1, Math.ceil((gracePeriodMs - msSinceActive) / (24 * 60 * 60 * 1000))) : 0;
+  const isReadOnly = isContractComplete && !isGracePeriodActive;
 
   const myConfirmed = isClient ? active?.client_delete_confirmed : isFreelancer ? active?.freelancer_delete_confirmed : false;
   const otherConfirmed = isClient ? active?.freelancer_delete_confirmed : isFreelancer ? active?.client_delete_confirmed : false;
@@ -341,19 +355,7 @@ export default function Messages() {
     const amClient = c.client_id === (user?.user_id || user?.id);
     const them = amClient ? c.freelancer : c.client;
     const label = [them?.first_name, them?.last_name].filter(Boolean).join(" ") || them?.email || "";
-      const renderMessageContent = (content, mine) => {
-    if (!content) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = content.split(urlRegex);
-    return parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
-
-  return (c.title || "").toLowerCase().includes(q) || label.toLowerCase().includes(q);
+    return (c.title || "").toLowerCase().includes(q) || label.toLowerCase().includes(q);
   });
 
   const statusBadge = (status) => {
@@ -364,35 +366,11 @@ export default function Messages() {
       submitted: { bg: "#DBEAFE", color: "#1E40AF", label: "Submitted" },
     };
     const s = map[status] || { bg: "#F3F4F6", color: "#374151", label: status };
-      const renderMessageContent = (content, mine) => {
-    if (!content) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = content.split(urlRegex);
-    return parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
-
-  return (
+    return (
       <span style={{ background: s.bg, color: s.color, fontSize: "11px", fontWeight: 700, padding: "3px 10px", borderRadius: "999px", letterSpacing: "0.03em" }}>
         {s.label}
       </span>
     );
-  };
-
-    const renderMessageContent = (content, mine) => {
-    if (!content) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = content.split(urlRegex);
-    return parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
-      }
-      return <span key={i}>{part}</span>;
-    });
   };
 
   return (
@@ -520,19 +498,8 @@ export default function Messages() {
                   const amClient = c.client_id === (user?.user_id || user?.id);
                   const them = amClient ? c.freelancer : c.client;
                   const label = [them?.first_name, them?.last_name].filter(Boolean).join(" ") || them?.email || "User";
-                    const renderMessageContent = (content, mine) => {
-    if (!content) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = content.split(urlRegex);
-    return parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
 
-  return (
+                  return (
                     <div
                       key={c.conversation_id}
                       onClick={() => navigate(`/messages/${c.conversation_id}`)}
@@ -606,8 +573,8 @@ export default function Messages() {
                   {statusBadge(contractStatus)}
                 </div>
 
-                {/* Deletion Banner */}
-                {isCompleted && isParticipant && (
+                {/* Deletion / Grace Period Banner */}
+                {isContractComplete && isParticipant && (
                   <div className="deletion-banner">
                     {myConfirmed && otherConfirmed ? (
                       <span style={{ fontSize: "12.5px", color: "#6C7E75" }}>Deleting conversation...</span>
@@ -627,6 +594,15 @@ export default function Messages() {
                         </span>
                         <button onClick={handleConfirmDelete} disabled={deleteBusy} className="btn btn-sm btn-danger rounded-pill px-3 fw-bold">
                           <i className="bi bi-trash me-1"></i> Confirm Delete
+                        </button>
+                      </>
+                    ) : isGracePeriodActive ? (
+                      <>
+                        <span style={{ fontSize: "12.5px", color: "#065F46" }}>
+                          <i className="bi bi-clock-history me-1"></i> Job complete — 1-week chat grace period active ({daysLeftInGrace} day{daysLeftInGrace === 1 ? "" : "s"} remaining).
+                        </span>
+                        <button onClick={handleConfirmDelete} disabled={deleteBusy} className="btn btn-sm btn-outline-danger rounded-pill px-3">
+                          <i className="bi bi-trash me-1"></i> Delete
                         </button>
                       </>
                     ) : (
@@ -657,19 +633,7 @@ export default function Messages() {
                   ) : (
                     messages.map((m) => {
                       if (m.message_type === "system") {
-                          const renderMessageContent = (content, mine) => {
-    if (!content) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = content.split(urlRegex);
-    return parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
-
-  return (
+                        return (
                           <div key={m.message_id} className="system-msg">
                             <span className="system-msg-text">{m.content}</span>
                           </div>
@@ -679,26 +643,16 @@ export default function Messages() {
                       const imageUrl = m.file_url || attachmentUrls[m.message_id];
                       const isImg = isImageAttachment(m);
 
-                        const renderMessageContent = (content, mine) => {
-    if (!content) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = content.split(urlRegex);
-    return parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: mine ? '#B4F105' : '#0056b3', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>;
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
-
-  return (
+                      return (
                         <div key={m.message_id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start", alignItems: "flex-end", gap: "8px" }}>
                           {!mine && (
                             <Avatar src={other?.avatar_url} name={personName(other)} size={30} />
                           )}
                           <div className={mine ? "bubble-mine" : "bubble-theirs"}>
                             {m.content && (
-                              <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.55", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{renderMessageContent(m.content, mine)}</p>
+                              <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.55", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                                <LinkifiedText content={m.content} mine={mine} />
+                              </p>
                             )}
 
                             {m.file_path && (
@@ -779,7 +733,7 @@ export default function Messages() {
                 </div>
 
                 {/* Composer */}
-                {isParticipant && !isCompleted && (
+                {isParticipant && !isReadOnly && (
                   <div className="msg-composer">
                     {error && (
                       <div style={{ fontSize: "12.5px", color: "#EF4444", marginBottom: "8px" }}>

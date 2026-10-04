@@ -4,10 +4,14 @@ import { loginUser } from '../services/api';
 import LegalModal from '../components/LegalModal';
 
 export default function Login() {
-  // Auth pages always open in light mode; the corner button toggles dark mode for this page only.
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  // Persist dark mode preference in localStorage and sync with document.body
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('darkMode') === 'true';
+  });
+
   useEffect(() => {
     document.body.classList.toggle('dark-mode', isDarkMode);
+    localStorage.setItem('darkMode', isDarkMode);
   }, [isDarkMode]);
 
   const [searchParams] = useSearchParams();

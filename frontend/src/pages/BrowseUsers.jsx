@@ -13,6 +13,14 @@ const SORTS = [
   { id: 'newest', label: 'Newest members' },
 ];
 
+const RATING_FILTERS = [
+  { id: '', label: 'All ratings' },
+  { id: '4.5', label: '★ 4.5 & up' },
+  { id: '4.0', label: '★ 4.0 & up' },
+  { id: '3.5', label: '★ 3.5 & up' },
+  { id: '3.0', label: '★ 3.0 & up' },
+];
+
 const TABS = [
   { id: 'freelancers', label: 'Freelancers' },
   { id: 'clients', label: 'Clients' },
@@ -26,6 +34,7 @@ export default function BrowseUsers() {
   const tab = searchParams.get('tab') === 'clients' ? 'clients' : 'freelancers';
   const role = tab === 'clients' ? 'customer' : 'freelancer';
   const sort = SORTS.some((s) => s.id === searchParams.get('sort')) ? searchParams.get('sort') : 'top';
+  const minRating = searchParams.get('min_rating') || '';
   const urlQuery = searchParams.get('q') || '';
 
   const [search, setSearch] = useState(urlQuery);
@@ -63,7 +72,7 @@ export default function BrowseUsers() {
       setLoading(true);
       setError('');
       try {
-        const res = await browseUsers({ role, q: urlQuery, sort, limit: PAGE_SIZE, offset: 0 });
+        const res = await browseUsers({ role, q: urlQuery, sort, min_rating: minRating, limit: PAGE_SIZE, offset: 0 });
         if (cancelled) return;
         setUsers(res.data?.users || []);
         setTotal(res.data?.total || 0);
@@ -78,12 +87,12 @@ export default function BrowseUsers() {
     return () => {
       cancelled = true;
     };
-  }, [view, role, urlQuery, sort]);
+  }, [view, role, urlQuery, sort, minRating]);
 
   async function loadMore() {
     setLoadingMore(true);
     try {
-      const res = await browseUsers({ role, q: urlQuery, sort, limit: PAGE_SIZE, offset: users.length });
+      const res = await browseUsers({ role, q: urlQuery, sort, min_rating: minRating, limit: PAGE_SIZE, offset: users.length });
       setUsers((prev) => [...prev, ...(res.data?.users || [])]);
       setHasMore(!!res.data?.has_more);
     } catch (err) {
@@ -160,6 +169,17 @@ export default function BrowseUsers() {
               <select
                 className="form-select rounded-pill"
                 style={{ width: 'auto' }}
+                value={minRating}
+                onChange={(e) => updateParams({ min_rating: e.target.value || null })}
+                aria-label="Filter by rating"
+              >
+                {RATING_FILTERS.map((r) => (
+                  <option key={r.id} value={r.id}>{r.label}</option>
+                ))}
+              </select>
+              <select
+                className="form-select rounded-pill"
+                style={{ width: 'auto' }}
                 value={sort}
                 onChange={(e) => updateParams({ sort: e.target.value === 'top' ? null : e.target.value })}
                 aria-label="Sort by"
@@ -185,10 +205,10 @@ export default function BrowseUsers() {
           {!loading && !error && users.length === 0 && (
             <div className="card text-center py-5 border">
               <div className="card-body">
-                <h5 className="fw-medium mb-1">{urlQuery ? `No ${who} match "${urlQuery}"` : `No ${who} yet`}</h5>
-                {urlQuery && (
-                  <button type="button" className="btn btn-outline-dark btn-sm rounded-pill mt-3" onClick={() => setSearch('')}>
-                    Clear search
+                <h5 className="fw-medium mb-1">{urlQuery || minRating ? `No ${who} match your filters` : `No ${who} yet`}</h5>
+                {(urlQuery || minRating) && (
+                  <button type="button" className="btn btn-outline-dark btn-sm rounded-pill mt-3" onClick={() => { setSearch(''); updateParams({ q: null, min_rating: null }); }}>
+                    Reset filters
                   </button>
                 )}
               </div>

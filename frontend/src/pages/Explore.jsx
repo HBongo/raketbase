@@ -382,7 +382,7 @@ function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRati
       </div>
       <div className="card-body">
         <div className="mb-4">
-          <label className="form-label fw-medium text-dark small mb-2">Client Rating</label>
+          <label className="form-label fw-medium small mb-2">Client Rating</label>
           <select className="form-select form-select-sm" value={minRating} onChange={(e) => setMinRating(Number(e.target.value))}>
             <option value={0}>All Ratings</option>
             <option value={4.5}>4.5 Stars & Up</option>
@@ -398,7 +398,7 @@ function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRati
             checked={hideTaken}
             onChange={(e) => setHideTaken(e.target.checked)}
           />
-          <label htmlFor="hideTakenJobs" className="form-check-label small fw-medium text-dark">
+          <label htmlFor="hideTakenJobs" className="form-check-label small fw-medium">
             Hide taken jobs
           </label>
         </div>
@@ -411,8 +411,19 @@ function FiltersSidebar({ budget, setBudget, budgetBounds, minRating, setMinRati
           onReset={() => setBudget(budgetBounds)}
         />
         <hr className="my-4" />
-        <button onClick={onClose} className="btn btn-dark w-100 mb-2 fw-medium rounded-pill">Show {resultCount} results</button>
-        <button onClick={resetFilters} className="btn btn-outline-secondary w-100 fw-medium rounded-pill">Reset all</button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="btn btn-dark w-100 mb-2 fw-medium rounded-pill d-lg-none"
+        >
+          Show {resultCount} {resultCount === 1 ? 'result' : 'results'}
+        </button>
+        <div className="text-center small text-muted mb-3 d-none d-lg-block">
+          {resultCount} {resultCount === 1 ? 'job' : 'jobs'} found
+        </div>
+        <button type="button" onClick={resetFilters} className="btn btn-outline-secondary w-100 fw-medium rounded-pill">
+          Reset all filters
+        </button>
       </div>
     </div>
   );
@@ -422,7 +433,7 @@ function RangeField({ label, unit, value, onChange, bounds, onReset }) {
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-2">
-        <span className="fw-medium small text-dark">{label}</span>
+        <span className="fw-medium small">{label}</span>
         <button onClick={onReset} className="btn btn-link p-0 text-decoration-none small text-success">Reset</button>
       </div>
       <input

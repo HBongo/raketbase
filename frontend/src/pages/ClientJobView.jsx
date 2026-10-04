@@ -519,6 +519,55 @@ function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject, currency 
           {proposal.cover_letter}
         </p>
 
+        {/* Milestones if present */}
+        {proposal.proposal_milestones?.length > 0 && (
+          <div className="mb-3 p-3 bg-light rounded border">
+            <div className="small fw-bold text-secondary mb-2">Milestone Proposal:</div>
+            <div className="d-flex flex-column gap-1">
+              {proposal.proposal_milestones.map((pm) => (
+                <div key={pm.proposal_milestone_id || pm.sequence} className="d-flex justify-content-between small">
+                  <span>Stage {pm.sequence}: {pm.title}</span>
+                  <span className="fw-semibold"><Money amount={pm.amount} currency={currency} /></span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Portfolio & Sample Attachments */}
+        {(proposal.portfolio_link || freelancer?.portfolio_url || proposal.attachment_url) && (
+          <div className="d-flex flex-wrap align-items-center gap-2 mb-3 pt-1">
+            {(proposal.portfolio_link || freelancer?.portfolio_url) && (
+              <a
+                href={proposal.portfolio_link || freelancer.portfolio_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-sm btn-outline-primary rounded-pill px-3 d-inline-flex align-items-center gap-1 text-decoration-none"
+              >
+                <i className="bi bi-briefcase"></i>
+                <span>Portfolio Link</span>
+                <i className="bi bi-box-arrow-up-right small ms-1" style={{ fontSize: '10px' }}></i>
+              </a>
+            )}
+
+            {proposal.attachment_url && (
+              <a
+                href={proposal.attachment_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+                className="btn btn-sm btn-outline-success rounded-pill px-3 d-inline-flex align-items-center gap-1 text-decoration-none"
+              >
+                <i className="bi bi-paperclip"></i>
+                <span className="text-truncate" style={{ maxWidth: '220px' }}>
+                  {proposal.attachment_name || 'Download Sample Work'}
+                </span>
+                <i className="bi bi-download small ms-1" style={{ fontSize: '10px' }}></i>
+              </a>
+            )}
+          </div>
+        )}
+
         {jobIsOpen && proposal.status === 'pending' && (
           <div className="d-flex gap-2 mt-4 pt-3 border-top">
             <button
@@ -540,10 +589,10 @@ function ProposalCard({ proposal, jobIsOpen, busy, onAccept, onReject, currency 
         )}
 
         {/* Accepted: the contract chat is the place to talk to the hired freelancer */}
-        {proposal.status === 'accepted' && proposal.conversation_id && (
+        {proposal.status === 'accepted' && (
           <div className="d-flex flex-wrap align-items-center gap-2 mt-4 pt-3 border-top">
             <Link
-              to={`/messages/${proposal.conversation_id}`}
+              to={proposal.conversation_id ? `/messages/${proposal.conversation_id}` : '/messages'}
               className="btn btn-sm fw-medium px-4 text-white"
               style={{ backgroundColor: '#FF5A1E', borderColor: '#FF5A1E' }}
             >

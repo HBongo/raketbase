@@ -8,7 +8,7 @@ const CHAT_BUCKET = 'chat-attachments';
 const CONVERSATION_SELECT = `
   conversation_id, contract_id, client_id, freelancer_id, title, created_at,
   client_delete_confirmed, freelancer_delete_confirmed,
-  contracts(status)
+  contracts(status, submitted_at, created_at)
 `;
 
 function isStaffOrAdmin(user) {
@@ -162,7 +162,27 @@ exports.sendMessage = async (req, res) => {
       return res.status(403).json({ success: false, error: 'You are not a participant in this conversation' });
     }
     if (['completed', 'refunded'].includes(conversation.contracts?.status)) {
-      return res.status(409).json({ success: false, error: 'This job is complete — the conversation is read-only.' });
+      const baseDate = conversation.contracts?.submitted_at || conversation.contracts?.created_at || conversation.created_at;
+      const gracePeriodMs = 7 * 24 * 60 * 60 * 1000;
+      const elapsed = Date.now() - new Date(baseDate).getTime();
+
+      if (elapsed > gracePeriodMs) {
+        const { data: latestMsg } = await supabaseAdmin
+          .from('messages')
+          .select('created_at')
+          .eq('conversation_id', id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const lastActivity = latestMsg?.created_at ? new Date(latestMsg.created_at).getTime() : new Date(baseDate).getTime();
+        if (Date.now() - lastActivity > gracePeriodMs) {
+          return res.status(409).json({
+            success: false,
+            error: 'This job is complete and the 1-week grace period has ended — the conversation is now read-only.',
+          });
+        }
+      }
     }
     if (!content && !file) {
       return res.status(400).json({ success: false, error: 'Message must include text or a file' });

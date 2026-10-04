@@ -25,6 +25,7 @@ export default function JobDetail() {
 
   const [bidAmount, setBidAmount] = useState('');
   const [coverLetter, setCoverLetter] = useState('');
+  const [portfolioLink, setPortfolioLink] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
@@ -171,26 +172,50 @@ export default function JobDetail() {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('You need to be logged in to submit a proposal.');
 
-      const payload = {
-        job_id: job.job_id,
-        cover_letter: coverLetter.trim(),
-      };
+      let res;
+      if (attachment) {
+        const formData = new FormData();
+        formData.append('job_id', job.job_id);
+        formData.append('cover_letter', coverLetter.trim());
+        if (portfolioLink.trim()) formData.append('portfolio_link', portfolioLink.trim());
+        formData.append('attachment', attachment);
+        if (isMilestoneJob) {
+          formData.append('milestones', JSON.stringify(milestones.map((m) => ({ title: m.title.trim(), description: (m.description || '').trim(), amount: Number(m.amount) }))));
+          formData.append('bid_amount', milestoneTotal);
+        } else {
+          formData.append('bid_amount', Number(bidAmount));
+        }
 
-      if (isMilestoneJob) {
-        payload.milestones = milestones.map((m) => ({ title: m.title.trim(), description: (m.description || '').trim(), amount: Number(m.amount) }));
-        payload.bid_amount = milestoneTotal;
+        res = await fetch(`${API_BASE_URL}/proposals`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
       } else {
-        payload.bid_amount = Number(bidAmount);
+        const payload = {
+          job_id: job.job_id,
+          cover_letter: coverLetter.trim(),
+        };
+        if (portfolioLink.trim()) payload.portfolio_link = portfolioLink.trim();
+        if (isMilestoneJob) {
+          payload.milestones = milestones.map((m) => ({ title: m.title.trim(), description: (m.description || '').trim(), amount: Number(m.amount) }));
+          payload.bid_amount = milestoneTotal;
+        } else {
+          payload.bid_amount = Number(bidAmount);
+        }
+
+        res = await fetch(`${API_BASE_URL}/proposals`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
       }
 
-      const res = await fetch(`${API_BASE_URL}/proposals`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
       const body = await res.json();
       if (body.error?.includes('already submitted')) {
         setAlreadyApplied(true);
@@ -200,10 +225,11 @@ export default function JobDetail() {
       if (!res.ok || !body.success) {
         throw new Error(body.error || body.message || 'Could not submit your proposal.');
       }
-            setAlreadyApplied(true);
+      setAlreadyApplied(true);
       showToast('Proposal sent! The client will review it soon.', { type: 'success' });
       setBidAmount('');
       setCoverLetter('');
+      setPortfolioLink('');
       setAttachment(null);
     } catch (err) {
       setSubmitResult({ type: 'error', message: err.message || 'Something went wrong while submitting.' });
@@ -587,6 +613,62 @@ export default function JobDetail() {
                                 <i className="bi bi-exclamation-circle-fill"></i> {errors.coverLetter}
                               </div>
                             )}
+                          </div>
+
+                          <div className="mb-4 p-3 bg-light rounded border">
+                            <label className="form-label fw-semibold small text-dark mb-1 d-flex align-items-center gap-1">
+                              <i className="bi bi-briefcase text-primary"></i> Portfolio / Sample Work (Optional)
+                            </label>
+                            <p className="small text-muted mb-2" style={{ fontSize: '12px' }}>
+                              Share relevant work samples so the client can evaluate your skills.
+                            </p>
+
+                            <div className="mb-2">
+                              <div className="input-group input-group-sm">
+                                <span className="input-group-text"><i className="bi bi-link-45deg"></i></span>
+                                <input
+                                  type="url"
+                                  className="form-control"
+                                  placeholder="Link to GitHub, Behance, Figma, or portfolio..."
+                                  value={portfolioLink}
+                                  onChange={(e) => setPortfolioLink(e.target.value)}
+                                  disabled={submitting || alreadyApplied}
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              {attachment ? (
+                                <div className="d-flex align-items-center justify-content-between p-2 bg-white rounded border small">
+                                  <div className="d-flex align-items-center gap-2 text-truncate me-2">
+                                    <i className="bi bi-file-earmark-check text-success fs-5"></i>
+                                    <div className="text-truncate">
+                                      <div className="fw-semibold text-truncate">{attachment.name}</div>
+                                      <div className="text-muted" style={{ fontSize: '11px' }}>{(attachment.size / 1024).toFixed(1)} KB</div>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-link text-danger p-0 text-decoration-none"
+                                    onClick={() => setAttachment(null)}
+                                    title="Remove file"
+                                  >
+                                    <i className="bi bi-trash"></i>
+                                  </button>
+                                </div>
+                              ) : (
+                                <label className="btn btn-sm btn-outline-secondary rounded-pill px-3 mb-0" style={{ cursor: 'pointer' }}>
+                                  <i className="bi bi-upload me-1"></i> Attach Sample File (PDF, Image, Max 5MB)
+                                  <input
+                                    type="file"
+                                    className="d-none"
+                                    onChange={handleFileChange}
+                                    disabled={submitting || alreadyApplied}
+                                    accept="image/*,.pdf,.doc,.docx,.zip"
+                                  />
+                                </label>
+                              )}
+                            </div>
                           </div>
                           
                           <button

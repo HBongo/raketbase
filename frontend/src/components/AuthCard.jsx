@@ -5,7 +5,8 @@ import { Link } from 'react-router-dom';
 // and light-mode colors as Login/Register.
 export default function AuthCard({ title, subtitle, children }) {
   useEffect(() => {
-    document.body.classList.remove('dark-mode');
+    const isDark = localStorage.getItem('darkMode') === 'true';
+    document.body.classList.toggle('dark-mode', isDark);
   }, []);
 
   return (

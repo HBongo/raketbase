@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getContractById, createDispute } from '../services/api';
 import Money from '../components/Money';
 
-const REASON_OPTIONS = ['Incomplete Work', 'Non-Payment', 'Unresponsive'];
+const REASON_OPTIONS = ['Incomplete Work', 'Non-Payment', 'Unresponsive', 'Others'];
 const MIN_EVIDENCE_LENGTH = 30;
 
 export default function DisputeTicket() {
@@ -15,6 +15,7 @@ export default function DisputeTicket() {
   const [loadError, setLoadError] = useState('');
 
   const [reasonCategory, setReasonCategory] = useState('');
+  const [otherReason, setOtherReason] = useState('');
   const [evidenceSummary, setEvidenceSummary] = useState('');
   const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -54,15 +55,19 @@ export default function DisputeTicket() {
     if (!reasonCategory) {
       return setSubmitError('Please select a reason for the dispute.');
     }
+    if (reasonCategory === 'Others' && !otherReason.trim()) {
+      return setSubmitError('Please specify the custom reason for the dispute.');
+    }
     if (evidenceTooShort) {
       return setSubmitError(`Evidence summary must be at least ${MIN_EVIDENCE_LENGTH} characters.`);
     }
 
     setSubmitting(true);
     try {
+      const finalCategory = reasonCategory === 'Others' ? `Others: ${otherReason.trim()}` : reasonCategory;
       await createDispute({
         contract_id: contractId,
-        reason_category: reasonCategory,
+        reason_category: finalCategory,
         evidence_summary: evidenceSummary.trim(),
       });
       setSubmitted(true);
@@ -157,7 +162,7 @@ export default function DisputeTicket() {
 
                   <form onSubmit={handleSubmit} noValidate className="d-flex flex-column gap-3">
                     <div>
-                      <label className="form-label small fw-medium text-dark mb-1" htmlFor="reason">
+                      <label className="form-label small fw-medium mb-1" htmlFor="reason">
                         Reason / Category
                       </label>
                       <select
@@ -180,11 +185,33 @@ export default function DisputeTicket() {
                           <i className="bi bi-exclamation-circle-fill"></i> Please select a reason category for the dispute.
                         </div>
                       )}
+
+                      {reasonCategory === 'Others' && (
+                        <div className="mt-2">
+                          <label className="form-label small fw-medium mb-1" htmlFor="other-reason">
+                            Specify Reason
+                          </label>
+                          <input
+                            id="other-reason"
+                            type="text"
+                            className={`form-control text-sm ${touched && !otherReason.trim() ? 'is-invalid border-danger' : ''}`}
+                            placeholder="Please describe your specific dispute reason..."
+                            value={otherReason}
+                            onChange={(e) => setOtherReason(e.target.value)}
+                            required
+                          />
+                          {touched && !otherReason.trim() && (
+                            <div className="text-danger small mt-1 d-flex align-items-center gap-1">
+                              <i className="bi bi-exclamation-circle-fill"></i> Please specify the reason.
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div>
                       <div className="d-flex justify-content-between align-items-center mb-1">
-                        <label className="form-label small fw-medium text-dark mb-0" htmlFor="evidence">
+                        <label className="form-label small fw-medium mb-0" htmlFor="evidence">
                           Evidence Summary
                         </label>
                         <span className={`small ${!evidenceTooShort ? 'text-success fw-medium' : 'text-muted'}`} style={{ fontSize: '12px' }}>

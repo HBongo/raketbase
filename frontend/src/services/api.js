@@ -417,6 +417,7 @@ export function browseUsers(params = {}) {
   if (params.role) q.set('role', params.role);
   if (params.q) q.set('q', params.q);
   if (params.sort) q.set('sort', params.sort);
+  if (params.min_rating) q.set('min_rating', params.min_rating);
   if (params.limit) q.set('limit', params.limit);
   if (params.offset !== undefined) q.set('offset', params.offset);
   return request(`/users/browse?${q.toString()}`);
@@ -443,6 +444,11 @@ export function uploadAvatar(file) {
 }
 export function removeAvatar() {
   return request("/auth/profile/avatar", { method: "DELETE" });
+}
+
+// Activity Logs API
+export function getActivityLogs() {
+  return request('/auth/activity');
 }
 
 // Proposals API (withdraw)
