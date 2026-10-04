@@ -18,6 +18,7 @@ import {
   submitMilestoneWork,
   approveMilestoneWork,
   switchRole,
+  getActivityLogs,
 } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
 import { formatCurrency } from '../utils/formatters';
@@ -845,177 +846,24 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Lower Section: Quick Actions & Escrow Guarantee ── */}
+      {/* ── Lower Section: Live Activity & Action Items Center ── */}
       <div className="row g-4 mt-1">
-        <div className="col-xl-8 col-lg-8">
-          <div className="card h-100">
-            <div className="card-header d-flex justify-content-between align-items-center">
-              <h2 className="card-title mb-0">Quick Actions</h2>
-              <span className="small text-muted">Frequent shortcuts</span>
-            </div>
-            <div className="card-body p-4">
-              <div className="row g-3">
-                {isCustomer ? (
-                  <>
-                    <div className="col-12 col-sm-6">
-                      <Link to="/jobs/create" className="text-decoration-none">
-                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
-                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-plus-circle fs-5"></i>
-                          </div>
-                          <div>
-                            <div className="fw-bold text-dark mb-1">Post a New Project</div>
-                            <div className="small text-muted">Create a fixed-price or milestone job listing</div>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-                    <div className="col-12 col-sm-6">
-                      <Link to="/browse?tab=freelancers" className="text-decoration-none">
-                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
-                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-people fs-5"></i>
-                          </div>
-                          <div>
-                            <div className="fw-bold text-dark mb-1">Browse Freelancers</div>
-                            <div className="small text-muted">Hire top-rated talent by skills and ratings</div>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-                    <div className="col-12 col-sm-6">
-                      <Link to="/messages" className="text-decoration-none">
-                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
-                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-chat-dots fs-5"></i>
-                          </div>
-                          <div>
-                            <div className="fw-bold text-dark mb-1">Conversations & Chats</div>
-                            <div className="small text-muted">Open direct message threads with your contractors</div>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-                    <div className="col-12 col-sm-6">
-                      <Link to="/profile?tab=activity" className="text-decoration-none">
-                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
-                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-clock-history fs-5"></i>
-                          </div>
-                          <div>
-                            <div className="fw-bold text-dark mb-1">Account Activity Log</div>
-                            <div className="small text-muted">Audit logins, proposal decisions, and milestones</div>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="col-12 col-sm-6">
-                      <Link to="/explore" className="text-decoration-none">
-                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
-                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-compass fs-5"></i>
-                          </div>
-                          <div>
-                            <div className="fw-bold text-dark mb-1">Find Open Projects</div>
-                            <div className="small text-muted">Browse recently posted jobs and submit bids</div>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-                    <div className="col-12 col-sm-6">
-                      <Link to="/messages" className="text-decoration-none">
-                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
-                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-chat-dots fs-5"></i>
-                          </div>
-                          <div>
-                            <div className="fw-bold text-dark mb-1">Contract Messages</div>
-                            <div className="small text-muted">Open chats to discuss project deliverables</div>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-                    <div className="col-12 col-sm-6">
-                      <Link to="/profile?tab=activity" className="text-decoration-none">
-                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
-                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-clock-history fs-5"></i>
-                          </div>
-                          <div>
-                            <div className="fw-bold text-dark mb-1">Recent Activity Log</div>
-                            <div className="small text-muted">Review bid submissions, milestone updates & logins</div>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-                    <div className="col-12 col-sm-6">
-                      <Link to="/my-proposals" className="text-decoration-none">
-                        <div className="p-3 rounded border h-100 d-flex align-items-start gap-3 bg-light bg-opacity-25 hover-card-action">
-                          <div className="p-2 rounded-circle bg-forest-light text-lime flex-shrink-0" style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <i className="bi bi-file-earmark-check fs-5"></i>
-                          </div>
-                          <div>
-                            <div className="fw-bold text-dark mb-1">Proposal Tracker</div>
-                            <div className="small text-muted">Manage active bids, edit proposals & view offers</div>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+        {/* Left Column: Recent Activity Feed (7 cols) */}
+        <div className="col-xl-7 col-lg-7">
+          <RecentActivityWidget isCustomer={isCustomer} />
         </div>
 
-        <div className="col-xl-4 col-lg-4">
-          <div className="card h-100">
-            <div className="card-header">
-              <h2 className="card-title mb-0">Escrow Protection</h2>
-            </div>
-            <div className="card-body p-4 d-flex flex-column justify-content-between">
-              <div className="d-flex flex-column gap-3">
-                <div className="d-flex align-items-start gap-3">
-                  <div className="text-success fs-4 mt-1">
-                    <i className="bi bi-shield-check"></i>
-                  </div>
-                  <div>
-                    <div className="fw-semibold text-dark small mb-0.5">Funded Milestone Escrow</div>
-                    <div className="small text-muted">Funds are held safely in escrow before work begins and released upon client sign-off.</div>
-                  </div>
-                </div>
-
-                <div className="d-flex align-items-start gap-3">
-                  <div className="text-primary fs-4 mt-1">
-                    <i className="bi bi-chat-heart"></i>
-                  </div>
-                  <div>
-                    <div className="fw-semibold text-dark small mb-0.5">Integrated Work Chat</div>
-                    <div className="small text-muted">Keep all deliverables, milestone discussions, and files inside verified contract channels.</div>
-                  </div>
-                </div>
-
-                <div className="d-flex align-items-start gap-3">
-                  <div className="text-warning fs-4 mt-1">
-                    <i className="bi bi-shield-lock"></i>
-                  </div>
-                  <div>
-                    <div className="fw-semibold text-dark small mb-0.5">Staff Dispute Mediation</div>
-                    <div className="small text-muted">Disagreements are reviewed by staff with options for full/partial refunds and escrow splits.</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-3 border-top mt-3 text-center">
-                <Link to="/contact" className="small text-success text-decoration-none fw-semibold">
-                  Read Escrow & Payment Policies &rarr;
-                </Link>
-              </div>
-            </div>
-          </div>
+        {/* Right Column: Action Items & Attention Center (5 cols) */}
+        <div className="col-xl-5 col-lg-5">
+          <ActionItemsWidget
+            isCustomer={isCustomer}
+            contracts={contracts}
+            clientJobs={clientJobs}
+            user={user}
+            openSubmitModal={openSubmitModal}
+            openReviewModal={openReviewModal}
+            setRatingTarget={setRatingTarget}
+          />
         </div>
       </div>
 
@@ -1305,6 +1153,431 @@ export default function Dashboard() {
         })()
       )}
     </>
+  );
+}
+
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffSec = Math.floor((now - date) / 1000);
+  if (diffSec < 60) return 'Just now';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+  if (diffSec < 604800) return `${Math.floor(diffSec / 86400)}d ago`;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function RecentActivityWidget({ isCustomer }) {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    getActivityLogs()
+      .then((res) => {
+        if (!mounted) return;
+        if (res && res.data && Array.isArray(res.data)) {
+          setLogs(res.data.slice(0, 5));
+        } else if (Array.isArray(res)) {
+          setLogs(res.slice(0, 5));
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load activity logs:', err);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const getActionBadge = (action) => {
+    switch (action) {
+      case 'SUBMIT_PROPOSAL':
+        return { icon: 'bi-send-fill', bg: 'bg-primary-subtle text-primary border border-primary-subtle' };
+      case 'CREATE_JOB':
+        return { icon: 'bi-briefcase-fill', bg: 'bg-success-subtle text-success border border-success-subtle' };
+      case 'CONTRACT_ACTIVE':
+        return { icon: 'bi-shield-lock-fill', bg: 'bg-info-subtle text-info border border-info-subtle' };
+      case 'SUBMIT_WORK':
+        return { icon: 'bi-file-earmark-check-fill', bg: 'bg-warning-subtle text-warning border border-warning-subtle' };
+      case 'RELEASE_MILESTONE':
+      case 'RELEASE_FUNDS':
+        return { icon: 'bi-cash-coin', bg: 'bg-success-subtle text-success border border-success-subtle' };
+      case 'LOGIN':
+      case 'user_login':
+        return { icon: 'bi-box-arrow-in-right', bg: 'bg-secondary-subtle text-secondary border border-secondary-subtle' };
+      default:
+        return { icon: 'bi-clock-history', bg: 'bg-light text-muted border' };
+    }
+  };
+
+  const getActionDescription = (log) => {
+    const act = log.action || '';
+    const d = log.details || {};
+    if (act === 'SUBMIT_PROPOSAL') {
+      return (
+        <>
+          Submitted bid on <strong className="text-dark">{d.job_title || 'a job posting'}</strong>
+          {d.bid_amount ? <span className="ms-1 badge bg-light text-success border">{formatCurrency(d.bid_amount)}</span> : null}
+        </>
+      );
+    }
+    if (act === 'CREATE_JOB') {
+      return (
+        <>
+          Posted new job <strong className="text-dark">{d.title || 'listing'}</strong>
+          {d.budget ? <span className="ms-1 badge bg-light text-success border">{formatCurrency(d.budget)}</span> : null}
+        </>
+      );
+    }
+    if (act === 'CONTRACT_ACTIVE') {
+      return (
+        <>
+          Escrow funded & contract active for <strong className="text-dark">{d.job_title || 'project'}</strong>
+          {d.agreed_amount ? <span className="ms-1 badge bg-light text-success border">{formatCurrency(d.agreed_amount)}</span> : null}
+        </>
+      );
+    }
+    if (act === 'SUBMIT_WORK') {
+      return (
+        <>
+          Submitted deliverable for review on <strong className="text-dark">{d.job_title || 'contract'}</strong>
+        </>
+      );
+    }
+    if (act === 'RELEASE_MILESTONE' || act === 'RELEASE_FUNDS') {
+      return (
+        <>
+          Released escrow payment for <strong className="text-dark">{d.job_title || 'contract'}</strong>
+        </>
+      );
+    }
+    if (act === 'LOGIN' || act === 'user_login') {
+      return <>Signed in to account session</>;
+    }
+    return <span className="text-dark">{act.replace(/_/g, ' ')}</span>;
+  };
+
+  return (
+    <div className="card h-100 mb-0 shadow-sm border-0">
+      <div className="card-header bg-transparent d-flex justify-content-between align-items-center py-3">
+        <div className="d-flex align-items-center gap-2">
+          <i className="bi bi-activity text-success fs-5"></i>
+          <h2 className="card-title mb-0 fs-6 fw-bold">Recent Activity</h2>
+        </div>
+        <span className="badge rounded-pill bg-light text-muted border px-2.5 py-1 small fw-normal d-inline-flex align-items-center gap-1">
+          <span className="spinner-grow spinner-grow-sm text-success" style={{ width: 6, height: 6 }} />
+          Live Log
+        </span>
+      </div>
+
+      <div className="card-body p-3 pt-2">
+        {loading ? (
+          <div className="d-flex flex-column gap-3 py-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="d-flex align-items-center gap-3">
+                <div className="skeleton-box rounded-circle flex-shrink-0" style={{ width: 34, height: 34 }} />
+                <div className="flex-grow-1">
+                  <div className="skeleton-box mb-1" style={{ width: '60%', height: 13 }} />
+                  <div className="skeleton-box" style={{ width: '30%', height: 10 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : logs.length === 0 ? (
+          <div className="text-center py-4 text-muted small">
+            <i className="bi bi-journal-text fs-2 text-muted opacity-50 d-block mb-2"></i>
+            No recent activity recorded yet.
+            <div className="mt-1" style={{ fontSize: '0.8rem' }}>
+              Your bids, job updates, and contract milestones will appear here in real-time.
+            </div>
+          </div>
+        ) : (
+          <div className="d-flex flex-column gap-2">
+            {logs.map((log, idx) => {
+              const badge = getActionBadge(log.action);
+              return (
+                <div
+                  key={log.log_id || idx}
+                  className="d-flex align-items-center gap-3 p-2 rounded-3 hover-bg-light transition"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.01)' }}
+                >
+                  <div
+                    className={`rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 ${badge.bg}`}
+                    style={{ width: 36, height: 36, fontSize: '0.9rem' }}
+                  >
+                    <i className={`bi ${badge.icon}`}></i>
+                  </div>
+                  <div className="flex-grow-1 min-w-0" style={{ fontSize: '0.86rem' }}>
+                    <div className="text-truncate-2 mb-0.5">{getActionDescription(log)}</div>
+                    <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                      <i className="bi bi-clock me-1"></i>
+                      {formatRelativeTime(log.created_at)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActionItemsWidget({
+  isCustomer,
+  contracts = [],
+  clientJobs = [],
+  user = {},
+  openSubmitModal,
+  openReviewModal,
+  setRatingTarget,
+}) {
+  const currentUserId = user?.id || user?.user_id;
+  const actionItems = [];
+
+  if (isCustomer) {
+    // 1. Client: Contracts or milestones awaiting client review & approval
+    contracts.forEach((c) => {
+      if (c.milestones && c.milestones.length > 0) {
+        const submittedM = c.milestones.find((m) => m.status === 'submitted');
+        if (submittedM) {
+          actionItems.push({
+            id: `review-milestone-${submittedM.milestone_id}`,
+            icon: 'bi-shield-check',
+            iconColor: 'text-warning',
+            badgeText: 'Review Required',
+            badgeClass: 'bg-warning text-dark',
+            title: `Stage ${submittedM.sequence} Deliverables Submitted`,
+            subtitle: `${c.jobs?.title || 'Contract'} · ₱${Number(submittedM.amount || 0).toLocaleString()} in Escrow`,
+            actionLabel: 'Review & Release',
+            btnClass: 'btn-success',
+            onClick: () => openReviewModal(c, submittedM),
+          });
+        }
+      } else if (c.status === 'submitted') {
+        actionItems.push({
+          id: `review-contract-${c.contract_id}`,
+          icon: 'bi-shield-check',
+          iconColor: 'text-warning',
+          badgeText: 'Review Required',
+          badgeClass: 'bg-warning text-dark',
+          title: 'Deliverables Submitted for Approval',
+          subtitle: `${c.jobs?.title || 'Contract'} · ₱${Number(c.agreed_amount || 0).toLocaleString()} in Escrow`,
+          actionLabel: 'Review & Release',
+          btnClass: 'btn-success',
+          onClick: () => openReviewModal(c),
+        });
+      }
+    });
+
+    // 2. Client: Jobs with pending proposals to evaluate
+    clientJobs.forEach((j) => {
+      const pendingCount = (j.proposals || []).filter((p) => p.status === 'pending').length;
+      if (j.status === 'open' && pendingCount > 0) {
+        actionItems.push({
+          id: `job-proposals-${j.job_id}`,
+          icon: 'bi-people',
+          iconColor: 'text-primary',
+          badgeText: `${pendingCount} New Bid${pendingCount > 1 ? 's' : ''}`,
+          badgeClass: 'bg-primary text-white',
+          title: 'Proposals Waiting for Review',
+          subtitle: j.title,
+          link: '/my-jobs',
+          actionLabel: 'Evaluate Bids',
+          btnClass: 'btn-outline-primary',
+        });
+      }
+    });
+
+    // 3. Client: Completed contracts not yet rated
+    contracts.forEach((c) => {
+      if (c.status === 'completed' || c.status === 'refunded') {
+        const myReview = (c.reviews || []).find((r) => r.reviewer_id === currentUserId);
+        if (!myReview) {
+          const partnerName = c.freelancer?.users?.full_name || 'Freelancer';
+          actionItems.push({
+            id: `rate-freelancer-${c.contract_id}`,
+            icon: 'bi-star',
+            iconColor: 'text-warning',
+            badgeText: 'Feedback Needed',
+            badgeClass: 'bg-light text-dark border',
+            title: `Rate ${partnerName}`,
+            subtitle: `Completed project: ${c.jobs?.title || 'Contract'}`,
+            actionLabel: 'Leave Rating',
+            btnClass: 'btn-outline-warning text-dark',
+            onClick: () => setRatingTarget({ contract: c, revieweeRole: 'freelancer', revieweeName: partnerName }),
+          });
+        }
+      }
+    });
+  } else {
+    // Freelancer
+    // 1. Contracts with active milestone/status ready to submit work
+    contracts.forEach((c) => {
+      if (c.milestones && c.milestones.length > 0) {
+        const activeM = c.milestones.find((m) => m.status === 'active');
+        if (activeM) {
+          actionItems.push({
+            id: `submit-milestone-${activeM.milestone_id}`,
+            icon: 'bi-upload',
+            iconColor: 'text-primary',
+            badgeText: `Stage ${activeM.sequence} Active`,
+            badgeClass: 'bg-primary text-white',
+            title: `Submit Stage ${activeM.sequence}: ${activeM.title}`,
+            subtitle: `${c.jobs?.title || 'Contract'} · ₱${Number(activeM.amount || 0).toLocaleString()} Escrow`,
+            actionLabel: 'Submit Work',
+            btnClass: 'btn-primary',
+            onClick: () => openSubmitModal(c, activeM),
+          });
+        }
+        const submittedM = c.milestones.find((m) => m.status === 'submitted');
+        if (submittedM) {
+          actionItems.push({
+            id: `submitted-milestone-${submittedM.milestone_id}`,
+            icon: 'bi-hourglass-split',
+            iconColor: 'text-warning',
+            badgeText: 'Under Review',
+            badgeClass: 'bg-warning text-dark',
+            title: `Stage ${submittedM.sequence} Under Review`,
+            subtitle: `Client is reviewing your deliverables for ${c.jobs?.title || 'project'}`,
+            actionLabel: 'View Submission',
+            btnClass: 'btn-outline-secondary',
+            onClick: () => openReviewModal(c, submittedM),
+          });
+        }
+      } else if (c.status === 'active') {
+        actionItems.push({
+          id: `submit-contract-${c.contract_id}`,
+          icon: 'bi-upload',
+          iconColor: 'text-primary',
+          badgeText: 'In Progress',
+          badgeClass: 'bg-primary text-white',
+          title: 'Submit Project Deliverables',
+          subtitle: `${c.jobs?.title || 'Contract'} · ₱${Number(c.agreed_amount || 0).toLocaleString()} Escrow`,
+          actionLabel: 'Submit Work',
+          btnClass: 'btn-primary',
+          onClick: () => openSubmitModal(c),
+        });
+      } else if (c.status === 'submitted') {
+        actionItems.push({
+          id: `submitted-contract-${c.contract_id}`,
+          icon: 'bi-hourglass-split',
+          iconColor: 'text-warning',
+          badgeText: 'Under Review',
+          badgeClass: 'bg-warning text-dark',
+          title: 'Deliverables Under Review',
+          subtitle: `Client is reviewing your submission for ${c.jobs?.title || 'project'}`,
+          actionLabel: 'View Submission',
+          btnClass: 'btn-outline-secondary',
+          onClick: () => openReviewModal(c),
+        });
+      }
+    });
+
+    // 2. Freelancer: Completed contracts not yet rated
+    contracts.forEach((c) => {
+      if (c.status === 'completed' || c.status === 'refunded') {
+        const myReview = (c.reviews || []).find((r) => r.reviewer_id === currentUserId);
+        if (!myReview) {
+          const partnerName = c.client?.users?.full_name || 'Client';
+          actionItems.push({
+            id: `rate-client-${c.contract_id}`,
+            icon: 'bi-star',
+            iconColor: 'text-warning',
+            badgeText: 'Feedback Needed',
+            badgeClass: 'bg-light text-dark border',
+            title: `Rate Client ${partnerName}`,
+            subtitle: `Completed project: ${c.jobs?.title || 'Contract'}`,
+            actionLabel: 'Leave Rating',
+            btnClass: 'btn-outline-warning text-dark',
+            onClick: () => setRatingTarget({ contract: c, revieweeRole: 'customer', revieweeName: partnerName }),
+          });
+        }
+      }
+    });
+  }
+
+  return (
+    <div className="card h-100 mb-0 shadow-sm border-0">
+      <div className="card-header bg-transparent d-flex justify-content-between align-items-center py-3">
+        <div className="d-flex align-items-center gap-2">
+          <i className="bi bi-bell text-warning fs-5"></i>
+          <h2 className="card-title mb-0 fs-6 fw-bold">Action Items</h2>
+        </div>
+        <span className={`badge rounded-pill px-2.5 py-1 small fw-normal ${actionItems.length > 0 ? 'bg-danger text-white' : 'bg-success text-white'}`}>
+          {actionItems.length} {actionItems.length === 1 ? 'Pending' : 'Pending'}
+        </span>
+      </div>
+
+      <div className="card-body p-3 pt-2">
+        {actionItems.length === 0 ? (
+          <div className="text-center py-4">
+            <div
+              className="rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center mb-2"
+              style={{ width: 44, height: 44 }}
+            >
+              <i className="bi bi-check2-circle fs-4"></i>
+            </div>
+            <div className="fw-semibold text-dark small mb-1">All caught up!</div>
+            <div className="text-muted small mb-3" style={{ fontSize: '0.8rem' }}>
+              {isCustomer
+                ? 'No pending client reviews or urgent contract items right now.'
+                : 'No pending milestone submissions or contract deliverables waiting.'}
+            </div>
+            <Link
+              to={isCustomer ? '/jobs/create' : '/explore'}
+              className="btn btn-sm btn-outline-success rounded-pill px-3 py-1 fw-medium"
+              style={{ fontSize: '0.8rem' }}
+            >
+              {isCustomer ? '+ Post a New Job' : 'Browse Matching Jobs'}
+            </Link>
+          </div>
+        ) : (
+          <div className="d-flex flex-column gap-2.5">
+            {actionItems.slice(0, 4).map((item) => (
+              <div
+                key={item.id}
+                className="p-3 rounded-3 border bg-light d-flex flex-column gap-2"
+                style={{ fontSize: '0.86rem' }}
+              >
+                <div className="d-flex justify-content-between align-items-start gap-2">
+                  <div className="d-flex align-items-center gap-2 min-w-0">
+                    <i className={`bi ${item.icon} ${item.iconColor} fs-6`}></i>
+                    <span className="fw-bold text-dark text-truncate">{item.title}</span>
+                  </div>
+                  <span className={`badge rounded-pill ${item.badgeClass} flex-shrink-0`} style={{ fontSize: '0.72rem' }}>
+                    {item.badgeText}
+                  </span>
+                </div>
+                <div className="text-muted small text-truncate">{item.subtitle}</div>
+                <div className="d-flex justify-content-end pt-1">
+                  {item.link ? (
+                    <Link to={item.link} className={`btn btn-sm ${item.btnClass} rounded-pill px-3 py-1 fw-semibold`} style={{ fontSize: '0.78rem' }}>
+                      {item.actionLabel}
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${item.btnClass} rounded-pill px-3 py-1 fw-semibold`}
+                      style={{ fontSize: '0.78rem' }}
+                      onClick={item.onClick}
+                    >
+                      {item.actionLabel}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
