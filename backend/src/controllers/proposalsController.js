@@ -69,23 +69,13 @@ async function attachFiles(proposals) {
 // stages, so the two numbers can never drift apart. Fixed-price jobs are unchanged.
 exports.createProposal = async (req, res) => {
   try {
-<<<<<<< HEAD
     const { job_id, bid_amount, cover_letter, portfolio_link } = req.body;
-    let milestones = req.body.milestones;
-    if (typeof milestones === 'string') {
-      try {
-        milestones = JSON.parse(milestones);
-      } catch (e) {
-        milestones = [];
-=======
-    const { job_id, bid_amount, cover_letter } = req.body;
     let { milestones } = req.body;
     if (typeof milestones === 'string') {
       try {
         milestones = JSON.parse(milestones);
       } catch {
         return res.status(400).json({ success: false, error: 'Could not read the milestone breakdown.' });
->>>>>>> origin/merged-features
       }
     }
     // req.user is appended by JWT auth middleware

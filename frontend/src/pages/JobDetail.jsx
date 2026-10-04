@@ -50,7 +50,7 @@ export default function JobDetail() {
       if (liveTick === 0) setLoading(true);
       setLoadError(null);
       try {
-        res = await fetch(`${API_BASE_URL}/jobs/${id}`);
+        const res = await fetch(`${API_BASE_URL}/jobs/${id}`);
         const body = await res.json();
         if (!res.ok || !body.success) {
           throw new Error(body.error || 'Job not found.');
@@ -197,52 +197,19 @@ export default function JobDetail() {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('You need to be logged in to submit a proposal.');
 
-      let res;
-      if (attachment) {
-        const formData = new FormData();
-        formData.append('job_id', job.job_id);
-        formData.append('cover_letter', coverLetter.trim());
-        if (portfolioLink.trim()) formData.append('portfolio_link', portfolioLink.trim());
-        formData.append('attachment', attachment);
-        if (isMilestoneJob) {
-          formData.append('milestones', JSON.stringify(milestones.map((m) => ({ title: m.title.trim(), description: (m.description || '').trim(), amount: Number(m.amount) }))));
-          formData.append('bid_amount', milestoneTotal);
-        } else {
-          formData.append('bid_amount', Number(bidAmount));
-        }
-
-        res = await fetch(`${API_BASE_URL}/proposals`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
+      const payload = {
+        job_id: job.job_id,
+        cover_letter: coverLetter.trim(),
+      };
+      if (portfolioLink.trim()) payload.portfolio_link = portfolioLink.trim();
+      if (isMilestoneJob) {
+        payload.milestones = milestones.map((m) => ({ title: m.title.trim(), description: (m.description || '').trim(), amount: Number(m.amount) }));
+        payload.bid_amount = milestoneTotal;
       } else {
-        const payload = {
-          job_id: job.job_id,
-          cover_letter: coverLetter.trim(),
-        };
-        if (portfolioLink.trim()) payload.portfolio_link = portfolioLink.trim();
-        if (isMilestoneJob) {
-          payload.milestones = milestones.map((m) => ({ title: m.title.trim(), description: (m.description || '').trim(), amount: Number(m.amount) }));
-          payload.bid_amount = milestoneTotal;
-        } else {
-          payload.bid_amount = Number(bidAmount);
-        }
-
-        res = await fetch(`${API_BASE_URL}/proposals`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        });
+        payload.bid_amount = Number(bidAmount);
       }
 
-      // With attachments or portfolio link, handle payload properly
-      if (portfolioLink.trim()) payload.portfolio_link = portfolioLink.trim();
+      // With attachments the proposal goes as multipart form data (milestones as JSON text)
       let requestInit;
       if (files.length > 0) {
         const formData = new FormData();
@@ -258,7 +225,7 @@ export default function JobDetail() {
           body: JSON.stringify(payload),
         };
       }
-      res = await fetch(`${API_BASE_URL}/proposals`, requestInit);
+      const res = await fetch(`${API_BASE_URL}/proposals`, requestInit);
       const body = await res.json();
       if (body.error?.includes('already submitted')) {
         setAlreadyApplied(true);
