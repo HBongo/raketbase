@@ -117,6 +117,11 @@ function SecurityTab() {
 
 const DEFAULT_AVATAR = "/default-avatar.png";
 
+// Graduation year choices: this year back to 1950 (no future years)
+const THIS_YEAR = new Date().getFullYear();
+const GRADUATION_YEARS = Array.from({ length: THIS_YEAR - 1949 }, (_, i) => String(THIS_YEAR - i));
+const isValidGraduationYear = (year) => !String(year ?? '').trim() || GRADUATION_YEARS.includes(String(year).trim());
+
 function buildFormFromProfile(p) {
   if (!p) return {};
   return {
@@ -415,6 +420,16 @@ export default function Profile() {
 
   // Save profile
   async function handleSave() {
+    // "Hiring as" is required on the client side (it's what the reminder banner asks for)
+    if (side !== 'client' && form.education.some((edu) => !isValidGraduationYear(edu.year))) {
+      setSaveMsg({ type: 'error', text: `Graduation year must be between 1950 and ${THIS_YEAR}.` });
+      return;
+    }
+    if (side === 'client' && !form.client_type) {
+      setSaveMsg({ type: 'error', text: `Choose whether you're hiring as an individual, a small business, or a major contractor in the "Hiring as" box.` });
+      document.getElementById('client-type')?.focus();
+      return;
+    }
     setSaving(true);
     setSaveMsg(null);
     try {
@@ -591,7 +606,7 @@ export default function Profile() {
       {isOwnProfile && !loading && profile && side === 'client' && !profile.client_type && !editing && (
         <div className="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 mx-3" role="status">
           <span><i className="bi bi-building me-2"></i>Let freelancers know who they're working with: are you hiring as an individual, a small business, or a major contractor?</span>
-          <button type="button" className="btn btn-sm btn-dark rounded-pill px-3" onClick={() => setEditing(true)}>Add business type</button>
+          <button type="button" className="btn btn-sm btn-dark rounded-pill px-3" onClick={() => { setEditing(true); setTimeout(() => document.getElementById('client-type')?.focus(), 0); }}>Add business type</button>
         </div>
       )}
 
@@ -1071,7 +1086,18 @@ export default function Profile() {
                                 <input type="text" className="form-control form-control-sm bg-white" placeholder="Institution" value={edu.institution || ''} onChange={(e) => updateEducation(i, 'institution', e.target.value)} />
                               </div>
                               <div className="col-sm-4">
-                                <input type="text" className="form-control form-control-sm bg-white" placeholder="Year (e.g. 2019)" value={edu.year || ''} onChange={(e) => updateEducation(i, 'year', e.target.value)} />
+                                <select
+                                  className="form-select form-select-sm bg-white"
+                                  aria-label="Year graduated"
+                                  value={isValidGraduationYear(edu.year) ? String(edu.year || '') : ''}
+                                  onChange={(e) => updateEducation(i, 'year', e.target.value)}
+                                >
+                                  <option value="">Year graduated</option>
+                                  {GRADUATION_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                                {!isValidGraduationYear(edu.year) && (
+                                  <div className="text-danger small mt-1">{edu.year} isn't allowed. Pick the year you graduated.</div>
+                                )}
                               </div>
                             </div>
                           </div>

@@ -154,7 +154,8 @@ exports.createJob = async (req, res) => {
     }
 
     let finalCategoryId = category_id;
-    let finalDescription = description.trim();
+    // Any earlier [Category: …] tag is dropped so editing never stacks them
+    let finalDescription = description.trim().replace(/^\[Category:\s*[^\]]+\]\s*/i, '');
     if (custom_category && typeof custom_category === 'string' && custom_category.trim()) {
       const trimmedCat = custom_category.trim();
       // Ensure job links to the official 'Others' category without polluting the global categories table
@@ -312,7 +313,8 @@ exports.updateJob = async (req, res) => {
     }
 
     let finalCategoryId = category_id;
-    let finalDescription = description.trim();
+    // Any earlier [Category: …] tag is dropped so editing never stacks them
+    let finalDescription = description.trim().replace(/^\[Category:\s*[^\]]+\]\s*/i, '');
     if (custom_category && typeof custom_category === 'string' && custom_category.trim()) {
       const trimmedCat = custom_category.trim();
       const { data: othersCat } = await supabaseAdmin

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getCategories, createJob, switchRole, getMyJobs, updateJob } from '../services/api';
 import { getCached, setCached, clearCached } from '../utils/cache';
 import { showToast } from '../utils/toast';
+import { cleanJobDescription } from '../utils/formatters';
 
 export default function CreateJob() {
   const navigate = useNavigate();
@@ -102,7 +103,11 @@ export default function CreateJob() {
         }
         const jobDeadline = job.deadline ? String(job.deadline).slice(0, 10) : '';
         setTitle(job.title || '');
-        setDescription(job.description || '');
+        // A custom "Others" category is saved as a [Category: …] tag at the top of the
+        // description; put it back in its own box so it isn't edited (or doubled) as text
+        const categoryTag = (job.description || '').match(/^\[Category:\s*([^\]]+)\]/i);
+        setDescription(cleanJobDescription(job.description || ''));
+        setCustomCategory(categoryTag ? categoryTag[1].trim() : '');
         setCategoryId(job.category_id || '');
         setBudgetType(job.budget_type || 'fixed');
         setCurrency(job.currency || 'PHP');

@@ -424,6 +424,18 @@ async function updateProfile(req, res) {
     }
   }
 
+  // Graduation years: a 4-digit year from 1950 up to this year (no future years)
+  if (Array.isArray(education)) {
+    const thisYear = new Date().getFullYear();
+    const badYear = education.find((e) => {
+      const year = String(e?.year ?? '').trim();
+      return year && (!/^\d{4}$/.test(year) || Number(year) < 1950 || Number(year) > thisYear);
+    });
+    if (badYear) {
+      return res.status(400).json({ status: 400, message: `Graduation year must be between 1950 and ${thisYear}.` });
+    }
+  }
+
   // Which side's photo an upload replaces: the client photo or the freelancer photo (default)
   const avatarTarget = avatar_for === 'customer' ? AVATAR_TARGETS.customer : AVATAR_TARGETS.freelancer;
 

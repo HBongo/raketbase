@@ -585,18 +585,20 @@ function RangeField({ label, unit, value, onChange, bounds, onReset }) {
           <label className="form-label small text-muted mb-1">From{unit ? `, ${unit}` : ''}</label>
           <input
             type="number"
+            min="0"
             className="form-control form-control-sm bg-light"
             value={value.min}
-            onChange={(e) => onChange({ ...value, min: Number(e.target.value) })}
+            onChange={(e) => onChange({ ...value, min: Math.max(0, Number(e.target.value) || 0) })}
           />
         </div>
         <div className="col-6">
           <label className="form-label small text-muted mb-1">To{unit ? `, ${unit}` : ''}</label>
           <input
             type="number"
+            min="0"
             className="form-control form-control-sm bg-light"
             value={value.max}
-            onChange={(e) => onChange({ ...value, max: Number(e.target.value) })}
+            onChange={(e) => onChange({ ...value, max: Math.max(0, Number(e.target.value) || 0) })}
           />
         </div>
       </div>

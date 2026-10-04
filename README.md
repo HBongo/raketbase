@@ -422,6 +422,18 @@ Changes 10.1
 - Routed custom job specialties cleanly to the official "Others" category ID without mutating the global catalog, embedding custom specialties directly into the job posting
 - Purged polluted test categories (e.g. "Chibi Artist", "Cloud Solutions Architect", test gibberish) from Supabase and re-linked legacy jobs back to the official Others category
 
+[Fixes]
+- Fixed the backend not starting after the latest merge (a broken milestone check in proposalsController.js)
+- The keyboard-smash filter no longer rejects real words such as "MySQL", "Tailwindcss", "psychology", "synthesis", "rhythm", "lengths", "successes", "Tennessee", and "Mississippi": "y" now counts as a vowel, only 6+ consonants in a row are flagged, and the character-variety test only applies to words of 10+ letters (mashing like "asdfghjkl", "qweqweqwe", and "ahdhsadhasdh" is still blocked)
+- Editing a job with a custom "Others" category now puts the category back in its own box instead of showing a [Category: …] tag in the description, and saving never adds a second tag
+- My Postings no longer shows the [Category: …] tag in job descriptions
+- Proposal drafts are now saved per account as well as per job, so switching accounts in the same browser no longer fills in another freelancer's draft
+- Fixed users being logged out with "session expired" while browsing: the backend's shared Supabase connection kept the last login and refreshed it in the background, which used up the refresh token the user's browser needed; server connections no longer keep or refresh anyone's session
+- The client side of a profile can't be saved without choosing "Hiring as" (it used to save without it, so the "Add business type" reminder never went away); the reminder's button now jumps straight to that choice
+- Graduation year is now picked from a list (this year back to 1950), so future years can't be entered; the server rejects future or invalid years too
+- The Explore budget filter's From / To boxes no longer accept negative numbers
+- Scrolling the mouse wheel over a number box (bid, budget, price filters) no longer changes its value; the page scrolls instead
+
 Roadmap
 - Make it so that people who choose the freelancer option also need to put in their bank details and phone number - Complete
 - Make it so that people who choose the client option choose whether or not they are a small business or a major contractor and need to put in their business name. - Complete

@@ -75,8 +75,9 @@ function findKeyboardMash(text, fieldName = 'Text') {
       return `${fieldName} contains an unbroken word that is too long ('${word.slice(0, 18)}...') and appears to be keyboard-mashed.`;
     }
 
-    // Rule 2: 5 or more consecutive consonants (e.g., "dfghjkl", "zxcvbnm", "qwrtyp")
-    if (/[bcdfghjklmnpqrstvwxyz]{5,}/i.test(clean) && clean !== 'strengths') {
+    // Rule 2: 6 or more consecutive consonants (e.g., "dfghjkl", "zxcvbnm"). "y" counts as a
+    // vowel and real words reach 5 ("lengths", "tailwindcss", "psych" in "psychology", "MySQL").
+    if (/[bcdfghjklmnpqrstvwxz]{6,}/i.test(clean)) {
       return `${fieldName} contains an unnatural consonant sequence in word '${word}'.`;
     }
 
@@ -85,9 +86,11 @@ function findKeyboardMash(text, fieldName = 'Text') {
       return `${fieldName} contains repetitive keyboard patterns in word '${word}'.`;
     }
 
-    // Rule 4: Home-row character diversity test for words >= 7 letters (e.g., "ahdhsadhasdh", "asdsaddsadsadasasd")
+    // Rule 4: Low character variety in long words (e.g., "ahdhsadhasdh", "asdsaddsadsadasasd").
+    // Only words of 10+ letters, so real words with repeated letters ("successes", "Tennessee",
+    // "Mississippi") pass.
     const uniqueLetters = new Set(clean).size;
-    if (clean.length >= 7 && (uniqueLetters / clean.length) < 0.45) {
+    if (clean.length >= 10 && (uniqueLetters / clean.length) < 0.35) {
       return `${fieldName} contains keyboard-mashed word '${word}' with low character variety.`;
     }
   }

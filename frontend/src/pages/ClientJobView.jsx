@@ -8,6 +8,7 @@ import OffersList from '../components/OffersList';
 import PageViewTabs from '../components/PageViewTabs';
 
 import { useLive } from '../utils/useLive';
+import { cleanJobDescription } from '../utils/formatters';
 import ProposalFiles from '../components/ProposalFiles';
 export default function ClientJobView() {
   const { id } = useParams();
@@ -194,7 +195,7 @@ function MyJobsList() {
                   </div>
                   <h5 className="card-title fw-bold text-truncate mb-1">{job.title}</h5>
                   <p className="small text-secondary text-truncate mb-0" style={{ maxWidth: '600px' }}>
-                    {job.description}
+                    {cleanJobDescription(job.description)}
                   </p>
                   {job.status === 'removed' && job.removal_reason && (
                     <p className="small text-danger text-truncate mb-0 mt-1" style={{ maxWidth: '600px' }}>

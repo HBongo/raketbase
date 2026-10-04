@@ -4,7 +4,6 @@ const { logActivity } = require('../utils/activity');
 const { getRatingSummaries, emptySummary } = require('../utils/ratings');
 const { validateProposalInput } = require('../utils/slopFilter');
 const { notify, displayName } = require('../utils/notify');
-const { formatMoney } = require('../utils/money');
 
 function formatProposal(proposal) {
   if (!proposal) return proposal;
@@ -170,8 +169,6 @@ exports.createProposal = async (req, res) => {
         if (!title) {
           return res.status(400).json({ success: false, error: 'Every milestone needs a title.' });
         }
-        if (!Number.isFinite(amount) || amount <= 0) {
-          return res.status(400).json({ success: false, error: `Milestone "${title}" needs an amount greater than ${formatMoney(0, job.currency)}.` });
         if (title.length < 3 || title.length > 100) {
           return res.status(400).json({ success: false, error: `Milestone "${title}" title must be between 3 and 100 characters.` });
         }

@@ -78,7 +78,7 @@ export default function ClientProfileView({
                   </div>
                 </div>
                 <label className="form-label small fw-medium" htmlFor="client-type">Hiring as</label>
-                <select id="client-type" className="form-select bg-light mb-2" value={form.client_type} onChange={(e) => onChange('client_type', e.target.value)}>
+                <select id="client-type" className={`form-select bg-light mb-2 ${form.client_type ? '' : 'border-warning'}`} value={form.client_type} onChange={(e) => onChange('client_type', e.target.value)}>
                   <option value="">Choose...</option>
                   {Object.entries(CLIENT_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>

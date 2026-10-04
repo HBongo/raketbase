@@ -109,13 +109,17 @@ export default function JobDetail() {
 
   const [milestones, setMilestones] = useState([ { title: 'Stage 1 Deliverables', description: '', amount: '' } ]);
   const [draftRestored, setDraftRestored] = useState(false);
+  // Drafts are kept per account and per job, so switching accounts in one browser
+  // never shows someone else's cover letter
+  const draftOwner = user.user_id || user.id;
+  const draftKey = draftOwner ? `raketbase_proposal_draft_${draftOwner}_${id}` : null;
   const [draftSavedTime, setDraftSavedTime] = useState(null);
 
   // Restore proposal draft from localStorage on mount
   useEffect(() => {
-    if (!id || alreadyApplied) return;
+    if (!draftKey || alreadyApplied) return;
     try {
-      const saved = localStorage.getItem(`raketbase_proposal_draft_${id}`);
+      const saved = localStorage.getItem(draftKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.coverLetter) setCoverLetter(parsed.coverLetter);
@@ -130,11 +134,11 @@ export default function JobDetail() {
     } catch (e) {
       console.warn('Could not read proposal draft', e);
     }
-  }, [id, alreadyApplied]);
+  }, [draftKey, alreadyApplied]);
 
   // Real-time auto-save proposal draft to localStorage
   useEffect(() => {
-    if (!id || alreadyApplied) return;
+    if (!draftKey || alreadyApplied) return;
     const hasContent = Boolean(
       coverLetter.trim() ||
       String(bidAmount).trim() ||
@@ -151,17 +155,17 @@ export default function JobDetail() {
         updatedAt: Date.now(),
       };
       try {
-        localStorage.setItem(`raketbase_proposal_draft_${id}`, JSON.stringify(draftData));
+        localStorage.setItem(draftKey, JSON.stringify(draftData));
         setDraftSavedTime(draftData.updatedAt);
       } catch (e) {
         console.warn('Could not save proposal draft', e);
       }
     }
-  }, [id, coverLetter, bidAmount, portfolioLink, milestones, alreadyApplied]);
+  }, [draftKey, coverLetter, bidAmount, portfolioLink, milestones, alreadyApplied]);
 
   function handleClearDraft() {
-    if (!id) return;
-    localStorage.removeItem(`raketbase_proposal_draft_${id}`);
+    if (!draftKey) return;
+    localStorage.removeItem(draftKey);
     setCoverLetter('');
     setBidAmount('');
     setPortfolioLink('');
@@ -320,7 +324,7 @@ export default function JobDetail() {
       if (body.data) setUserProposal(normalizeProposal(body.data));
       setProposalTick((t) => t + 1);
       showToast('Proposal sent! The client will review it soon.', { type: 'success' });
-      localStorage.removeItem(`raketbase_proposal_draft_${id}`);
+      localStorage.removeItem(draftKey);
       setDraftRestored(false);
       setDraftSavedTime(null);
       setBidAmount('');
