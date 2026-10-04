@@ -10,6 +10,13 @@ import {
   takedownJob,
 } from '../services/api';
 import Money from '../components/Money';
+import AdminActivityLog from '../components/AdminActivityLog';
+
+const CLIENT_TYPE_LABELS = {
+  individual: 'Individual',
+  small_business: 'Small Business',
+  major_contractor: 'Major Contractor',
+};
 
 const MOCK_ANALYTICS = {
   total_users: 24,
@@ -151,6 +158,13 @@ export default function AdminDashboard() {
     } finally {
       setActioningId(null);
     }
+  }
+
+  // Activity Log filtered to one person ("View activity" in the user table)
+  const [activityUser, setActivityUser] = useState(null);
+  function showUserActivity(u) {
+    setActivityUser({ id: u.user_id, name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email });
+    document.getElementById('activity-log')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   async function handleToggleUserStatus(targetUser) {
@@ -475,6 +489,7 @@ export default function AdminDashboard() {
                       <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Name</th>
                       <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Email</th>
                       <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Role</th>
+                      <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Hiring as / Payments</th>
                       <th className="text-muted text-uppercase fw-medium" style={{ fontSize: '12px', padding: '12px 16px' }}>Status</th>
                       <th className="text-muted text-uppercase fw-medium text-end" style={{ fontSize: '12px', padding: '12px 16px' }}>Action</th>
                     </tr>
@@ -490,12 +505,30 @@ export default function AdminDashboard() {
                           {u.role}
                           {u.role === 'customer' && u.active_role ? ` (${u.active_role})` : ''}
                         </td>
+                        <td className="small" style={{ padding: '12px 16px' }}>
+                          <div className="text-muted">
+                            {CLIENT_TYPE_LABELS[u.client_type] || '—'}
+                            {u.company_name ? ` · ${u.company_name}` : ''}
+                          </div>
+                          <div className="text-muted" title="Freelancer payout details">
+                            <i className="bi bi-wallet2 me-1"></i>
+                            {u.payout ? `Payout: ${u.payout.provider_name || u.payout.method_label} •••• ${u.payout.account_last4}` : 'No payout details'}
+                          </div>
+                          <div className="text-muted" title="Client payment method">
+                            <i className="bi bi-credit-card me-1"></i>
+                            {u.payment_method
+                              ? `Pays with: ${u.payment_method.provider_name || u.payment_method.method_label} •••• ${u.payment_method.account_last4}`
+                              : 'No payment method'}
+                          </div>
+                        </td>
                         <td style={{ padding: '12px 16px' }}>
                           <span
                             className={`badge rounded-pill fw-medium text-uppercase ${
                               u.status === 'suspended'
                                 ? 'bg-danger text-white'
-                                : 'bg-success text-white'
+                                : u.status === 'deleted'
+                                  ? 'bg-secondary text-white'
+                                  : 'bg-success text-white'
                             }`}
                             style={{ fontSize: '11px' }}
                           >
@@ -503,7 +536,15 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="text-end" style={{ padding: '12px 16px' }}>
-                          {u.role !== 'admin' && (
+                          <button
+                            type="button"
+                            onClick={() => showUserActivity(u)}
+                            className="btn btn-sm btn-link text-decoration-none fw-medium me-1"
+                            style={{ fontSize: '12px' }}
+                          >
+                            View activity
+                          </button>
+                          {u.role !== 'admin' && u.status !== 'deleted' && (
                             <button
                               onClick={() => handleToggleUserStatus(u)}
                               disabled={actioningId === u.user_id}
@@ -520,6 +561,8 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </div>
+
+            <AdminActivityLog userFilter={activityUser} onClearUser={() => setActivityUser(null)} />
 
           </div>
         </div>

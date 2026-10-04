@@ -1,4 +1,14 @@
 const { supabase, supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
+const { loginBlocked, recordLoginFailure, clearLoginFailures, allowPasswordReset } = require('../utils/loginLimiter');
+const { cleanPhone, validatePayout, maskPayout, getPayout, savePayout } = require('../utils/payout');
+const { validatePaymentMethod, maskPaymentMethod, getPaymentMethod, savePaymentMethod } = require('../utils/paymentMethod');
+
+const CLIENT_TYPES = {
+  individual: 'Individual',
+  small_business: 'Small Business',
+  major_contractor: 'Major Contractor',
+};
 
 // Supabase Storage bucket for profile photos (created by database/avatar_setup.sql).
 // Files live at <bucket>/<user_id>/avatar-<timestamp>.<ext>.
@@ -118,15 +128,18 @@ async function register(req, res) {
   // silently break freelancer signups (auth user gets created, profile row does not).
   const requestedActiveRole = requestedRole === 'freelancer' ? 'freelancer' : 'customer';
 
-  // Optional step-2 onboarding details. Freelancer extras live in the auth user's
-  // metadata (same place updateProfile/getProfile keep them); the client's company
-  // name lives on public.users.
-  const { title, hourlyRate, location, companyName } = req.body;
+  // Step-2 onboarding details. Freelancer extras (title, location, phone) live in the auth
+  // user's metadata (same place updateProfile/getProfile keep them) and payout details in
+  // public.payout_details; the client's business type and name live on public.users.
+  const { title, location, phone, companyName, clientType } = req.body;
   const clean = (v) => (typeof v === 'string' ? v.trim() : '');
   const hasHtml = (v) => /<[^>]*>/.test(v);
 
   const profileMeta = {};
   let cleanCompanyName = '';
+  let cleanClientType = '';
+  let payoutRow = null;
+  let paymentRow = null;
 
   if (requestedActiveRole === 'freelancer') {
     const cleanTitle = clean(title);
@@ -137,20 +150,36 @@ async function register(req, res) {
     if (cleanLocation.length > 150 || hasHtml(cleanLocation)) {
       return res.status(400).json({ status: 400, message: 'Location must be 150 characters or less, without HTML.' });
     }
-    if (hourlyRate !== undefined && hourlyRate !== null && hourlyRate !== '') {
-      const rate = Number(hourlyRate);
-      if (!Number.isFinite(rate) || rate < 0 || rate > 1000000) {
-        return res.status(400).json({ status: 400, message: 'Hourly rate must be a number between 0 and 1,000,000.' });
-      }
-      profileMeta.hourly_rate = rate;
+    const cleanedPhone = cleanPhone(phone);
+    if (!cleanedPhone) {
+      return res.status(400).json({ status: 400, message: 'Enter a valid mobile number, like 09171234567.' });
     }
+    const payout = validatePayout(req.body);
+    if (payout.error) {
+      return res.status(400).json({ status: 400, message: payout.error });
+    }
+    payoutRow = payout.row;
+    profileMeta.phone = cleanedPhone;
     if (cleanTitle) profileMeta.title = cleanTitle;
     if (cleanLocation) profileMeta.location = cleanLocation;
   } else {
-    cleanCompanyName = clean(companyName);
-    if (cleanCompanyName.length > 100 || hasHtml(cleanCompanyName)) {
-      return res.status(400).json({ status: 400, message: 'Company name must be 100 characters or less, without HTML.' });
+    cleanClientType = clean(clientType);
+    if (!CLIENT_TYPES[cleanClientType]) {
+      return res.status(400).json({ status: 400, message: 'Choose whether you are hiring as an individual, a small business, or a major contractor.' });
     }
+    cleanCompanyName = clean(companyName);
+    if (cleanClientType !== 'individual' && cleanCompanyName.length < 2) {
+      return res.status(400).json({ status: 400, message: 'Please enter your business name.' });
+    }
+    if (cleanCompanyName.length > 100 || hasHtml(cleanCompanyName)) {
+      return res.status(400).json({ status: 400, message: 'Business name must be 100 characters or less, without HTML.' });
+    }
+    // How this client will fund escrow
+    const payment = validatePaymentMethod(req.body);
+    if (payment.error) {
+      return res.status(400).json({ status: 400, message: payment.error });
+    }
+    paymentRow = payment.row;
   }
 
   const { data: signUpData, error } = await supabase.auth.signUp({
@@ -172,13 +201,40 @@ async function register(req, res) {
   }
 
   // The handle_new_user trigger has already created the public.users row by now.
-  // Best-effort: the account exists either way, and the name can be added later from the profile.
-  if (cleanCompanyName && signUpData?.user?.id) {
-    const { error: companyError } = await supabaseAdmin
-      .from('users')
-      .update({ company_name: cleanCompanyName })
-      .eq('user_id', signUpData.user.id);
-    if (companyError) console.error('Could not save company name at registration:', companyError);
+  // Best-effort: the account exists either way, and anything missing can be added later from
+  // the profile (which shows a reminder until it is).
+  const newUserId = signUpData?.user?.id;
+  if (newUserId && cleanClientType) {
+    const clientUpdates = { client_type: cleanClientType };
+    if (cleanCompanyName) clientUpdates.company_name = cleanCompanyName;
+    let { error: clientError } = await supabaseAdmin.from('users').update(clientUpdates).eq('user_id', newUserId);
+    if (clientError && cleanCompanyName) {
+      // Before migration 010 there's no client_type column; still keep the business name
+      ({ error: clientError } = await supabaseAdmin.from('users').update({ company_name: cleanCompanyName }).eq('user_id', newUserId));
+    }
+    if (clientError) console.error('Could not save client details at registration:', clientError.message);
+  }
+  if (newUserId && paymentRow) {
+    try {
+      await savePaymentMethod(newUserId, paymentRow);
+    } catch (err) {
+      console.error('Could not save payment method at registration:', err.message);
+    }
+  }
+  if (newUserId && payoutRow) {
+    try {
+      await savePayout(newUserId, payoutRow);
+    } catch (err) {
+      console.error('Could not save payout details at registration:', err.message);
+    }
+  }
+  if (newUserId) {
+    await logActivity({
+      user_id: newUserId,
+      category: 'account',
+      action: 'account.registered',
+      description: `Created an account as a ${requestedActiveRole === 'freelancer' ? 'freelancer' : 'client'}`,
+    });
   }
 
   return res.status(201).json({ message: 'Registration successful!' });
@@ -192,11 +248,25 @@ async function login(req, res) {
     return res.status(400).json({ status: 400, message: 'email and password are required' });
   }
 
+  // Too many wrong passwords for this email (or from this device) recently
+  const blocked = loginBlocked(email, req.ip);
+  if (blocked) {
+    return res.status(429).json({ status: 429, message: blocked });
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return res.status(401).json({ status: 401, message: error.message });
+    const { locked, remaining } = recordLoginFailure(email, req.ip);
+    if (locked) {
+      await logLockout(email);
+      return res.status(429).json({ status: 429, message: loginBlocked(email, req.ip) });
+    }
+    const warning = remaining <= 2 ? ` ${remaining} attempt${remaining === 1 ? '' : 's'} left before a 15-minute lock.` : '';
+    return res.status(401).json({ status: 401, message: `${error.message.replace(/\.$/, '')}.${warning}` });
   }
+
+  clearLoginFailures(email);
 
   const { data: profile, error: profileError } = await supabaseAdmin
     .from('users')
@@ -212,6 +282,10 @@ async function login(req, res) {
     });
   }
 
+  if (profile.status === 'deleted') {
+    return res.status(401).json({ status: 401, message: 'Invalid login credentials' });
+  }
+
   if (profile.status === 'suspended') {
     return res.status(403).json({
       status: 403,
@@ -219,10 +293,32 @@ async function login(req, res) {
     });
   }
 
+  await logActivity({
+    user_id: profile.user_id,
+    category: 'account',
+    action: 'account.login',
+    description: 'Logged in',
+  });
+
   return res.status(200).json({
     token: data.session.access_token,
     refreshToken: data.session.refresh_token,
     user: profile,
+  });
+}
+
+// Records a lockout against the account it targeted (if that email belongs to someone)
+async function logLockout(email) {
+  const { data: target } = await supabaseAdmin
+    .from('users')
+    .select('user_id')
+    .ilike('email', String(email).trim())
+    .maybeSingle();
+  await logActivity({
+    user_id: target?.user_id || null,
+    category: 'account',
+    action: 'account.login_locked',
+    description: `Log-in locked for 15 minutes after too many wrong passwords (${String(email).trim().toLowerCase()})`,
   });
 }
 
@@ -267,6 +363,13 @@ async function switchRole(req, res) {
     return res.status(500).json({ status: 500, message: error.message });
   }
 
+  await logActivity({
+    user_id: req.user.id,
+    category: 'account',
+    action: 'account.mode_switched',
+    description: `Switched to ${new_role === 'freelancer' ? 'Freelancer' : 'Client'} mode`,
+  });
+
   return res.status(200).json({ message: 'Active role updated', user: profile });
 }
 
@@ -274,7 +377,7 @@ async function switchRole(req, res) {
 async function getProfile(req, res) {
   const { data: profile, error } = await supabaseAdmin
     .from('users')
-    .select('user_id, email, first_name, last_name, role, active_role, bio, skills, portfolio_url, avatar_url, client_avatar_url, client_bio, company_name')
+    .select('*') // includes client_type once migration 010 has run
     .eq('user_id', req.user.id)
     .single();
 
@@ -311,8 +414,17 @@ async function updateProfile(req, res) {
     bio, skills, portfolio_url,
     first_name, last_name, title, avatar_url, avatar_base64, avatar_ext, phone, location,
     hourly_rate, linkedin_url, github_url, website_url,
-    experience, education, client_bio, company_name, avatar_for
+    experience, education, client_bio, company_name, avatar_for, client_type
   } = req.body;
+
+  if (client_type !== undefined) {
+    if (!CLIENT_TYPES[client_type]) {
+      return res.status(400).json({ status: 400, message: 'Choose individual, small business, or major contractor.' });
+    }
+    if (client_type !== 'individual' && company_name !== undefined && String(company_name || '').trim().length < 2) {
+      return res.status(400).json({ status: 400, message: 'Businesses need a business name.' });
+    }
+  }
 
   // Which side's photo an upload replaces: the client photo or the freelancer photo (default)
   const avatarTarget = avatar_for === 'customer' ? AVATAR_TARGETS.customer : AVATAR_TARGETS.freelancer;
@@ -367,6 +479,7 @@ async function updateProfile(req, res) {
   if (portfolio_url !== undefined) userUpdates.portfolio_url = portfolio_url;
   if (client_bio !== undefined) userUpdates.client_bio = client_bio;
   if (company_name !== undefined) userUpdates.company_name = company_name;
+  if (client_type !== undefined) userUpdates.client_type = client_type;
   if (finalAvatarUrl !== undefined) userUpdates[avatarTarget.column] = finalAvatarUrl;
 
   // Build update payload for auth metadata
@@ -417,6 +530,15 @@ async function updateProfile(req, res) {
         education: meta.education || [],
       };
     }
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'account',
+      action: finalAvatarUrl !== undefined ? 'account.photo_changed' : 'account.profile_updated',
+      description: finalAvatarUrl !== undefined
+        ? `Changed ${avatarTarget.column === 'client_avatar_url' ? 'client' : 'freelancer'} profile photo`
+        : `Updated ${client_bio !== undefined || company_name !== undefined || client_type !== undefined ? 'client' : 'freelancer'} profile details`,
+    });
 
     return res.status(200).json({ message: 'Profile updated successfully', data: updatedProfile });
   } catch (err) {
@@ -503,7 +625,7 @@ async function removeAvatar(req, res) {
   });
 }
 
-module.exports = { register, login, refreshSession, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout, forgotPassword, resetPassword, changePassword };
+module.exports = { register, login, refreshSession, switchRole, getProfile, updateProfile, uploadAvatar, removeAvatar, logout, forgotPassword, resetPassword, changePassword, getPayoutDetails, updatePayoutDetails, getPaymentMethodDetails, updatePaymentMethodDetails };
 
 // Same rule as registration.
 const PASSWORD_RULE = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
@@ -525,6 +647,13 @@ async function forgotPassword(req, res) {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ status: 400, message: 'Please enter a valid email address.' });
+  }
+
+  // At most 3 reset emails per address per hour. The answer stays the same either way.
+  if (!allowPasswordReset(email)) {
+    return res.status(200).json({
+      message: 'If an account exists for that email, a password reset link has been sent.',
+    });
   }
 
   // The link must point at an address listed under Supabase Auth > URL Configuration > Redirect URLs.
@@ -569,6 +698,13 @@ async function resetPassword(req, res) {
     return res.status(400).json({ status: 400, message: updateError.message });
   }
 
+  await logActivity({
+    user_id: data.user.id,
+    category: 'account',
+    action: 'account.password_reset',
+    description: 'Reset password using an emailed link',
+  });
+
   return res.status(200).json({ message: 'Your password has been reset. You can now log in.' });
 }
 
@@ -585,21 +721,102 @@ async function changePassword(req, res) {
     return res.status(400).json({ status: 400, message: 'Your new password must be different from the current one.' });
   }
 
+  // Same guessing limit as the login form
+  const blocked = loginBlocked(req.user.email, req.ip);
+  if (blocked) {
+    return res.status(429).json({ status: 429, message: blocked });
+  }
+
   // Confirm the current password before changing it.
   const { error: signInError } = await supabase.auth.signInWithPassword({
     email: req.user.email,
     password: currentPassword,
   });
   if (signInError) {
+    const { locked } = recordLoginFailure(req.user.email, req.ip);
+    if (locked) await logLockout(req.user.email);
     return res.status(400).json({ status: 400, message: 'Your current password is incorrect.' });
   }
+  clearLoginFailures(req.user.email);
 
   const { error } = await supabaseAdmin.auth.admin.updateUserById(req.user.id, { password: newPassword });
   if (error) {
     return res.status(400).json({ status: 400, message: error.message });
   }
 
+  await logActivity({
+    user_id: req.user.id,
+    category: 'account',
+    action: 'account.password_changed',
+    description: 'Changed password',
+  });
+
   return res.status(200).json({ message: 'Password updated successfully.' });
+}
+
+// GET /api/v1/auth/payout - Your own payout details, masked (•••• 1234). null if none yet.
+async function getPayoutDetails(req, res) {
+  try {
+    const row = await getPayout(req.user.id);
+    return res.status(200).json({ success: true, data: maskPayout(row) });
+  } catch (err) {
+    console.error('getPayoutDetails error:', err.message);
+    return res.status(500).json({ success: false, error: 'Could not load payout details. Make sure migration 010 has been run.' });
+  }
+}
+
+// GET /api/v1/auth/payment-method - Your own client payment method, masked. null if none yet.
+async function getPaymentMethodDetails(req, res) {
+  try {
+    const row = await getPaymentMethod(req.user.id);
+    return res.status(200).json({ success: true, data: maskPaymentMethod(row) });
+  } catch (err) {
+    console.error('getPaymentMethodDetails error:', err.message);
+    return res.status(500).json({ success: false, error: 'Could not load your payment method. Make sure migration 011 has been run.' });
+  }
+}
+
+// PUT /api/v1/auth/payment-method
+// { paymentMethod, paymentProvider?, paymentAccountName, paymentAccountNumber, cardExpiry? }
+async function updatePaymentMethodDetails(req, res) {
+  const payment = validatePaymentMethod(req.body || {});
+  if (payment.error) {
+    return res.status(400).json({ success: false, error: payment.error });
+  }
+  try {
+    const masked = maskPaymentMethod(await savePaymentMethod(req.user.id, payment.row));
+    await logActivity({
+      user_id: req.user.id,
+      category: 'account',
+      action: 'account.payment_method_updated',
+      description: `Updated client payment method (${masked.provider_name || masked.method_label} •••• ${masked.account_last4})`,
+    });
+    return res.status(200).json({ success: true, data: masked });
+  } catch (err) {
+    console.error('updatePaymentMethodDetails error:', err.message);
+    return res.status(500).json({ success: false, error: 'Could not save your payment method. Make sure migration 011 has been run.' });
+  }
+}
+
+// PUT /api/v1/auth/payout { payoutMethod, payoutProvider?, accountName, accountNumber }
+async function updatePayoutDetails(req, res) {
+  const payout = validatePayout(req.body || {});
+  if (payout.error) {
+    return res.status(400).json({ success: false, error: payout.error });
+  }
+  try {
+    const masked = maskPayout(await savePayout(req.user.id, payout.row));
+    await logActivity({
+      user_id: req.user.id,
+      category: 'account',
+      action: 'account.payout_updated',
+      description: `Updated payout details (${masked.method_label} •••• ${masked.account_last4})`,
+    });
+    return res.status(200).json({ success: true, data: masked });
+  } catch (err) {
+    console.error('updatePayoutDetails error:', err.message);
+    return res.status(500).json({ success: false, error: 'Could not save payout details. Make sure migration 010 has been run.' });
+  }
 }
 
 // POST /api/v1/auth/logout

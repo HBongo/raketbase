@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
 const { CRITERIA, ROLES, summarize } = require('../utils/ratings');
 const { getAverageAmountForUser } = require('../utils/userStats');
 const { notify, displayName } = require('../utils/notify');
@@ -102,6 +103,16 @@ exports.createReview = async (req, res) => {
       role: revieweeRole,
       title: `${displayName(req.user, isClient ? 'Your client' : 'Your freelancer')} rated you ${rating}★`,
       body: `On "${contract.jobs?.title || 'your contract'}". Rate them back from your Dashboard if you haven't yet.`,
+      link: `/profile/${revieweeId}`,
+    });
+
+    await logActivity({
+      user_id: userId,
+      category: 'contracts',
+      action: 'review.left',
+      description: `Rated ${isClient ? 'the freelancer' : 'the client'} ${rating}★ on "${contract.jobs?.title || 'a contract'}"`,
+      target_type: 'review',
+      target_id: review.review_id,
       link: `/profile/${revieweeId}`,
     });
 

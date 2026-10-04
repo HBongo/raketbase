@@ -7,13 +7,16 @@
 // 5. Spark Admin layout (sidebar + navbar)
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { getFreelancerProfile, updateProfile, changePassword } from '../services/api';
+import { getFreelancerProfile, updateProfile, changePassword, getPayoutDetails, getPaymentMethodDetails } from '../services/api';
 import { getCached, setCached } from '../utils/cache';
 import { showToast } from '../utils/toast';
 import Money from '../components/Money';
 import HireMeModal from '../components/HireMeModal';
 import ClientProfileView from '../components/ClientProfileView';
 import ProfileReviews from '../components/ProfileReviews';
+import PaymentDetailsCard from '../components/PaymentDetailsCard';
+import ActivityList from '../components/ActivityList';
+import DeleteAccountCard from '../components/DeleteAccountCard';
 
 function SecurityTab() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -129,6 +132,7 @@ function buildFormFromProfile(p) {
     experience: Array.isArray(p.experience) ? p.experience : [],
     education: Array.isArray(p.education) ? p.education : [],
     client_bio: p.client_bio || '',
+    client_type: p.client_type || '',
     company_name: p.company_name || '',
   };
 }
@@ -212,11 +216,30 @@ export default function Profile() {
     setEditing(false);
   }, [id, defaultSide]);
 
+  // Your own payment details (masked), for each side's Payments tab and the reminder banners:
+  // payout details on the Freelancer side, the payment method for funding escrow on the Client side
+  const [payout, setPayout] = useState({ loading: true, data: null, key: null });
+  const [paymentMethod, setPaymentMethod] = useState({ loading: true, data: null, key: null });
+  useEffect(() => {
+    if (!isOwnProfile) return;
+    let cancelled = false;
+    // If one can't be read (e.g. its migration isn't run yet), data stays undefined: no reminder
+    getPayoutDetails()
+      .then((res) => { if (!cancelled) setPayout({ loading: false, data: res.data, key: id }); })
+      .catch(() => { if (!cancelled) setPayout({ loading: false, data: undefined, key: id }); });
+    getPaymentMethodDetails()
+      .then((res) => { if (!cancelled) setPaymentMethod({ loading: false, data: res.data, key: id }); })
+      .catch(() => { if (!cancelled) setPaymentMethod({ loading: false, data: undefined, key: id }); });
+    return () => { cancelled = true; };
+  }, [id, isOwnProfile]);
+  const payoutLoading = payout.loading || payout.key !== id;
+  const paymentMethodLoading = paymentMethod.loading || paymentMethod.key !== id;
+
   function switchSide(next) {
     if (next === side || editing) return;
     setSide(next);
     setSaveMsg(null);
-    if (!['about', 'reviews', 'security'].includes(activeTab)) setActiveTab('about');
+    if (!['about', 'reviews', 'activity', 'payments', 'security'].includes(activeTab)) setActiveTab('about');
   }
 
   // Load profile data
@@ -366,6 +389,7 @@ export default function Profile() {
         first_name: form.first_name,
         last_name: form.last_name,
         company_name: form.company_name.trim(),
+        ...(form.client_type ? { client_type: form.client_type } : {}),
         client_bio: form.client_bio,
       } : {
         first_name: form.first_name,
@@ -420,6 +444,30 @@ export default function Profile() {
   const skillsArray = Array.isArray(f.skills) ? f.skills : (f.skills ? String(f.skills).split(',').map(s => s.trim()) : []);
   const experienceArr = Array.isArray(f.experience) ? f.experience : [];
   const educationArr = Array.isArray(f.education) ? f.education : [];
+
+  const securityTab = (
+    <>
+      <SecurityTab />
+      {!['admin', 'staff'].includes(user.role) && <DeleteAccountCard />}
+    </>
+  );
+
+  const payoutTab = (
+    <PaymentDetailsCard
+      kind="payout"
+      details={payout.data || null}
+      loading={payoutLoading}
+      onSaved={(data) => setPayout({ loading: false, data, key: id })}
+    />
+  );
+  const paymentMethodTab = (
+    <PaymentDetailsCard
+      kind="payment"
+      details={paymentMethod.data || null}
+      loading={paymentMethodLoading}
+      onSaved={(data) => setPaymentMethod({ loading: false, data, key: id })}
+    />
+  );
 
   // Camera button on the photo; uploads to whichever side is showing
   const avatarControl = isOwnProfile && (
@@ -493,6 +541,26 @@ export default function Profile() {
       </div>
 
       {/* Save / Error Messages */}
+      {/* Reminders for details added after this account was created */}
+      {isOwnProfile && !loading && profile && side === 'freelancer' && !payoutLoading && payout.data === null && (
+        <div className="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 mx-3" role="status">
+          <span><i className="bi bi-wallet2 me-2"></i>Add your payout details so you can send proposals and get paid.</span>
+          <button type="button" className="btn btn-sm btn-dark rounded-pill px-3" onClick={() => setActiveTab('payments')}>Add payout details</button>
+        </div>
+      )}
+      {isOwnProfile && !loading && profile && side === 'client' && !paymentMethodLoading && paymentMethod.data === null && (
+        <div className="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 mx-3" role="status">
+          <span><i className="bi bi-credit-card me-2"></i>Add a payment method so you can accept proposals and send direct offers.</span>
+          <button type="button" className="btn btn-sm btn-dark rounded-pill px-3" onClick={() => setActiveTab('payments')}>Add payment method</button>
+        </div>
+      )}
+      {isOwnProfile && !loading && profile && side === 'client' && !profile.client_type && !editing && (
+        <div className="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 mx-3" role="status">
+          <span><i className="bi bi-building me-2"></i>Let freelancers know who they're working with: are you hiring as an individual, a small business, or a major contractor?</span>
+          <button type="button" className="btn btn-sm btn-dark rounded-pill px-3" onClick={() => setEditing(true)}>Add business type</button>
+        </div>
+      )}
+
       {saveMsg && (
         <div className={`alert ${saveMsg.type === 'success' ? 'alert-success' : 'alert-danger'} mx-3 alert-dismissible fade show`} role="alert">
           <i className={`bi ${saveMsg.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} me-2`}></i>
@@ -526,7 +594,9 @@ export default function Profile() {
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             avatarControl={avatarControl}
-            securityTab={<SecurityTab />}
+            securityTab={securityTab}
+            activityTab={<ActivityList isAdmin={user.role === 'admin'} />}
+            paymentsTab={paymentMethodTab}
           />
         )}
 
@@ -755,7 +825,11 @@ export default function Profile() {
                       { id: 'experience', label: 'Experience', icon: 'bi-building' },
                       { id: 'education', label: 'Education', icon: 'bi-mortarboard' },
                       { id: 'reviews', label: `Reviews${f.rating_count ? ` (${f.rating_count})` : ''}`, icon: 'bi-star' },
-                      ...(isOwnProfile ? [{ id: 'security', label: 'Security', icon: 'bi-shield-lock' }] : [])
+                      ...(isOwnProfile ? [
+                        { id: 'activity', label: 'Activity', icon: 'bi-clock-history' },
+                        { id: 'payments', label: 'Payments', icon: 'bi-wallet2' },
+                        { id: 'security', label: 'Security', icon: 'bi-shield-lock' },
+                      ] : [])
                     ].map((tab) => (
                       <li className="nav-item" key={tab.id}>
                         <button
@@ -994,7 +1068,11 @@ export default function Profile() {
                 </div>
               )}
 
-              {activeTab === 'security' && <SecurityTab />}
+              {activeTab === 'activity' && isOwnProfile && <ActivityList isAdmin={user.role === 'admin'} />}
+
+              {activeTab === 'payments' && isOwnProfile && payoutTab}
+
+              {activeTab === 'security' && securityTab}
             </div>
           </div>
         )}

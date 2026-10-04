@@ -3,11 +3,13 @@ const { supabaseAdmin } = require('../config/supabase');
 const { getRatingSummaries, emptySummary, ROLES } = require('../utils/ratings');
 const { fetchAllRows, getAverageAmountsByUser, getAverageAmountForUser } = require('../utils/userStats');
 
-const PROFILE_COLUMNS = `
-  user_id, email, first_name, last_name, role, active_role,
-  bio, skills, portfolio_url, avatar_url, created_at,
-  client_bio, client_avatar_url, company_name
-`.replace(/\s+/g, ' ').trim();
+// Fields a profile page may show. Read with select('*') and picked here, so client_type
+// shows up once migration 010 has run without breaking the page before it.
+const PROFILE_FIELDS = [
+  'user_id', 'email', 'first_name', 'last_name', 'active_role',
+  'bio', 'skills', 'portfolio_url', 'avatar_url', 'created_at',
+  'client_bio', 'client_avatar_url', 'company_name', 'client_type',
+];
 
 // The client side of a profile: how this person behaves when hiring.
 // Never throws; a failed count just shows as 0.
@@ -47,13 +49,16 @@ async function getPublicProfile(req, res) {
     // 1. Fetch user profile from public.users
     const { data: profile, error } = await supabaseAdmin
       .from('users')
-      .select(PROFILE_COLUMNS)
+      .select('*')
       .eq('user_id', id)
       .single();
 
     if (error || !profile) {
       console.error('Supabase get profile error:', error);
       return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    if (profile.status === 'deleted') {
+      return res.status(404).json({ success: false, error: 'This account has been deleted.' });
     }
 
     // 2. Fetch extended fields from auth metadata (workaround for no SQL access)
@@ -87,8 +92,9 @@ async function getPublicProfile(req, res) {
     // Average price: what their completed contracts as a freelancer were worth on average
     const freelancerPrice = await getAverageAmountForUser(id, 'freelancer');
 
-    // Strip sensitive fields
-    const { role, status, ...publicProfile } = profile;
+    // Only the fields meant for a profile page (never role or status)
+    const publicProfile = {};
+    for (const key of PROFILE_FIELDS) publicProfile[key] = profile[key] ?? null;
 
     return res.status(200).json({
       success: true,
@@ -180,7 +186,7 @@ async function browseUsers(req, res) {
     const peopleById = Object.fromEntries(users.map((u) => [u.user_id, u]));
 
     const listed = users
-      .filter((u) => u.status !== 'suspended')
+      .filter((u) => u.status !== 'suspended' && u.status !== 'deleted')
       .filter((u) => active.has(u.user_id) || reviewsByUser[u.user_id] || u.active_role === role)
       .filter((u) => {
         if (!q) return true;

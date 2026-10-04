@@ -30,7 +30,7 @@ CREATE TABLE public.users (
     CONSTRAINT users_email_key UNIQUE (email),
     CONSTRAINT users_role_check CHECK (role = ANY (ARRAY['customer'::text, 'staff'::text, 'admin'::text])),
     CONSTRAINT users_active_role_check CHECK (active_role = ANY (ARRAY['customer'::text, 'freelancer'::text])),
-    CONSTRAINT users_status_check CHECK (status = ANY (ARRAY['active'::text, 'suspended'::text]))
+    CONSTRAINT users_status_check CHECK (status = ANY (ARRAY['active'::text, 'suspended'::text, 'deleted'::text]))
 );
 
 CREATE TABLE public.jobs (
@@ -423,3 +423,65 @@ ON CONFLICT (id) DO NOTHING;
 
 -- What the freelancer actually received after a split dispute; NULL = the full agreed_amount (migration 009).
 ALTER TABLE public.contracts ADD COLUMN released_amount numeric;
+
+-- ============================================================================
+-- Activity log, freelancer payout details, client business type (migration 010).
+-- Both tables are backend-only: RLS enabled with no policies.
+-- ============================================================================
+CREATE TABLE public.activity_log (
+    activity_id  uuid NOT NULL DEFAULT gen_random_uuid(),
+    user_id      uuid,
+    category     text NOT NULL,
+    action       text NOT NULL,
+    description  text NOT NULL,
+    target_type  text,
+    target_id    text,
+    link         text,
+    metadata     jsonb,
+    created_at   timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT activity_log_pkey PRIMARY KEY (activity_id),
+    CONSTRAINT activity_log_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) ON DELETE SET NULL,
+    CONSTRAINT activity_log_category_check CHECK (category = ANY (ARRAY['account'::text, 'jobs'::text, 'contracts'::text, 'admin'::text]))
+);
+CREATE INDEX idx_activity_log_user_id_created_at ON public.activity_log USING btree (user_id, created_at DESC);
+CREATE INDEX idx_activity_log_created_at ON public.activity_log USING btree (created_at DESC);
+ALTER TABLE public.activity_log ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.payout_details (
+    user_id         uuid NOT NULL,
+    method          text NOT NULL,
+    provider_name   text,
+    account_name    text NOT NULL,
+    account_number  text NOT NULL,
+    updated_at      timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT payout_details_pkey PRIMARY KEY (user_id),
+    CONSTRAINT payout_details_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) ON DELETE CASCADE,
+    CONSTRAINT payout_details_method_check CHECK (method = ANY (ARRAY['bank'::text, 'gcash'::text, 'maya'::text]))
+);
+ALTER TABLE public.payout_details ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.users ADD COLUMN client_type text;
+ALTER TABLE public.users ADD CONSTRAINT users_client_type_check
+    CHECK (client_type IS NULL OR client_type = ANY (ARRAY['individual'::text, 'small_business'::text, 'major_contractor'::text]));
+
+-- Client payment methods: how a client funds escrow (migration 011). Backend-only.
+-- Cards keep only the brand, last 4 digits and expiry, never the full number.
+CREATE TABLE public.client_payment_methods (
+    user_id         uuid NOT NULL,
+    method          text NOT NULL,
+    provider_name   text,
+    account_name    text NOT NULL,
+    account_number  text NOT NULL,
+    card_expiry     text,
+    updated_at      timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT client_payment_methods_pkey PRIMARY KEY (user_id),
+    CONSTRAINT client_payment_methods_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) ON DELETE CASCADE,
+    CONSTRAINT client_payment_methods_method_check CHECK (method = ANY (ARRAY['gcash'::text, 'maya'::text, 'bank'::text, 'card'::text]))
+);
+ALTER TABLE public.client_payment_methods ENABLE ROW LEVEL SECURITY;
+
+-- Account deletion (migration 012): deleted accounts are anonymized, not removed.
+ALTER TABLE public.users ADD COLUMN deleted_at timestamp with time zone;

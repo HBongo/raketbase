@@ -1,7 +1,10 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
 const { getRatingSummaries, emptySummary } = require('../utils/ratings');
 const { validateProposalInput } = require('../utils/slopFilter');
 const { notify, displayName } = require('../utils/notify');
+const { hasPayout, PAYOUT_REQUIRED_MESSAGE } = require('../utils/payout');
+const { hasPaymentMethod, PAYMENT_METHOD_REQUIRED_MESSAGE } = require('../utils/paymentMethod');
 
 // POST /api/v1/proposals - Submit a proposal for a job
 // For a 'milestone' budget_type job, `milestones` (an array of { title, amount })
@@ -26,6 +29,11 @@ exports.createProposal = async (req, res) => {
         success: false,
         error: 'Missing required field: job_id',
       });
+    }
+
+    // An accepted bid becomes a contract, so there must be somewhere to pay the freelancer
+    if (!(await hasPayout(freelancer_id))) {
+      return res.status(409).json({ success: false, code: 'PAYOUT_REQUIRED', error: PAYOUT_REQUIRED_MESSAGE });
     }
 
     // Nobody may bid on a job they posted themselves, regardless of mode.
@@ -147,6 +155,16 @@ exports.createProposal = async (req, res) => {
       title: `New proposal on "${job.title}"`,
       body: `${displayName(req.user, 'A freelancer')} sent a proposal.`,
       link: `/my-jobs/${job.job_id}`,
+    });
+
+    await logActivity({
+      user_id: freelancer_id,
+      category: 'jobs',
+      action: 'proposal.sent',
+      description: `Sent a proposal for "${job.title}"`,
+      target_type: 'proposal',
+      target_id: proposal.proposal_id,
+      link: '/my-proposals',
     });
 
     return res.status(201).json({ success: true, data: proposal });
@@ -272,11 +290,16 @@ exports.acceptProposal = async (req, res) => {
       });
     }
 
+    // Accepting puts the agreed amount in escrow, so the client needs a way to pay
+    if (!(await hasPaymentMethod(client_id))) {
+      return res.status(409).json({ success: false, code: 'PAYMENT_METHOD_REQUIRED', error: PAYMENT_METHOD_REQUIRED_MESSAGE });
+    }
+
     // The RPC rejects every other pending proposal on the job, so note who those
     // freelancers are first to let them know they weren't selected.
     const { data: acceptedProposal } = await supabaseAdmin
       .from('proposals')
-      .select('job_id, jobs(title)')
+      .select('job_id, freelancer_id, jobs(title)')
       .eq('proposal_id', proposal_id)
       .maybeSingle();
     const { data: otherPending } = acceptedProposal
@@ -380,6 +403,27 @@ exports.acceptProposal = async (req, res) => {
       })),
     ]);
 
+    await logActivity([
+      {
+        user_id: client_id,
+        category: 'contracts',
+        action: 'proposal.accepted',
+        description: `Accepted a proposal for "${jobTitle}" — contract started and payment held in escrow`,
+        target_type: 'contract',
+        target_id: contract?.contract_id,
+        link: '/dashboard',
+      },
+      ...(acceptedProposal?.freelancer_id ? [{
+        user_id: acceptedProposal.freelancer_id,
+        category: 'contracts',
+        action: 'contract.started',
+        description: `Your proposal for "${jobTitle}" was accepted — contract started`,
+        target_type: 'contract',
+        target_id: contract?.contract_id,
+        link: '/dashboard',
+      }] : []),
+    ]);
+
     return res.status(200).json({
       success: true,
       message: 'Proposal accepted and contract initiated.',
@@ -438,6 +482,16 @@ exports.rejectProposal = async (req, res) => {
       link: '/my-proposals',
     });
 
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'proposal.declined',
+      description: `Declined a proposal for "${proposal.jobs.title}"`,
+      target_type: 'proposal',
+      target_id: proposal.proposal_id,
+      link: `/my-jobs/${proposal.jobs.job_id}`,
+    });
+
     return res.status(200).json({ success: true, data: rejected });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -454,7 +508,7 @@ exports.withdrawProposal = async (req, res) => {
 
     const { data: proposal, error: proposalError } = await supabaseAdmin
       .from('proposals')
-      .select('proposal_id, freelancer_id, status')
+      .select('proposal_id, freelancer_id, status, jobs(title)')
       .eq('proposal_id', proposal_id)
       .single();
 
@@ -480,6 +534,16 @@ exports.withdrawProposal = async (req, res) => {
 
     if (error) throw error;
 
+    await logActivity({
+      user_id: freelancer_id,
+      category: 'jobs',
+      action: 'proposal.withdrawn',
+      description: `Withdrew a proposal for "${proposal.jobs?.title || 'a job'}"`,
+      target_type: 'proposal',
+      target_id: proposal.proposal_id,
+      link: '/my-proposals',
+    });
+
     return res.status(200).json({ success: true, data: withdrawn });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -498,7 +562,7 @@ exports.unwithdrawProposal = async (req, res) => {
 
     const { data: proposal, error: proposalError } = await supabaseAdmin
       .from('proposals')
-      .select('proposal_id, freelancer_id, status, jobs(job_id, status)')
+      .select('proposal_id, freelancer_id, status, jobs(job_id, status, title)')
       .eq('proposal_id', proposal_id)
       .single();
 
@@ -546,6 +610,16 @@ exports.unwithdrawProposal = async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    await logActivity({
+      user_id: freelancer_id,
+      category: 'jobs',
+      action: 'proposal.restored',
+      description: `Re-submitted a proposal for "${proposal.jobs?.title || 'a job'}"`,
+      target_type: 'proposal',
+      target_id: proposal.proposal_id,
+      link: '/my-proposals',
+    });
 
     return res.status(200).json({ success: true, data: restored });
   } catch (error) {

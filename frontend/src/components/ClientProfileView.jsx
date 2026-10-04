@@ -5,6 +5,12 @@ import ProfileReviews from './ProfileReviews';
 import Money from './Money';
 
 const DEFAULT_AVATAR = '/default-avatar.png';
+
+const CLIENT_TYPES = {
+  individual: 'Individual',
+  small_business: 'Small Business',
+  major_contractor: 'Major Contractor',
+};
 const CLIENT_BIO_MAX = 500;
 const COMPANY_MAX = 100;
 
@@ -19,6 +25,8 @@ export default function ClientProfileView({
   setActiveTab,
   avatarControl,
   securityTab,
+  activityTab,
+  paymentsTab,
 }) {
   const client = f.client || {};
   const displayName = `${f.first_name || ''} ${f.last_name || ''}`.trim() || 'Unnamed User';
@@ -30,7 +38,11 @@ export default function ClientProfileView({
   const tabs = [
     { id: 'about', label: 'About', icon: 'bi-person' },
     { id: 'reviews', label: `Reviews${client.rating_count ? ` (${client.rating_count})` : ''}`, icon: 'bi-star' },
-    ...(isOwnProfile ? [{ id: 'security', label: 'Security', icon: 'bi-shield-lock' }] : []),
+    ...(isOwnProfile ? [
+      { id: 'activity', label: 'Activity', icon: 'bi-clock-history' },
+      { id: 'payments', label: 'Payments', icon: 'bi-credit-card' },
+      { id: 'security', label: 'Security', icon: 'bi-shield-lock' },
+    ] : []),
   ];
   const tab = tabs.some((t) => t.id === activeTab) ? activeTab : 'about';
 
@@ -62,8 +74,15 @@ export default function ClientProfileView({
                     <input type="text" className="form-control bg-light" value={form.last_name} onChange={(e) => onChange('last_name', e.target.value)} />
                   </div>
                 </div>
-                <label className="form-label small fw-medium">Company / Business <span className="text-muted fw-normal">(optional)</span></label>
-                <input type="text" className="form-control bg-light" placeholder="e.g. Acme Studio" maxLength={COMPANY_MAX} value={form.company_name} onChange={(e) => onChange('company_name', e.target.value)} />
+                <label className="form-label small fw-medium" htmlFor="client-type">Hiring as</label>
+                <select id="client-type" className="form-select bg-light mb-2" value={form.client_type} onChange={(e) => onChange('client_type', e.target.value)}>
+                  <option value="">Choose...</option>
+                  {Object.entries(CLIENT_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+                <label className="form-label small fw-medium" htmlFor="client-company">
+                  Business name {form.client_type === 'individual' || !form.client_type ? <span className="text-muted fw-normal">(optional)</span> : null}
+                </label>
+                <input id="client-company" type="text" className="form-control bg-light" placeholder="e.g. Acme Studio" maxLength={COMPANY_MAX} value={form.company_name} onChange={(e) => onChange('company_name', e.target.value)} />
                 <div className="form-text">Your name is shared by both sides of your profile.</div>
               </div>
             ) : (
@@ -72,6 +91,9 @@ export default function ClientProfileView({
                 <p className="text-muted mb-2">
                   {f.company_name ? <><i className="bi bi-building me-1"></i>{f.company_name}</> : 'Client'}
                 </p>
+                {CLIENT_TYPES[f.client_type] && (
+                  <span className="badge rounded-pill bg-light text-dark border fw-medium px-3 py-2 mb-2">{CLIENT_TYPES[f.client_type]}</span>
+                )}
               </>
             )}
 
@@ -198,6 +220,10 @@ export default function ClientProfileView({
             </div>
           </div>
         )}
+
+        {tab === 'activity' && activityTab}
+
+        {tab === 'payments' && paymentsTab}
 
         {tab === 'security' && securityTab}
       </div>

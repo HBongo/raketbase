@@ -14,13 +14,12 @@ export default function Login() {
   const justRegistered = searchParams.get('registered') === '1';
   const sessionExpired = searchParams.get('expired') === '1';
   const accountSuspended = searchParams.get('suspended') === '1';
+  const accountDeleted = searchParams.get('deleted') === '1';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
 
   const [legalModalOpen, setLegalModalOpen] = useState(false);
@@ -30,20 +29,6 @@ export default function Login() {
     setLegalModalDoc(docType);
     setLegalModalOpen(true);
   };
-
-    useEffect(() => {
-    let interval = null;
-    if (lockoutSeconds > 0) {
-      interval = setInterval(() => {
-        setLockoutSeconds((prev) => prev - 1);
-      }, 1000);
-    } else if (lockoutSeconds === 0 && failedAttempts >= 3) {
-      setFailedAttempts(0);
-      setError('');
-    }
-    const isFormValid = email.trim() !== '' && password.length >= 8;
-  return () => clearInterval(interval);
-  }, [lockoutSeconds, failedAttempts]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -59,16 +44,10 @@ export default function Login() {
         localStorage.setItem('user', JSON.stringify(res.user));
       }
       window.location.href = '/dashboard';
-        } catch (err) {
+    } catch (err) {
+      // Wrong password, attempts left, or a 15-minute lock: the server's message says which
       setLoading(false);
-      const newFails = failedAttempts + 1;
-      setFailedAttempts(newFails);
-      if (newFails >= 3) {
-        setLockoutSeconds(30);
-        setError('Too many failed attempts. Please try again in 30 seconds.');
-      } else {
-        setError(err.message);
-      }
+      setError(err.message);
     }
   }
 
@@ -89,16 +68,10 @@ export default function Login() {
         localStorage.setItem('user', JSON.stringify(res.user));
       }
       window.location.href = '/dashboard';
-        } catch (err) {
+    } catch (err) {
+      // Wrong password, attempts left, or a 15-minute lock: the server's message says which
       setLoading(false);
-      const newFails = failedAttempts + 1;
-      setFailedAttempts(newFails);
-      if (newFails >= 3) {
-        setLockoutSeconds(30);
-        setError('Too many failed attempts. Please try again in 30 seconds.');
-      } else {
-        setError(err.message);
-      }
+      setError(err.message);
     }
   }
 
@@ -186,6 +159,13 @@ export default function Login() {
             </div>
           )}
 
+          {accountDeleted && (
+            <div role="status" style={{ backgroundColor: 'rgba(78, 186, 111, 0.1)', borderColor: 'rgba(78, 186, 111, 0.3)', color: 'var(--auth-text, inherit)' }} className="text-sm mb-4 px-3 py-2.5 rounded-md border flex items-center gap-2">
+              <i className="bi bi-check-circle"></i>
+              <span>Your account has been deleted. Thanks for using RaketBase.</span>
+            </div>
+          )}
+
           {accountSuspended && (
             <div role="alert" style={{ backgroundColor: 'rgba(229, 72, 77, 0.1)', borderColor: 'rgba(229, 72, 77, 0.3)', color: '#E5484D' }} className="text-sm mb-4 px-3 py-2.5 rounded-md border flex items-center gap-2">
               <i className="bi bi-slash-circle"></i>
@@ -255,12 +235,12 @@ export default function Login() {
 
                           <button
                 type="submit"
-                disabled={!isFormValid || loading || lockoutSeconds > 0}
+                disabled={!isFormValid || loading}
                 className="auth-btn-primary"
-                style={{ opacity: (!isFormValid || loading || lockoutSeconds > 0) ? 0.6 : 1, cursor: (!isFormValid || loading || lockoutSeconds > 0) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                style={{ opacity: (!isFormValid || loading) ? 0.6 : 1, cursor: (!isFormValid || loading) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
                 {loading && <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>}
-                {lockoutSeconds > 0 ? `Locked out (${lockoutSeconds}s)` : loading ? 'Logging in...' : 'Log in'}
+                {loading ? 'Logging in...' : 'Log in'}
               </button>
           </form>
 

@@ -1,7 +1,10 @@
 const crypto = require('crypto');
 const { supabaseAdmin } = require('../config/supabase');
+const { logActivity } = require('../utils/activity');
 const { validateJobInput } = require('../utils/slopFilter');
 const { notify, displayName } = require('../utils/notify');
+const { hasPayout, PAYOUT_REQUIRED_MESSAGE } = require('../utils/payout');
+const { hasPaymentMethod, PAYMENT_METHOD_REQUIRED_MESSAGE } = require('../utils/paymentMethod');
 
 const OFFER_BUCKET = 'offer-attachments';
 
@@ -45,6 +48,10 @@ exports.createOffer = async (req, res) => {
     if (freelancerId === req.user.id) {
       return res.status(400).json({ success: false, error: 'You cannot send an offer to yourself.' });
     }
+    // An accepted offer puts the amount in escrow, so the client needs a way to pay
+    if (!(await hasPaymentMethod(req.user.id))) {
+      return res.status(409).json({ success: false, code: 'PAYMENT_METHOD_REQUIRED', error: PAYMENT_METHOD_REQUIRED_MESSAGE });
+    }
 
     // Same anti-slop rules as job postings (no HTML, no shouting, no off-platform contact, budget floor).
     const validation = validateJobInput({ title, description, budget: amount, currency });
@@ -60,7 +67,7 @@ exports.createOffer = async (req, res) => {
       .select('user_id, status')
       .eq('user_id', freelancerId)
       .maybeSingle();
-    if (!freelancer || freelancer.status === 'suspended') {
+    if (!freelancer || freelancer.status === 'suspended' || freelancer.status === 'deleted') {
       return res.status(404).json({ success: false, error: 'That freelancer is not available.' });
     }
 
@@ -114,6 +121,16 @@ exports.createOffer = async (req, res) => {
       title: `${displayName(req.user, 'A client')} wants to hire you`,
       body: `New offer: "${title.trim()}". Review it in My Proposals → Offers received.`,
       link: '/my-proposals?tab=offers',
+    });
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'offer.sent',
+      description: `Sent a direct offer "${offer.title}"`,
+      target_type: 'offer',
+      target_id: offer.offer_id,
+      link: '/my-jobs?tab=offers',
     });
 
     return res.status(201).json({ success: true, data: await loadOffer(offer.offer_id) });
@@ -203,6 +220,9 @@ exports.acceptOffer = async (req, res) => {
     if (offer.freelancer_id !== req.user.id) {
       return res.status(403).json({ success: false, error: 'Only the freelancer this offer was sent to can accept it.' });
     }
+    if (!(await hasPayout(req.user.id))) {
+      return res.status(409).json({ success: false, code: 'PAYOUT_REQUIRED', error: PAYOUT_REQUIRED_MESSAGE });
+    }
     if (!(await claimPendingOffer(offer.offer_id, 'accepted'))) {
       return res.status(409).json({ success: false, error: `This offer is no longer pending.` });
     }
@@ -276,6 +296,27 @@ exports.acceptOffer = async (req, res) => {
       link: '/dashboard',
     });
 
+    await logActivity([
+      {
+        user_id: offer.freelancer_id,
+        category: 'contracts',
+        action: 'offer.accepted',
+        description: `Accepted the direct offer "${offer.title}" — contract started`,
+        target_type: 'contract',
+        target_id: contract?.contract_id,
+        link: '/dashboard',
+      },
+      {
+        user_id: offer.client_id,
+        category: 'contracts',
+        action: 'contract.started',
+        description: `Your direct offer "${offer.title}" was accepted — contract started and payment held in escrow`,
+        target_type: 'contract',
+        target_id: contract?.contract_id,
+        link: '/dashboard',
+      },
+    ]);
+
     return res.status(200).json({ success: true, data: { offer_id: offer.offer_id, contract } });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -303,6 +344,16 @@ exports.declineOffer = async (req, res) => {
       link: '/my-jobs?tab=offers',
     });
 
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'offer.declined',
+      description: `Declined the direct offer "${offer.title}"`,
+      target_type: 'offer',
+      target_id: offer.offer_id,
+      link: '/my-proposals?tab=offers',
+    });
+
     return res.status(200).json({ success: true });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -328,6 +379,16 @@ exports.withdrawOffer = async (req, res) => {
       title: `An offer was withdrawn`,
       body: `${displayName(offer.client, 'The client')} withdrew their offer "${offer.title}".`,
       link: '/my-proposals?tab=offers',
+    });
+
+    await logActivity({
+      user_id: req.user.id,
+      category: 'jobs',
+      action: 'offer.withdrawn',
+      description: `Withdrew the direct offer "${offer.title}"`,
+      target_type: 'offer',
+      target_id: offer.offer_id,
+      link: '/my-jobs?tab=offers',
     });
 
     return res.status(200).json({ success: true });

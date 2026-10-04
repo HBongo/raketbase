@@ -75,7 +75,7 @@ exports.getTopUsers = async (req, res) => {
     const { data: suspendedRows, error: suspendedError } = await supabaseAdmin
       .from('users')
       .select('user_id')
-      .eq('status', 'suspended');
+      .in('status', ['suspended', 'deleted']);
     if (suspendedError) throw suspendedError;
     const suspended = new Set((suspendedRows || []).map((u) => u.user_id));
 

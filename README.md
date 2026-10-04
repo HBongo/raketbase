@@ -73,9 +73,9 @@ Changes 5
 - Added legal acceptance checkboxes and interactive preview modals directly within the registration flow
 
 [Registration & Onboarding Roadmap Fulfilled]
-- Implemented Philippine Standard Geographic Code (PSGC) cascaded address selectors (Region, Province, City/Municipality, Barangay)
-- Added dedicated Freelancer onboarding requiring phone number, bank name, and bank account number for payouts
-- Added dedicated Client onboarding allowing users to classify as Small Business or Major Contractor with mandatory Business Name input
+- Implemented Philippine Standard Geographic Code (PSGC) cascaded address selectors (Region, then City/Municipality)
+- Added dedicated Freelancer onboarding requiring a mobile number and payout details (GCash, Maya, or a bank account) — completed in Changes 8
+- Added dedicated Client onboarding where users choose Individual, Small Business, or Major Contractor, with a required Business Name for businesses — completed in Changes 8
 - Added password strength indicators, real-time input sanitization, and inline validation
 
 [Authentication & Quick Demo Access]
@@ -202,6 +202,42 @@ Changes 8
 - Owners can edit their company name and client bio from the Client side; editing one side never changes the other side's details
 - Each side has its own photo: the camera button changes the photo for the side you're viewing, and the Client side uses the freelancer photo until a client photo is set
 - The navbar photo, Browse Users, and Top Users now show the client photo for clients
+
+[Activity Log]
+- Every important action is now recorded: account (sign up, log in, log-in lockouts, password changes and resets, mode switches, profile and photo changes, payout details), jobs, proposals and direct offers (posted, edited, paused, resumed, cancelled, sent, accepted, declined, withdrawn), contracts and money (contract started, work and stages submitted, payments released, disputes filed, ratings left), and admin actions (suspending or reactivating accounts, taking down jobs, resolving disputes)
+- Users see their own history in a new Activity tab on their profile (only visible to them), filterable by type
+- Admins get an Activity Log section on the admin page with search (name, email, or what happened), type and date filters, and a "View activity" link on each user to see just that person's actions
+- Added the activity log table (010_activity_log_and_onboarding.sql)
+
+[Onboarding Details]
+- Freelancer sign-up now asks for a mobile number and payout details (GCash, Maya, or a bank account) instead of an hourly rate
+- Client sign-up now asks whether you're hiring as an Individual, Small Business, or Major Contractor; businesses must enter a business name
+- Payout details are kept in a private table that only the server can read, and are only ever shown masked (•••• 1234), to the freelancer and to admins in User Management
+- Freelancers need payout details before they can send proposals or accept direct offers, so there's always somewhere to pay them
+- Existing accounts see a reminder on their profile until they add their payout details (Freelancer side) or business type (Client side); clients can change their business type when editing their Client profile, and it shows as a badge there
+- Added the payout details table and client business type (010_activity_log_and_onboarding.sql)
+- Freelancer and client payment details are now separate: each side of your own profile has a Payments tab (only you can see it), with payout details on the Freelancer side (where you get paid) and a payment method on the Client side (how you fund escrow); Security now only holds the password form
+- Clients add a payment method (GCash, Maya, bank account, or debit/credit card) at sign-up or from the Client side's Payments tab, and need one before they can accept a proposal or send a direct offer; existing clients see a reminder until they add one
+- For cards only the brand, last 4 digits, and expiry are saved, never the full card number; card numbers are checked for typos before saving
+- Admins see both, masked, in User Management (payout details and the client payment method)
+- Added the client payment methods table (011_client_payment_methods.sql)
+
+[Account Deletion]
+- Users can delete their own account from Profile → Security → Danger Zone; admin and staff accounts can't
+- A warning window lists exactly what will be deleted, what happens to open items, and what stays, and the user must enter their password and type DELETE before the button works
+- Deletion is blocked while any contract is active, waiting for approval, or in a dispute, and the window lists those contracts
+- Deleting wipes the person's name, email, photos, bios, skills, phone, links, payout details, payment method, and notifications, and blocks the login for good
+- Contracts, chats, and ratings shared with other people are kept and show "Deleted user", so the people they worked with keep their records and earnings
+- Their open job postings are cancelled, pending proposals withdrawn, and pending direct offers closed, and the people affected are notified
+- Deleted accounts no longer appear in Browse Users or Top Users, can't be sent offers, and their profile page says the account was deleted; admins see them as "deleted" in User Management
+- Added the deleted account status (012_account_deletion.sql)
+
+[Login Protection]
+- After 5 wrong passwords for the same email, logging in to that account is locked for 15 minutes (the message says how long to wait); the last 2 attempts show a warning
+- One device can't make more than 20 wrong attempts across any emails in 15 minutes
+- The "current password" check when changing your password counts toward the same limit
+- Forgot password sends at most 3 reset emails per address per hour
+- Replaced the login page's old 3-try / 30-second lock, which only ran in the browser and reset on refresh, with the server's limit and messages
 
 [Fixes]
 - Error pop-ups now look like errors (red icon and outline, shown for 6 seconds) instead of showing a green check like a success; screen readers announce them right away
