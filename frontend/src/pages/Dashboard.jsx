@@ -1265,10 +1265,7 @@ function RecentActivityWidget({ isCustomer }) {
   return (
     <div className="card h-100 mb-0 shadow-sm border-0">
       <div className="card-header bg-transparent d-flex justify-content-between align-items-center py-3">
-        <div className="d-flex align-items-center gap-2">
-          <i className="bi bi-activity text-success fs-5"></i>
-          <h2 className="card-title mb-0 fs-6 fw-bold">Recent Activity</h2>
-        </div>
+        <h2 className="card-title mb-0">Recent Activity</h2>
         <span className="badge rounded-pill bg-light text-muted border px-2.5 py-1 small fw-normal d-inline-flex align-items-center gap-1">
           <span className="spinner-grow spinner-grow-sm text-success" style={{ width: 6, height: 6 }} />
           Live Log
@@ -1506,10 +1503,7 @@ function ActionItemsWidget({
   return (
     <div className="card h-100 mb-0 shadow-sm border-0">
       <div className="card-header bg-transparent d-flex justify-content-between align-items-center py-3">
-        <div className="d-flex align-items-center gap-2">
-          <i className="bi bi-bell text-warning fs-5"></i>
-          <h2 className="card-title mb-0 fs-6 fw-bold">Action Items</h2>
-        </div>
+        <h2 className="card-title mb-0">Action Items</h2>
         <span className={`badge rounded-pill px-2.5 py-1 small fw-normal ${actionItems.length > 0 ? 'bg-danger text-white' : 'bg-success text-white'}`}>
           {actionItems.length} {actionItems.length === 1 ? 'Pending' : 'Pending'}
         </span>
