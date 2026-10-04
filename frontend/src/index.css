@@ -634,6 +634,21 @@ body.dark-mode .btn.btn-warning:hover {
   color: #FDE68A !important;
 }
 
+/* Dark Mode Emerald Glow Success & Completed Status Pills */
+body.dark-mode .badge.bg-success,
+body.dark-mode span.bg-success {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+  border: 1px solid rgba(16, 185, 129, 0.45) !important;
+  color: #34D399 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.08);
+}
+
+body.dark-mode .badge.bg-success *,
+body.dark-mode span.bg-success * {
+  color: #34D399 !important;
+}
+
 /* Dark Mode Action Buttons Enhancement */
 body.dark-mode .btn-outline-secondary {
   color: #EDEEF2 !important;

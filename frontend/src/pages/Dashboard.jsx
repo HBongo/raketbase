@@ -353,11 +353,11 @@ export default function Dashboard() {
                 <table className="table table-hover align-middle mb-0">
                   <thead>
                     <tr>
-                      <th style={{ width: '30%' }}>Job / Contract</th>
-                      <th style={{ width: '22%' }}>Counterparty</th>
+                      <th style={{ width: '26%' }}>Job / Contract</th>
+                      <th style={{ width: '20%' }}>Counterparty</th>
                       <th style={{ width: '16%' }}>Escrow Amount</th>
                       <th style={{ width: '16%' }}>Status</th>
-                      <th className="text-end" style={{ width: '16%' }}>Actions</th>
+                      <th className="text-end" style={{ width: '22%' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody className="border-top-0">
@@ -458,7 +458,7 @@ export default function Dashboard() {
                                   : c.status === 'completed' && c.released_amount != null
                                   ? 'Completed (split)'
                                   : c.status === 'completed'
-                                  ? 'All Completed'
+                                  ? 'Completed'
                                   : submittedMilestone
                                   ? `Stage ${submittedMilestone.sequence} Under Review`
                                   : activeMilestone
@@ -478,7 +478,7 @@ export default function Dashboard() {
                                 }`}
                                 style={{ fontSize: '0.85rem' }}
                               >
-                                {c.status === 'submitted' ? 'Under Review' : c.status === 'refunded' ? 'Refunded' : c.status === 'completed' && c.released_amount != null ? 'Completed (split)' : c.status}
+                                {c.status === 'submitted' ? 'Under Review' : c.status === 'refunded' ? 'Refunded' : c.status === 'completed' && c.released_amount != null ? 'Completed (split)' : c.status === 'completed' ? 'Completed' : c.status}
                               </span>
                             )}
                           </td>
@@ -514,11 +514,6 @@ export default function Dashboard() {
                                   {isClient && !submittedMilestone && activeMilestone && (
                                     <span className="small text-dark fw-semibold fst-italic text-nowrap">Stage {activeMilestone.sequence} in Progress</span>
                                   )}
-                                  {c.status === 'completed' && (
-                                    <span className="badge rounded-pill px-2.5 py-1 fw-semibold bg-success text-white border border-success d-inline-flex align-items-center gap-1 shadow-sm text-nowrap" style={{ fontSize: '0.8rem' }}>
-                                      <i className="bi bi-check2-all"></i> Released
-                                    </span>
-                                  )}
                                 </>
                               ) : (
                                 /* Fixed-Price Contract Actions */
@@ -550,19 +545,13 @@ export default function Dashboard() {
                                   {isClient && c.status === 'active' && (
                                     <span className="small text-dark fw-semibold fst-italic text-nowrap">Work in Progress</span>
                                   )}
-                                  {c.status === 'completed' && (
-                                    c.deliverable_url ? (
-                                      <button
-                                        className="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1 text-nowrap d-inline-flex align-items-center gap-1"
-                                        onClick={() => openReviewModal(c)}
-                                      >
-                                        <i className="bi bi-check2-circle"></i> View Deliverables
-                                      </button>
-                                    ) : (
-                                      <span className="badge rounded-pill px-2.5 py-1 fw-semibold bg-success text-white border border-success d-inline-flex align-items-center gap-1 shadow-sm text-nowrap" style={{ fontSize: '0.8rem' }}>
-                                        <i className="bi bi-check2-all"></i> Released
-                                      </span>
-                                    )
+                                  {c.status === 'completed' && c.deliverable_url && (
+                                    <button
+                                      className="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1 text-nowrap d-inline-flex align-items-center gap-1"
+                                      onClick={() => openReviewModal(c)}
+                                    >
+                                      <i className="bi bi-check2-circle"></i> View Deliverables
+                                    </button>
                                   )}
                                 </>
                               )}
