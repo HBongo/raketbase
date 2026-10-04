@@ -47,6 +47,13 @@ export default function Explore() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
+  const [searchInput, setSearchInput] = useState(query);
+  useEffect(() => { setSearchInput(query); }, [query]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setQuery(searchInput);
+  };
 
   const setQuery = (newVal) => {
     if (newVal && newVal.trim()) {
@@ -311,28 +318,28 @@ export default function Explore() {
         <div className="col-xl-9 col-lg-8 order-2 order-lg-1">
           {/* Synchronized Search Bar */}
           <div className="mb-2 d-flex gap-2">
-            <div className="input-group shadow-sm rounded-pill overflow-hidden border bg-white flex-grow-1">
+            <form onSubmit={handleSearchSubmit} className="input-group shadow-sm rounded-pill overflow-hidden border bg-white flex-grow-1">
               <input
                 type="text"
                 className="form-control border-0 py-2 ps-4 text-dark bg-white shadow-none" style={{ outline: "none" }}
                 placeholder="Search jobs by title, description, category, or 'milestone'..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
               />
-              {query && (
+              {searchInput && (
                 <button
                   type="button"
-                  onClick={() => setQuery('')}
+                  onClick={() => { setSearchInput(''); setQuery(''); }}
                   className="btn btn-white border-0 text-muted shadow-none"
                   title="Clear search" aria-label="Clear search"
                 >
                   <i className="bi bi-x-lg"></i>
                 </button>
               )}
-              <span className="input-group-text bg-white border-0 pe-4">
+              <button type="submit" className="btn input-group-text bg-white border-0 pe-4">
                 <i className="bi bi-search text-muted"></i>
-              </span>
-            </div>
+              </button>
+            </form>
             <button className="btn btn-outline-dark rounded-pill px-4 d-lg-none flex-shrink-0" onClick={() => setFiltersOpen(!filtersOpen)} aria-label="Toggle Filters">
               <i className="bi bi-sliders me-1"></i> Filters
             </button>
