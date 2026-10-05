@@ -420,7 +420,23 @@ exports.getMyProposals = async (req, res) => {
     if (error) throw error;
 
     const formatted = (proposals || []).map(formatProposal);
-    return res.status(200).json({ success: true, data: await attachFiles(formatted) });
+
+    // A hired proposal stays 'accepted' forever; the real progress lives on its contract
+    // (one per job and freelancer), so My Proposals can show In progress / Completed / Refunded.
+    const hiredJobIds = formatted.filter((p) => p.status === 'accepted').map((p) => p.job_id);
+    const contractByJob = {};
+    if (hiredJobIds.length) {
+      const { data: contracts } = await supabaseAdmin
+        .from('contracts')
+        .select('*') // includes released_amount once migration 009 has run
+        .eq('freelancer_id', req.user.id)
+        .in('job_id', hiredJobIds);
+      for (const c of contracts || []) {
+        contractByJob[c.job_id] = { contract_id: c.contract_id, status: c.status, released_amount: c.released_amount ?? null };
+      }
+    }
+    const withContracts = formatted.map((p) => ({ ...p, contract: contractByJob[p.job_id] || null }));
+    return res.status(200).json({ success: true, data: await attachFiles(withContracts) });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }

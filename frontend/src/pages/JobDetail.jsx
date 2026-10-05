@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getCurrencySymbol, parseJobCategory, cleanJobDescription } from '../utils/formatters';
 import Money from '../components/Money';
 import { showToast } from '../utils/toast';
@@ -8,6 +8,8 @@ import { withdrawProposal } from '../services/api';
 import { useLive } from '../utils/useLive';
 import ProposalFiles from '../components/ProposalFiles';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+
+const WITHDRAWN_EDIT_MESSAGE = 'Proposal withdrawn. Your previous answers are kept below so you can make changes and re-submit. Re-sending replaces your old proposal, so attach any files you want to include again.';
 
 function normalizeProposal(p) {
   if (!p) return p;
@@ -20,6 +22,7 @@ function normalizeProposal(p) {
 
 export default function JobDetail() {
   const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   // User session
@@ -97,6 +100,16 @@ export default function JobDetail() {
           } else {
             setAlreadyApplied(false);
             setUserProposal(null);
+            // Came from My Proposals' "Withdraw & Edit" / "Edit & re-send": refill the form
+            // with the withdrawn proposal, just like Withdraw & Edit on this page
+            const withdrawn = body.data.find(
+              (p) => String(p.job_id) === String(id) && (p.status || '').toLowerCase() === 'withdrawn'
+            );
+            if (withdrawn && searchParams.get('edit') === '1') {
+              fillFormFromProposal(normalizeProposal(withdrawn));
+              setSubmitResult({ type: 'info', message: WITHDRAWN_EDIT_MESSAGE });
+              setSearchParams({}, { replace: true });
+            }
           }
         }
       } catch {
@@ -338,6 +351,17 @@ export default function JobDetail() {
     }
   }
 
+  // Puts a (withdrawn) proposal's answers back into the form to change and re-send
+  function fillFormFromProposal(proposal) {
+    if (proposal.bid_amount) setBidAmount(String(proposal.bid_amount));
+    if (proposal.cover_letter) setCoverLetter(proposal.cover_letter);
+    if (proposal.portfolio_url) setPortfolioLink(proposal.portfolio_url);
+    if (proposal.milestones && proposal.milestones.length > 0) {
+      setMilestones(proposal.milestones.map((m) => ({ title: m.title, amount: String(m.amount), description: m.description || '' })));
+    }
+    setTouched({ bidAmount: false, coverLetter: false });
+  }
+
   async function handleWithdrawProposal() {
     if (!userProposal?.proposal_id) return;
     if (!window.confirm('Withdraw this proposal? You can edit your bid/cover letter and re-submit it.')) return;
@@ -345,16 +369,10 @@ export default function JobDetail() {
     try {
       await withdrawProposal(userProposal.proposal_id);
       // Pre-fill form fields with previous submission so they can edit easily
-      if (userProposal.bid_amount) setBidAmount(String(userProposal.bid_amount));
-      if (userProposal.cover_letter) setCoverLetter(userProposal.cover_letter);
-      if (userProposal.portfolio_url) setPortfolioLink(userProposal.portfolio_url);
-      if (userProposal.milestones && userProposal.milestones.length > 0) {
-        setMilestones(userProposal.milestones.map((m) => ({ title: m.title, amount: String(m.amount), description: m.description || '' })));
-      }
+      fillFormFromProposal(userProposal);
       setAlreadyApplied(false);
       setUserProposal(null);
-      setTouched({ bidAmount: false, coverLetter: false });
-      setSubmitResult({ type: 'info', message: 'Proposal withdrawn. Your previous answers are kept below so you can make changes and re-submit. Re-sending replaces your old proposal, so attach any files you want to include again.' });
+      setSubmitResult({ type: 'info', message: WITHDRAWN_EDIT_MESSAGE });
       showToast('Proposal withdrawn. You can now edit and re-submit.', { type: 'info' });
     } catch (err) {
       showToast(err.message || 'Could not withdraw proposal', { type: 'error' });

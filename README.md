@@ -448,6 +448,12 @@ Changes 10.1
 - Admins can find a conversation between two people: "Person 1" and "Person 2" boxes (name or email, in either order) and a chat type filter (contract chats, direct messages, disputed contracts) narrow down All conversations
 - Added the admin chat flag and one chat per pair of admins (016_admin_chats.sql)
 
+[My Proposals]
+- "Withdraw" on My Proposals is now "Withdraw & Edit", the same as on the job page: it withdraws the proposal and opens the job with your previous bid, stages, cover letter, and link filled in, ready to change and re-send
+- Withdrawn proposals have an "Edit & re-send" button that opens the job the same way (replacing the old restore and inline edit box)
+- Hired proposals now show their contract's progress instead of always saying "Accepted": In progress, Under review, Disputed, Completed, Completed (split), or Refunded
+- Completed and refunded work moves to the Past tab; work still in progress stays under Active
+
 Roadmap
 - Make it so that people who choose the freelancer option also need to put in their bank details and phone number - Complete
 - Make it so that people who choose the client option choose whether or not they are a small business or a major contractor and need to put in their business name. - Complete

@@ -1,13 +1,13 @@
 // MyProposals.jsx — Freelancer's own proposals, filterable by status.
-// Lets a freelancer withdraw a pending proposal, and later restore
-// (unwithdraw) it — either as-is or with an edited bid/cover letter.
+// Withdraw & Edit works like on the job page: it withdraws the proposal and opens the job
+// with the full form refilled to change and re-send. Hired proposals show their contract's
+// progress (In progress, Completed, Refunded...) instead of a frozen "Accepted".
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { getMyProposals, withdrawProposal, unwithdrawProposal } from '../services/api';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { getMyProposals, withdrawProposal } from '../services/api';
 import OffersList from '../components/OffersList';
 import PageViewTabs from '../components/PageViewTabs';
 import { getCached, setCached } from '../utils/cache';
-import { getCurrencySymbol } from '../utils/formatters';
 import Money from '../components/Money';
 import BackToTop from '../components/BackToTop';
 
@@ -18,13 +18,35 @@ const FILTERS = [
   { value: 'past', label: 'Past Proposals' }
 ];
 
-const isPast = (status) => ['completed', 'rejected', 'withdrawn', 'cancelled'].includes((status || '').toLowerCase());
+// What a proposal's pill says. Hired proposals follow their contract.
+function proposalState(p) {
+  const status = (p.status || '').toLowerCase();
+  if (status !== 'accepted' || !p.contract) return { key: status, label: status };
+  switch (p.contract.status) {
+    case 'submitted': return { key: 'review', label: 'Under review' };
+    case 'disputed': return { key: 'disputed', label: 'Disputed' };
+    case 'completed':
+      return p.contract.released_amount != null
+        ? { key: 'completed', label: 'Completed (split)' }
+        : { key: 'completed', label: 'Completed' };
+    case 'refunded': return { key: 'refunded', label: 'Refunded' };
+    default: return { key: 'progress', label: 'In progress' };
+  }
+}
+
+// Finished work (and declined / withdrawn bids) goes under Past
+const isPast = (p) => ['completed', 'refunded', 'rejected', 'withdrawn', 'cancelled'].includes(proposalState(p).key);
 
 const STATUS_STYLES = {
   pending: 'badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill',
   accepted: 'badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill',
   rejected: 'badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill',
   withdrawn: 'badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill',
+  progress: 'badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill',
+  review: 'badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill',
+  disputed: 'badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill',
+  completed: 'badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill',
+  refunded: 'badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill',
 };
 
 function ProposalsSkeleton() {
@@ -46,6 +68,7 @@ function ProposalsSkeleton() {
 }
 
 export default function MyProposals() {
+  const navigate = useNavigate();
   const cachedProposals = getCached('my_proposals');
   // ?tab=offers shows direct offers from clients ("Hire Me") instead of proposals
   const [searchParams, setSearchParams] = useSearchParams();
@@ -85,39 +108,26 @@ export default function MyProposals() {
   // Live: a proposal was accepted, declined, or its job closed
   useLive(['proposals'], () => load());
 
-  async function handleWithdraw(proposalId) {
-    if (!window.confirm('Withdraw this proposal? You can restore it later from this page.')) return;
+  // Same as Withdraw & Edit on the job page: withdraw, then open the job with the form refilled
+  async function handleWithdrawAndEdit(proposal) {
+    if (!window.confirm('Withdraw this proposal to edit it? Your previous answers will be filled in on the job page so you can change them and re-send.')) return;
     setActionError('');
-    setActioningId(proposalId);
+    setActioningId(proposal.proposal_id);
     try {
-      await withdrawProposal(proposalId);
-      await load();
+      await withdrawProposal(proposal.proposal_id);
+      navigate(`/jobs/${proposal.job_id}?edit=1`);
     } catch (err) {
       setActionError(err.message || 'Could not withdraw this proposal.');
-    } finally {
-      setActioningId(null);
-    }
-  }
-
-  async function handleUnwithdraw(proposalId, payload) {
-    setActionError('');
-    setActioningId(proposalId);
-    try {
-      await unwithdrawProposal(proposalId, payload);
-      await load();
-    } catch (err) {
-      setActionError(err.message || 'Could not restore this proposal.');
-    } finally {
       setActioningId(null);
     }
   }
 
     const counts = {
-    active: proposals.filter(p => !isPast(p.status)).length,
-    past: proposals.filter(p => isPast(p.status)).length
+    active: proposals.filter(p => !isPast(p)).length,
+    past: proposals.filter(p => isPast(p)).length
   };
 
-  const visibleProposals = proposals.filter((p) => filter === 'past' ? isPast(p.status) : !isPast(p.status));
+  const visibleProposals = proposals.filter((p) => filter === 'past' ? isPast(p) : !isPast(p));
 
 
 
@@ -215,8 +225,7 @@ export default function MyProposals() {
                     key={p.proposal_id}
                     proposal={p}
                     busy={actioningId === p.proposal_id}
-                    onWithdraw={() => handleWithdraw(p.proposal_id)}
-                    onUnwithdraw={(payload) => handleUnwithdraw(p.proposal_id, payload)}
+                    onWithdrawAndEdit={() => handleWithdrawAndEdit(p)}
                   />
                 ))}
               </div>
@@ -230,39 +239,9 @@ export default function MyProposals() {
   );
 }
 
-function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
-  const [editing, setEditing] = useState(false);
-  const [bidAmount, setBidAmount] = useState(proposal.bid_amount);
-  const [coverLetter, setCoverLetter] = useState(proposal.cover_letter);
-  const [editError, setEditError] = useState('');
-
+function ProposalRow({ proposal, busy, onWithdrawAndEdit }) {
+  const navigate = useNavigate();
   const jobIsOpen = proposal.jobs?.status === 'open';
-  // A milestone bid is the sum of its stages: only the cover letter can be edited here
-  const isMilestone = proposal.jobs?.budget_type === 'milestone';
-
-  function startEdit() {
-    setBidAmount(proposal.bid_amount);
-    setCoverLetter(proposal.cover_letter);
-    setEditError('');
-    setEditing(true);
-  }
-
-  function handleResubmit() {
-    const amount = Number(bidAmount);
-    if (!isMilestone && (!bidAmount || Number.isNaN(amount) || amount <= 0)) {
-      setEditError('Enter a bid amount greater than 0.');
-      return;
-    }
-    if (!coverLetter.trim() || coverLetter.trim().length < 20) {
-      setEditError('Cover letter should be at least 20 characters.');
-      return;
-    }
-    setEditError('');
-    onUnwithdraw(isMilestone
-      ? { cover_letter: coverLetter.trim() }
-      : { bid_amount: amount, cover_letter: coverLetter.trim() });
-    setEditing(false);
-  }
 
   return (
     <div className="card rounded-3 shadow-sm border-0">
@@ -276,7 +255,7 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
               >
                 {proposal.jobs?.title || 'Job Posting'}
               </Link>
-              <StatusPill status={proposal.status} />
+              <StatusPill proposal={proposal} />
             </div>
             <p className="small text-muted mb-0 d-flex align-items-center gap-1">
               <i className="bi bi-clock"></i>
@@ -288,108 +267,44 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
           </p>
         </div>
 
-        {!editing && (
+        {(
           <p className="text-muted small mb-0" style={{ whiteSpace: 'pre-line' }}>
             {proposal.cover_letter}
           </p>
         )}
-        {!editing && proposal.files?.length > 0 && (
+        {proposal.files?.length > 0 && (
           <div className="mt-2">
             <ProposalFiles proposalId={proposal.proposal_id} files={proposal.files} />
           </div>
         )}
 
-        {/* Pending: can withdraw */}
+        {/* Pending: Withdraw & Edit, like on the job page */}
         {proposal.status === 'pending' && (
           <div className="mt-4 pt-3 border-top d-flex gap-2">
             <button
-              onClick={onWithdraw}
+              onClick={onWithdrawAndEdit}
               disabled={busy}
-              className="btn btn-outline-danger btn-sm rounded-3 px-3 py-2"
+              className="btn btn-outline-warning text-dark btn-sm rounded-3 px-3 py-2 fw-medium"
             >
-              {busy ? 'Working...' : 'Withdraw'}
+              <i className="bi bi-pencil-square me-1"></i>{busy ? 'Working...' : 'Withdraw & Edit'}
             </button>
           </div>
         )}
 
-        {/* Withdrawn: can restore as-is, or edit and resubmit */}
+        {/* Withdrawn: edit and re-send from the job page while it's still open */}
         {proposal.status === 'withdrawn' && !jobIsOpen && (
           <div className="alert alert-secondary py-2 px-3 small rounded-3 mt-4 mb-0">
-            This job is no longer open, so this proposal can't be restored.
+            This job is no longer open, so this proposal can't be sent again.
           </div>
         )}
-
-        {proposal.status === 'withdrawn' && jobIsOpen && !editing && (
+        {proposal.status === 'withdrawn' && jobIsOpen && (
           <div className="mt-4 pt-3 border-top d-flex gap-2">
             <button
-              onClick={() => onUnwithdraw()}
-              disabled={busy}
+              onClick={() => navigate(`/jobs/${proposal.job_id}?edit=1`)}
               className="btn btn-dark btn-sm rounded-3 px-3 py-2 fw-medium"
             >
-              {busy ? 'Working...' : 'Restore proposal'}
+              <i className="bi bi-send me-1"></i>Edit &amp; re-send
             </button>
-            <button
-              onClick={startEdit}
-              disabled={busy}
-              className="btn btn-outline-dark btn-sm rounded-3 px-3 py-2 fw-medium"
-            >
-              Edit &amp; resubmit
-            </button>
-          </div>
-        )}
-
-        {proposal.status === 'withdrawn' && jobIsOpen && editing && (
-          <div className="mt-4 pt-3 border-top">
-            {isMilestone ? (
-              <p className="small text-muted mb-3">
-                <i className="bi bi-info-circle me-1"></i>
-                This is a milestone bid, so its amounts come from its stages. To change them, use{' '}
-                <Link to={`/jobs/${proposal.job_id}`}>Withdraw &amp; Edit on the job page</Link>.
-              </p>
-            ) : (
-            <div className="mb-3">
-              <label className="form-label small fw-medium text-muted mb-1">
-                Your bid ({getCurrencySymbol(proposal.jobs?.currency)})
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={bidAmount}
-                onChange={(e) => setBidAmount(e.target.value)}
-                className="form-control form-control-sm rounded-3"
-              />
-            </div>
-            )}
-            <div className="mb-3">
-              <label className="form-label small fw-medium text-muted mb-1">
-                Cover letter
-              </label>
-              <textarea
-                value={coverLetter}
-                onChange={(e) => setCoverLetter(e.target.value)}
-                rows={5}
-                className="form-control form-control-sm rounded-3"
-                style={{ resize: 'none' }}
-              />
-            </div>
-            {editError && <p className="text-danger small mb-3">{editError}</p>}
-            <div className="d-flex gap-2">
-              <button
-                onClick={handleResubmit}
-                disabled={busy}
-                className="btn btn-dark btn-sm rounded-3 px-3 py-2 fw-medium"
-              >
-                {busy ? 'Working...' : 'Resubmit'}
-              </button>
-              <button
-                onClick={() => setEditing(false)}
-                disabled={busy}
-                className="btn btn-outline-secondary btn-sm rounded-3 px-3 py-2 fw-medium"
-              >
-                Cancel
-              </button>
-            </div>
           </div>
         )}
       </div>
@@ -397,11 +312,12 @@ function ProposalRow({ proposal, busy, onWithdraw, onUnwithdraw }) {
   );
 }
 
-function StatusPill({ status }) {
-  const badgeClass = STATUS_STYLES[status] || STATUS_STYLES.pending;
+function StatusPill({ proposal }) {
+  const { key, label } = proposalState(proposal);
+  const badgeClass = STATUS_STYLES[key] || STATUS_STYLES.pending;
   return (
-    <span className={badgeClass}>
-      {status}
+    <span className={`${badgeClass} text-capitalize`}>
+      {label}
     </span>
   );
 }
