@@ -679,12 +679,6 @@ export default function LandingPage() {
                 <span className="lp-footer-brand-text"><strong>RAKET</strong>BASE</span>
               </a>
               <p>The premier freelance marketplace for top talent and top clients.</p>
-              <div className="lp-social-links">
-                <a href="#" aria-label="Twitter"><IconTwitter /></a>
-                <a href="#" aria-label="LinkedIn"><IconLinkedIn /></a>
-                <a href="#" aria-label="GitHub"><IconGitHub /></a>
-                <a href="#" aria-label="YouTube"><IconYouTube /></a>
-              </div>
             </div>
             
             <div className="lp-footer-col">
