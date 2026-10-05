@@ -1,4 +1,5 @@
-  import React from 'react';
+import React from 'react';
+import { showToast } from '../utils/toast';
 
 export const PRIVACY_POLICY = {
   id: 'privacy',
@@ -463,6 +464,35 @@ export default function LegalDocViewer({ docType = 'terms' }) {
     }
   };
 
+  const handleEmailClick = (e, emailAddr) => {
+    e.preventDefault();
+    navigator.clipboard.writeText(emailAddr).then(() => {
+      showToast('Support email copied to clipboard!', { type: 'success' });
+    });
+  };
+
+  const renderTextWithEmail = (text) => {
+    if (typeof text !== 'string') return text;
+    const parts = text.split(doc.email);
+    if (parts.length === 1) return text;
+    
+    return parts.reduce((acc, part, i) => {
+      if (i === 0) return [part];
+      return [
+        ...acc,
+        <a
+          key={i}
+          href={`mailto:${doc.email}`}
+          onClick={(e) => handleEmailClick(e, doc.email)}
+          style={{ color: '#FF5A1E', fontWeight: 'bold', textDecoration: 'underline' }}
+        >
+          {doc.email}
+        </a>,
+        part
+      ];
+    }, []);
+  };
+
   return (
     <div className="legal-viewer">
       {/* Title & Metadata */}
@@ -480,7 +510,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
         <div >
           {doc.sections[0].content.map((p, idx) => (
             <p key={idx} >
-              {p}
+              {renderTextWithEmail(p)}
             </p>
           ))}
         </div>
@@ -495,7 +525,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
           {doc.summary.map((item, idx) => (
             <div key={idx} >
               <p >
-                <strong>{item.q}</strong> {item.a}
+                <strong>{item.q}</strong> {renderTextWithEmail(item.a)}
               </p>
             </div>
           ))}
@@ -510,7 +540,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
           </h5>
           {doc.preamble.content.map((p, idx) => (
             <p key={idx} >
-              {p}
+              {renderTextWithEmail(p)}
             </p>
           ))}
         </div>
@@ -566,7 +596,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
             }
             return (
               <p key={pIdx} >
-                {p}
+                {renderTextWithEmail(p)}
               </p>
             );
           })}
@@ -591,7 +621,7 @@ export default function LegalDocViewer({ docType = 'terms' }) {
                 }
                 return (
                   <p key={subPIdx} >
-                    {subP}
+                    {renderTextWithEmail(subP)}
                   </p>
                 );
               })}
@@ -604,7 +634,13 @@ export default function LegalDocViewer({ docType = 'terms' }) {
       <hr className="my-4" />
       <p className="legal-viewer-subtitle">
         If you have questions about this document, please contact us at{' '}
-        <a href={`mailto:${doc.email}`}>{doc.email}</a>.
+        <a 
+          href={`mailto:${doc.email}`}
+          onClick={(e) => handleEmailClick(e, doc.email)}
+          style={{ color: '#FF5A1E', fontWeight: 'bold', textDecoration: 'underline' }}
+        >
+          {doc.email}
+        </a>.
       </p>
     </div>
   );
