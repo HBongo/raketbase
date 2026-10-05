@@ -433,6 +433,7 @@ Changes 10.1
 - Graduation year is now picked from a list (this year back to 1950), so future years can't be entered; the server rejects future or invalid years too
 - The Explore budget filter's From / To boxes no longer accept negative numbers
 - Scrolling the mouse wheel over a number box (bid, budget, price filters) no longer changes its value; the page scrolls instead
+- "Email Support" on the Help page now only copies the support email to the clipboard instead of also opening the mail app; if copying is blocked, the email is shown in a message instead
 
 [Unread Messages]
 - The Messages link in the sidebar shows a red bubble with how many chats have unread messages, updated live

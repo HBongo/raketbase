@@ -186,9 +186,13 @@ export default function Help() {
                   <a 
                     href={`mailto:${SUPPORT_EMAIL}`} 
                     className="help-btn-outline"
-                    onClick={() => {
+                    onClick={(e) => {
+                      // Copy only; don't open the mail app
+                      e.preventDefault();
                       navigator.clipboard.writeText(SUPPORT_EMAIL).then(() => {
                         showToast('Support email copied to clipboard!', { type: 'success' });
+                      }).catch(() => {
+                        showToast(`Couldn't copy. Our support email is ${SUPPORT_EMAIL}`, { type: 'error' });
                       });
                     }}
                   >
