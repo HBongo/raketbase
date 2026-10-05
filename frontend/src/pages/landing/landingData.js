@@ -44,12 +44,12 @@ export const HOW_IT_WORKS = {
 };
 
 export const WHY_US = [
-  { title: 'Vetted Talent', desc: 'Every freelancer goes through a rigorous verification process. Only the top 3% make it to our platform.', icon: 'shield-check' },
-  { title: 'Escrow-Protected Payments', desc: 'Your funds are held securely in escrow and only released when you approve the delivered work.', icon: 'lock' },
-  { title: 'Transparent Pricing', desc: 'No hidden fees or surprise charges. Know exactly what you\'ll pay before you start any project.', icon: 'eye' },
-  { title: '24/7 Support', desc: 'Our dedicated support team is available around the clock to help resolve any issues quickly.', icon: 'headphones' },
-  { title: 'Milestone-Based Contracts', desc: 'Break projects into clear milestones with defined deliverables, timelines, and payment schedules.', icon: 'flag' },
-  { title: 'Built-in Collaboration', desc: 'Integrated messaging, file sharing, and video calls keep all project communication in one place.', icon: 'message-circle' },
+  { title: 'Community-Rated Talent', desc: 'Discover skilled freelancers based on honest, community-driven ratings. Client reviews help you find the best match for your projects.', icon: 'shield-check' },
+  { title: 'Direct & Flexible Agreements', desc: 'Clients and freelancers negotiate directly. Set your own terms, agree on pricing, and collaborate without restrictive marketplace barriers.', icon: 'lock' },
+  { title: 'Transparent & Fair Pricing', desc: 'No hidden premium tiers or paywalls. Clients and freelancers select price ranges that match their skills and budget upfront.', icon: 'eye' },
+  { title: 'Dedicated Student Support', desc: 'Built by passionate Computer Science students from Mapúa University, we actively monitor and support our platform to ensure a smooth experience.', icon: 'headphones' },
+  { title: 'Flexible Project Scopes', desc: 'Post projects with specific requirements and target budgets. Freelancers can easily browse, review the scope, and send proposals right away.', icon: 'flag' },
+  { title: 'Built-in Messaging', desc: 'Connect seamlessly with built-in messaging. Discuss project details, negotiate pricing, and maintain communication even after the project is done.', icon: 'message-circle' },
 ];
 
 export const STATS_DATA = [
